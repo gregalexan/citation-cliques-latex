@@ -1,0 +1,766 @@
+\documentclass[12pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage[american]{babel}
+
+% Page & typography
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{setspace}
+\doublespacing
+\usepackage{microtype}
+\emergencystretch=2em  % loosen linebreaking to avoid overfull boxes
+\sloppy                 % last-resort line breaking (safe for drafts)
+\usepackage[section]{placeins}
+% Line numbers (QSS suggests)
+\usepackage[switch,modulo]{lineno}
+\setlength\linenumbersep{10pt} % a bit more space from text
+\renewcommand\linenumberfont{\normalfont\small\ttfamily}
+
+% Number sections/subsections
+\setcounter{secnumdepth}{3}
+
+% Math, tables, figures
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{siunitx}
+\sisetup{detect-weight,detect-family,table-number-alignment=center}
+\usepackage{makecell}
+
+
+% - Images: sensible defaults + safe include -
+\graphicspath{{panos/}{new_figs/}{./}}
+\setkeys{Gin}{width=\linewidth,keepaspectratio}
+\newcommand{\safeincludegraphics}[2][]{\includegraphics[#1]{#2}}
+
+% Captions: avoid wide lines
+\captionsetup{
+  font=small,
+  justification=raggedright,
+  singlelinecheck=false
+}
+
+% Tabularx helpers
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\renewcommand{\arraystretch}{1.15}
+
+% Authors & affiliations (QSS wants these on page 1)
+\usepackage{authblk}
+\makeatletter
+\newcommand{\samethanks}[1][\value{footnote}]{\footnotemark[#1]}
+\makeatother
+
+% Bibliography (APA, author-year)
+\usepackage{csquotes}
+\usepackage[style=apa, backend=biber, maxcitenames=2, uniquelist=false]{biblatex}
+\DeclareLanguageMapping{american}{american-apa}
+
+\addbibresource{references.bib} % ensure this file exists (even empty)
+
+% Links (break long URLs/DOIs safely)
+\usepackage{xurl} % smarter URL breaking
+\usepackage[unicode,breaklinks=true]{hyperref}
+\hypersetup{
+  colorlinks=true,
+  urlcolor=blue,
+  linkcolor=black,
+  citecolor=black
+}
+
+% (Optional) Tighter, compressed PDF output
+\pdfminorversion=7
+\pdfcompresslevel=9
+\pdfobjcompresslevel=3
+
+% Metadata
+\title{Citation Cliques in Questionable Journals}
+\author[1]{Panagiotis-Alexios Spanakis\thanks{Co-first authors.}}
+\author[1]{Grigorios Alexandrou\samethanks}
+\author[1]{Diomidis Spinellis\thanks{Supervising professor.}}
+\affil[1]{Department of Management Science and Technology, 
+Athens University of Economics and Business (AUEB), Athens, Greece}
+\date{February 2026}
+
+\begin{document}
+\maketitle
+\linenumbers
+
+% \begin{abstract}
+% This study examines whether journals of relatively low influence-defined through subject-normalized Eigenfactor percentiles-are associated with denser and more reciprocating patterns of author-to-author citation. 
+% Using Crossref records, we assign journals to broad subject areas, compute subject-specific Eigenfactor scores, propagate venue quality to works and authors, match authors in low- versus high-influence venues by subject and $h_5$, and analyze citation edges for cohesion and anomalies. 
+% Across 10,116 matched pairs, authors in low-influence venues exhibit higher rates of co-author citation and clustering, with variation across fields. 
+% A subject-aware isolation forest identifies outlier groups marked by sharp increases in clustering, triangles, and co-authoring, alongside episodic bursts of asymmetric citation. 
+% The largest component displays wave-like internal citation spikes. 
+% Overall, cohesion-rather than broad asymmetry--accounts for the main case-control differences, suggesting that low-influence venues foster dense, inward-looking citation practices. 
+% Authors publishing in low-influence journals are referred to as \emph{cases}, and those in high-influence journals as \emph{controls}.
+% \end{abstract}
+
+\begin{abstract}
+This study examines whether journals of relatively low influence --defined through subject-normalized Eigenfactor percentiles-- are associated with denser and more reciprocating patterns of author-to-author citation. 
+Using Crossref records, we assign journals to broad subject areas, compute subject-specific Eigenfactor scores, propagate venue quality to works and authors, match authors in low- versus high-influence venues by subject and $h_5$, and analyze citation edges for cohesion and anomalies. 
+Across 10,116 matched pairs, authors in low-influence venues exhibit 6.7$\times$ higher co-author citation rates and 11$\times$ greater clique strength. 
+A subject-aware hybrid detection pipeline achieves 93.5\% Case purity (i.e., 93.5\% of flagged authors belong to the Bottom tier), revealing a stark ``Two Worlds'' segregation ($r=0.71$) where low-influence venues operate as closed citation economies. 
+The largest component displays a hub-and-spoke topology, funneling citations to central beneficiaries through coordinated bursts. 
+Overall, cohesion --rather than broad asymmetry-- accounts for the main case-control differences, suggesting that low-influence venues foster dense, inward-looking citation practices. 
+Authors publishing in low-influence journals are referred to as \emph{cases}, and those in high-influence journals as \emph{controls}.
+\end{abstract}
+
+\textbf{Keywords:} scientometrics; low-influence journals; citations; cliques; social network analysis; eigenfactor
+
+\section{Introduction}
+\label{sec:intro}
+Quantitative indicators such as citation counts, the $h$-index, and journal metrics have become central to the assessment of scholarly impact. These measures offer convenient proxies for influence, but they also create incentives for strategic behavior and manipulation \parencite{Biagioli2020}. When deployed uncritically, citation-based indicators risk rewarding volume or visibility over substance, with unintended consequences for research integrity and evaluation systems.
+
+Beyond well-known practices such as excessive self-citation, more coordinated behaviors have emerged. Authors may form tightly connected \emph{citation cliques} -groups that disproportionately reference one another, often within low-influence journals as defined by subject-normalized Eigenfactor percentiles. Such practices distort indicators, undermine trust in the scholarly record, and complicate fair comparison across fields. These dynamics exemplify what has recently been described as \emph{citation orchestration} \parencite{Evdaimon2024}, where citations serve strategic rather than intellectual functions.
+
+Questionable journals provide fertile ground for these dynamics. Their incentives -publication volume, rapid turnaround, or weak editorial oversight- align with environments where abnormal citation patterns can thrive. In addition, systemic distortions such as national \emph{home bias} \parencite{Qiu2025} interact with venue incentives, amplifying risks that rankings and impact assessments reflect coordination rather than genuine uptake of ideas.
+
+This study investigates whether questionable journals systematically foster cliques and abnormal citation patterns. Using large-scale bibliographic data, we implement a subject-aware pipeline that links journal influence to authors, matches Bottom- and Top-tier researchers of comparable productivity (by $h_5$ index), and analyzes their citation networks for cohesion and anomalies. 
+
+We find that extreme anomalies cluster exclusively among Bottom-tier authors in questionable venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Top-tier counterparts. 
+These results provide empirical evidence that venue incentives can shape citation behavior in ways that distort bibliometric indicators.
+
+\section{Relevant Work}
+\label{sec:relwork}
+
+Prior research has highlighted the fragility of citation-based indicators when used as proxies for scholarly quality. Performance measures not only shape incentives but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels, inflated impact factors, and other forms of metric manipulation that erode the interpretive value of bibliometric indicators.
+
+Venue-level frameworks were developed to mitigate some of these distortions. The Eigenfactor metric \parencite{West2008} introduced a network-based approach that discounts journal self-citations and weights each citation by the prestige of the citing venue. This recursive weighting sought to capture influence rather than popularity and to counteract local citation loops. However, later analyses have shown that such corrections remain sensitive to database coverage, field size, and reference density, indicating that structural biases persist even in sophisticated venue-level measures.
+
+At the author level, organized citation exchanges have been formalized as \emph{citation orchestration} \parencite{Evdaimon2024}. This framework quantifies concentrated citation flows through indicators such as $C/h^2$, $A50\%C$, and $A50$, revealing unusually cohesive collaboration networks that may signal collective metric inflation. Earlier studies of citation cartels and excessive self-referencing align with this view, emphasizing how reciprocal ties among small groups of authors can yield disproportionate bibliometric visibility. Such coordinated behaviors blur the line between collaboration and manipulation, challenging the assumption that citation networks represent organic intellectual influence.
+
+Systemic and infrastructural distortions further complicate these dynamics. National \emph{home bias} inflates domestic citation counts, particularly in large scientific systems such as China's \parencite{Qiu2025}, while technical manipulation has emerged through “sneaked references” inserted into metadata but absent from article text \parencite{Besancon2024}. Industrial-scale paper mills produce fabricated papers that populate citation networks with artificial linkages \parencite{Abalkina2025}. Recent investigations reveal even more elaborate schemes, including the creation of fictitious author identities and peer reviewers to infiltrate legitimate journals. As reported by \textcite{Naddaf2025}, these fake personas - sometimes maintained across multiple journals - enable mills to generate both papers and favorable reviews, prompting publishers to explore researcher identity verification frameworks and persistent identifier checks such as ORCID trust markers.
+
+Finally, the recognition of complex citation distortions has increased the focus on transparency and reproducibility. The \emph{LLM Guidelines} \parencite{LLMGuidelines2024} advocate for documenting decision rules and uncertainty, which is critical as machine learning becomes central to integrity audits. Supporting initiatives promote open data and verifiable auditing to prevent large-scale manipulation. These developments suggest that citation systems are socio-technical infrastructures where credibility relies on both methodological openness and quantitative rigor.
+
+The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched case-control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion} -manifesting as dense local clustering and triadic closure- as the primary diagnostic signature of citation anomalies within low-influence journals. By implementing a subject-aware isolation forest on author-to-author networks across 10,116 matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
+
+\section{Methodology}
+\label{sec:methods}
+
+\noindent\textbf{Overview.}
+We developed a subject-aware pipeline linking journal quality to author citation behavior. The main steps were: (i) journal subject classification, (ii) computation of subject-specific Eigenfactor scores, (iii) propagation of venue quality to works and authors, (iv) matched pairing of Bottom- and Top-tier authors by productivity, and (v) construction of author-author citation networks with cohesion and anomaly features. Figure~\ref{fig:analysis-dag} illustrates the main analysis subgraph of this pipeline.
+
+To ensure consistency across all stages of the data pipeline, 
+intermediate database layers were validated through 
+\emph{Relational Database Unit} (RDBUnit) testing \parencite{Spinellis2024RDBUnit}, 
+which systematically checks referential integrity, record completeness, 
+and join consistency before statistical analysis.
+
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics{graph_v2.png}
+  \caption{Analysis DAG for the social-network stage. Ellipses represent derived tables and arrows indicate dependencies. Curated inputs feed \texttt{citation\_network\_final} and downstream aggregates.}
+  \label{fig:analysis-dag}
+\end{figure}
+
+% Data preprocessing
+\subsection{Data and Preprocessing}
+
+\textbf{Data collection.} 
+Crossref metadata were ingested via \textit{alexandria3k} \parencite{Spinellis2023}, covering works published between 2020 and 2024. We retained DOIs, years, titles, abstracts, references, author identifiers (ORCID), and normalized ISSNs for journals. Duplicates and inconsistencies were cleaned, and derived layers linked works to authors, journals, and citations.
+
+\textbf{Journal Subject Classification.}
+Each journal was assigned to one of five broad subjects: 1) Health Sciences, 2) Life Sciences, 3) Multidisciplinary, 4) Physical Sciences, 5) Social Sciences \& Humanities, using an LLM-based classifier \parencite{LLMGuidelines2024}. We used \texttt{gpt-4.1} with zero temperature and few-shot exemplars, drawing on representative titles and abstracts. Prompts and decision rules prioritized abstracts over titles and journal names. To ensure reproducibility, we used seed and cached predictions to JSON files for safety.
+
+\textbf{Eigenfactor Computation.}
+To quantify journal influence, we computed subject-specific Eigenfactor scores \parencite{West2008} on journal citation networks (2020-2024), excluding self-citations. The computation used standard power iteration and produced normalized influence scores within each subject.
+
+\textbf{Defining Venue Quality.}
+Within each subject, journals in the top quartile of Eigenfactor were labeled \emph{high-influence}, and those in the bottom quartile \emph{questionable}. Labels propagate to works (by ISSN) and to authors through their portfolios. Alternative thresholds and persistence checks were evaluated for robustness.
+
+% Author Matching and Network Construction.
+
+\subsection{Author Matching and Network Construction}
+
+\textbf{Author Tiering and Matching.}
+Authors were classified as \textbf{Top} if most of their output was in high-influence journals, \textbf{Bottom} if concentrated in questionable journals, and \textbf{Mixed} otherwise. We then matched Bottom authors to Top authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
+
+\textbf{Sample and Availability.}
+The final analytical dataset includes up to 10{,}116 matched case-control author pairs per metric 
+(co-author citation rate, clustering coefficient, triangles, maximum and average asymmetry, and average velocity), 
+and 7{,}711 pairs for maximum citation burst. 
+All pair-level and network-level aggregates were computed per subject area and combined 
+only after validation of within-subject consistency. 
+All processed data tables are available through the public replication repository 
+described in Section~\ref{sec:data}.
+
+
+\textbf{Citation Network and Metrics.}
+For matched authors, we constructed directed author-to-author citation networks (2020-2024). Each reference carried a fractional weight that corrected for team size. From these edges we derived cohesion metrics (self-citation, co-author citation, clustering, triangles, $k$-core, PageRank) and pairwise anomaly metrics (reciprocity, asymmetry, velocity, citation bursts). These measures capture both dense reciprocal structures and asymmetric one-way flows.
+
+% Statistical Analysis and Outlier Detection
+
+\subsection{Statistical Analysis and Outlier Detection}
+
+% \textbf{Statistical Analysis and Robustness.}
+% Matched pairs were compared using Wilcoxon signed-rank tests \parencite{Wilcoxon1945}, with Benjamini-Hochberg FDR correction \parencite{Benjamini1995}. 
+% Effect sizes were quantified via Cliff's $\delta$ \parencite{Cliff1993} and Cohen's $d$ \parencite{Cohen1988}, 
+% with confidence intervals estimated through bootstrap resampling \parencite{Efron1993}. 
+% Robustness checks included permutation tests, placebo pairing, random-effects meta-analysis across subjects, 
+% and alternative outlier detectors (Isolation Forest \parencite{Liu2008}, Local Outlier Factor, One-Class SVM). 
+% Community detection used the Louvain method \parencite{Blondel2008}.
+
+% \textbf{Outlier Detection Procedure.}\label{sec:outlier-proc}
+% We applied a subject-aware Isolation Forest \parencite{Liu2008} to identify anomalous 
+% author-author citation patterns within each subject area. 
+% The model used standard hyperparameters (\texttt{n\_estimators=200}, 
+% \texttt{max\_samples="auto"}) and an adaptive contamination level based on 
+% the empirical density of anomaly scores. 
+% Sensitivity tests evaluated contamination thresholds at 0.5\%, 1\%, 2\%, and 5\% 
+% to confirm the robustness of detected outliers. 
+% For each configuration we recorded the number of outliers, the share belonging 
+% to connected components, and the overlap (Jaccard index) with the adaptive baseline. 
+% Outlier labels were merged back into the unified ML table for downstream network analyses (results in Section~\ref{sec:outlier-results}).
+
+\textbf{Statistical Analysis and Robustness.}
+Matched pairs were compared using Wilcoxon signed-rank tests \parencite{Wilcoxon1945}, with Benjamini-Hochberg FDR correction \parencite{Benjamini1995}. 
+Effect sizes were quantified via Cliff's $\delta$ \parencite{Cliff1993} and Cohen's $d$ \parencite{Cohen1988}, 
+with confidence intervals estimated through bootstrap resampling \parencite{Efron1993}. 
+Robustness checks included permutation tests, placebo pairing, random-effects meta-analysis across subjects, 
+and alternative outlier detectors (Isolation Forest \parencite{Liu2008}, Local Outlier Factor, One-Class SVM). 
+Sensitivity analysis utilized z-score thresholds ($1\sigma, 2\sigma, 3\sigma, 4\sigma$) relative to the control baseline to establish interpretable detection cutoffs.
+Community detection used the Louvain method \parencite{Blondel2008}.
+
+\textbf{Outlier Detection Procedure.}\label{sec:outlier-proc}
+We developed a subject-aware \textbf{hybrid outlier detection strategy} linking multivariate anomalies to specific cohesion signatures. 
+The pipeline combines an Isolation Forest (IF) \parencite{Liu2008} with a domain-specific \textbf{Cohesion Composite Score}. 
+The IF model used standard hyperparameters (\texttt{n\_estimators=200}, \texttt{contamination=0.01}) to capture general anomalies.
+The Cohesion Score was computed as the standardized sum of the four most discriminative features: co-author citation rate, clique strength, reciprocity, and outgoing HHI\footnote{The Herfindahl-Hirschman Index (HHI) measures concentration. In this context, it quantifies the extent to which an author repeatedly cites the same narrow set of recipients, indicating a lack of source diversity.}. 
+Feature weights were assigned based on discriminative power (e.g., Co-author Rate weighted 4.0), while authority metrics were inverted.
+An author was flagged as an outlier only if they satisfied both conditions: an IF anomaly score above the threshold \textbf{AND} a Cohesion z-score $> 3\sigma$ (relative to the Control baseline).
+Sensitivity tests evaluated thresholds from $1\sigma$ to $4\sigma$ to confirm the robustness of detected syndicates.
+Outlier labels were merged back into the unified ML table for downstream network analyses (results in Section~\ref{sec:outlier-results}).
+
+\section{Findings}
+\label{sec:findings}
+
+This section presents the main results of the matched case-control analysis. 
+We first examine overall and field-specific patterns of cohesion and asymmetry, 
+then derive unsupervised behavioral archetypes and identify statistical outliers 
+using a subject-aware Isolation Forest. 
+Together, these analyses reveal that cohesion-rather than sustained one-sided citation flows-
+is the primary structural distinction between authors publishing in low- and high-influence venues.
+
+\noindent\textit{Note on terminology.} Throughout this section, terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} that describe observed network roles (e.g., net citation giver vs.\ net citation receiver). They are adopted for descriptive economy and do not imply intent, coordination, or misconduct on the part of any individual author.
+
+
+\noindent\textbf{Note on metrics.} We summarize the main network features used: 
+the \emph{clustering coefficient} (density of local interconnections); 
+\emph{triangles} (closed three-way citation structures); 
+the \emph{k-core number} (depth of embedding in dense subnetworks); 
+\emph{betweenness centrality} (how often an author lies on shortest paths, a proxy for brokerage/coordination potential); 
+\emph{velocity} (rate of citation accumulation); 
+\emph{burst} (sudden within-window surges of citations); and 
+\emph{asymmetry} (imbalance in giving vs.\ receiving citations).
+
+% \subsection{Overall (All Subjects Combined)}
+% \label{sec:overall}
+
+% \paragraph{Cohesion dominates.}
+% At the aggregate level, authors publishing primarily in low-influence venues display markedly stronger \emph{cohesion}: they cite co-authors more often and occupy denser, more tightly interlinked neighborhoods of the author-author citation network.
+
+% \paragraph{Asymmetry does \emph{not} drive the gap.}
+% Indicators of one-sided or opportunistic imbalance are not broadly elevated among cases. When differences do appear, they tend to surface as episodic surges rather than sustained directional flows.
+
+% \paragraph{Net effect.}
+% The Bottom-Top gap is explained chiefly by higher network cohesion rather than broad one-way citation behavior. This pattern persists under conservative matched-pair comparisons and multiple-testing correction.
+
+\subsection{Overall (All Subjects Combined)}
+\label{sec:overall}
+
+\paragraph{Cohesion dominates.}
+At the aggregate level, authors publishing primarily in low-influence venues display markedly stronger \emph{cohesion}: they cite co-authors \textbf{6.7$\times$ more frequently} ($p=9.1 \times 10^{-66}$), exhibit \textbf{4.7$\times$ higher reciprocity rates} ($p=2.7 \times 10^{-44}$), and show \textbf{3.1$\times$ greater outgoing concentration} (tunnel vision, $p \approx 0$).
+
+\paragraph{Authority Gap.}
+In contrast to their high internal cohesion, low-influence authors exhibit significantly lower authority metrics. PageRank is \textbf{3$\times$ lower} for Cases ($p=3.1 \times 10^{-145}$), and Citation Entropy is reduced by \textbf{2.2$\times$}, indicating that while they form tight cliques, they lack broad authoritative influence.
+
+\paragraph{Net effect.}
+The Bottom-Top gap is explained chiefly by distinct behavioral signatures. These patterns persist under conservative matched-pair comparisons: \textbf{12 out of 14} tested behavioral metrics remain significant after Benjamini-Hochberg FDR correction ($\alpha=0.05$).
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure1_ForestPlot.png}
+  \caption{Universal Cohesion Signal. The Forest Plot shows that Bottom-tier authors (Cases) consistently exhibit higher co-author citation rates across all five subject areas compared to Controls. The effect is significant at $p<0.001$ globally.}
+  \label{fig:forest_plot}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure3_Paired_Beeswarm.png}
+  \caption{Distributional Shift: Case vs.\ Control. Violin plots for four key metrics-co-author citation rate, self-citation rate, outgoing HHI (tunnel vision), and local clustering coefficient. Cases (red) show systematically heavier right tails than Controls (blue) across all four dimensions, confirming that the cohesion gap is not driven by a few extreme values but by a broad shift in the distribution.}
+  \label{fig:beeswarm}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.85\linewidth]{Figure7_Permutation_Test.png}
+  \caption{Permutation Test Results. The observed difference in co-author citation rates (red line) falls far outside the null distribution generated by 1,000 random permutations ($p=0.001$), confirming the effect is not due to chance.}
+  \label{fig:permutation}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure8_Feature_Importance.png}
+  \caption{Feature Importance (Random Forest). \textbf{Cohesion metrics} (Orange/Red bars like Reciprocity and Co-author Rate) are the strongest predictors of Bottom-tier status. Conversely, Authority metrics (Blue/Teal) are inversely related.}
+  \label{fig:feature_importance}
+\end{figure}
+
+\subsection{Subject-Stratified Effects (Subjects 1-5)}
+\label{sec:by-subject}
+
+\noindent\textbf{Robust cohesion, field-specific accents.}
+Enhanced cohesion is a recurrent feature across subjects, but its \emph{expression} varies by field. In the health and life sciences, the divergence appears mainly as consistently higher co-author citation and stronger local clustering. In multidisciplinary and physical sciences, dense networking more often coincides with short, episodic activity waves. In the social sciences and humanities, cohesion signals are subtler, but sharper temporal concentrations of citations within short windows are more prominent.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.95\linewidth]{Figure5_Subject_Heatmap.png}
+  \caption{Subject-Specific Effect Sizes (Cliff's $\delta$). 
+    Each cell reports the effect size for a given metric within a subject area. 
+    Negative values (blue) indicate that Controls exhibit higher values than Cases. 
+    Co-author Citation Rate (first column) shows near-zero or slightly positive 
+    values across all subjects, while velocity and burstiness (last two columns) 
+    are consistently negative - with Life Sciences (Subject 2) displaying the 
+    largest deficit in burstiness ($\delta = -0.73$).}
+  \label{fig:heatmap}
+\end{figure}
+
+\noindent\textbf{Muted asymmetry.}
+Across fields, one-sided asymmetry measures remain generally subdued. Where differences emerge, they align more with transient speed-ups (velocity/bursts) than with persistent directional imbalance.
+
+\noindent\textbf{Takeaway.}
+The signature of Bottom-tier authors is greater network cohesion. Whether this manifests as intensified co-author referencing, increased local triadic closure, or episodic waves is field-dependent.
+
+\subsection{Behavioral Archetypes (Unsupervised)}
+K-means clustering on standardized ML features reveals a clear three-way typology: \textbf{Asymmetric} (unbalanced citing), \textbf{Independent} (typical), and \textbf{Solo} (self-citing). 
+Bottom-tier authors (Cases) are predominantly classified as Asymmetric ($\approx\!60\%$), while Top-tier Controls concentrate overwhelmingly in the Independent profile ($\approx\!94\%$). 
+The Solo self-citing pattern appears almost exclusively among Cases.
+
+This divergence is consistent with clique-like behavior: Case authors follow multiple higher-cohesion strategies, whereas Controls converge on a single low-cohesion, outward-looking profile.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure9_LDA_Separation.png}
+  \caption{Two Distinct Worlds. Linear Discriminant Analysis (LDA) reveals a bimodal distribution with minimal overlap, confirming that Bottom-tier status represents a fundamentally distinct structural phenotype rather than a continuous spectrum of performance.}
+  \label{fig:lda}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.75\linewidth]{Figure5b_Archetypes.png}
+  \caption{Behavioural Archetypes by Tier. Stacked bar chart showing the proportion of authors in each archetype by tier. Bottom-tier authors (Cases) are predominantly \textbf{Asymmetric} (unbalanced, dark blue), while Top-tier Controls are overwhelmingly \textbf{Independent} (typical, light blue). The Solo (self-citing, orange) profile is nearly absent among Controls.}
+  \label{fig:archetypes}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.7\linewidth]{Figure2b_AuthorityProfile.png}
+  \caption{Top-Tier vs.\ Bottom-Tier Baseline (radar chart). Fold-change of Top-Tier Controls relative to Bottom-Tier Cases across six dimensions: Local Clustering, Net-Giver Bias, Asymmetry, Normalised Triangles, Outgoing HHI, and Co-author Citation Rate. Controls show systematically lower cohesion and citation concentration, forming a compact, balanced profile close to the dashed reference ring.}
+  \label{fig:control_profile}
+\end{figure}
+
+\paragraph{Archetype definitions.}
+Three behavioral profiles emerge from the clustering:
+\begin{itemize}
+  \item \textbf{Asymmetric (Unbalanced)}: high \emph{max\_asymmetry} relative to cohesion; concentrated outgoing citation flows.
+  \item \textbf{Independent (Typical)}: balanced citing behavior, low cohesion; the dominant profile among Controls.
+  \item \textbf{Solo (Self-citing)}: high \emph{self\_citation\_rate}; nearly absent among Top-tier authors.
+\end{itemize}
+The three-way typology provides interpretable separation: \emph{lower-cohesion} profiles dominate among Controls, while \emph{higher-cohesion and asymmetric} profiles are systematically overrepresented among Cases.
+
+% \subsection{Outlier Detection Results}\label{sec:outlier-results}
+% \textbf{Contingency (pair-level; consistent with the unified ML table).}
+% Cases: 195 outliers, 9{,}921 non-outliers; Controls: 0 outliers, 9{,}918 non-outliers.
+
+% \textbf{Outlier fingerprint.} Relative to non-outliers, outliers show large lifts across
+% multiple cohesion and pairwise signals (Fig.~\ref{fig:fingerprint}):
+% Triangles $\approx 20\times$, Max asymmetry $\approx 18\times$, Clustering $\approx 15\times$,
+% Give/Take ratio $\approx 13\times$, Co-author rate $\approx 12\times$, $k$-core $\approx 10\times$,
+% with smaller increases in Burst (Max) $\approx 4\times$ and Velocity (Avg) $\approx 2\times$.
+
+% Outliers are evenly distributed across subjects (about 40 per subject: 40/32/42/40/41).
+
+% \begin{figure}[H]
+%   \centering
+%   \safeincludegraphics[width=0.78\linewidth]{figure_radar_fingerprint.jpg}
+%   \caption{The Manipulation Fingerprint: fold change of outliers vs.\ non-outliers
+% across features. A fold change above 1 indicates that the signal is stronger among outliers, 
+% with especially large lifts in cohesion metrics (triangles, clustering, co-author rate).}
+%   \label{fig:fingerprint}
+% \end{figure}
+
+% Figure~\ref{fig:fingerprint} highlights this contrast: outliers broadly exceed non-outliers 
+% on cohesion metrics, often by an order of magnitude, confirming that the detected anomalies are 
+% not random noise but concentrated structural effects.
+
+% \begin{table}[tb]
+% \centering
+% \caption{Outlier Detection Sensitivity Test}
+% \label{tab:contamination}
+% \begin{threeparttable}
+% \small
+% \setlength{\tabcolsep}{5pt}
+% \renewcommand{\arraystretch}{1.1}
+% \setlength{\tabcolsep}{5.5pt}
+
+% \begin{tabularx}{\linewidth}{@{} 
+%   l
+%   S[table-format=4]      % Total Outliers
+%   S[table-format=4]      % Connected
+%   S[table-format=2.1]    % Connected Ratio
+%   S[table-format=1.2]    % Jaccard vs Baseline
+%   S[table-format=1.2]    % Jaccard vs Prev
+% @{}}
+% \toprule
+% {Setting} & {Total Outliers} & {Connected} & {Connected Ratio} &
+% {\makecell{Jaccard\\vs Baseline}} & {\makecell{Jaccard\\vs Prev}}\\
+% \midrule
+% Adaptive (baseline) & 492 & 457 & 92.9 & 1.00 & 1.00 \\
+% 0.5\%               & 100 &  98 & 98.0 & 0.20 & 1.00 \\
+% 1.0\%               & 195 & 179 & 91.8 & 0.40 & 0.51 \\
+% 2.0\%               & 398 & 361 & 90.7 & 0.81 & 0.49 \\
+% 5.0\%               & 988 & 918 & 92.9 & 0.50 & 0.41 \\
+% \bottomrule
+% \end{tabularx}
+
+% \end{threeparttable}
+% \end{table}
+% \FloatBarrier  
+
+% Across contamination settings (Table~\ref{tab:contamination}), the connected ratio remains
+% consistently at $\approx\!91$-$98\%$, while the overlap with the adaptive baseline (Jaccard)
+% peaks at 0.81 at 2\%.
+
+\subsection{Outlier Detection Results}\label{sec:outlier-results}
+
+\textbf{Detection Accuracy.}
+Using the hybrid detection strategy at the $4\sigma$ threshold, we identified \textbf{277 high-confidence outliers}. 
+Of these, \textbf{93.5\%} are Bottom-tier (Case) authors (\emph{Case purity}), confirming that the pipeline predominantly isolates authors whose structural profiles deviate substantially from the Top-tier norm.
+
+\textbf{Outlier fingerprint.} 
+Relative to non-outliers, the detected syndicate members show massive lifts in cohesion signals (Fig.~\ref{fig:fingerprint}): 
+\textbf{Clique Strength $\approx 11\times$}, \textbf{Co-author Citation Rate $\approx 6.7\times$}, 
+\textbf{Reciprocity $\approx 4.7\times$}, and \textbf{Tunnel Vision (Outgoing HHI) $\approx 3.1\times$}. 
+These specific deviations constitute the unique \emph{structural fingerprint} of the flagged cohesion outliers.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.78\linewidth]{Figure2_Fingerprint.png}
+  \caption{The Cohesion Fingerprint: Outliers exhibit extreme spikes in co-author citation rate and clique strength, forming a recognizable structural profile distinct from the control baseline.}
+  \label{fig:fingerprint}
+\end{figure}
+
+Figure~\ref{fig:fingerprint} highlights this contrast: outliers broadly exceed non-outliers on cohesion metrics, confirming that the detected anomalies are not random noise but concentrated structural effects.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure6_Sensitivity_ZScore.png}
+  \caption{Robustness of Anomaly Detection. The distribution of anomaly scores shows a heavy right tail for Cases (Red) extending beyond $3\sigma$. This confirms that the detected outliers represent a distinct structural population, not just normal variability.}
+  \label{fig:sensitivity}
+\end{figure}
+
+\begin{table}[tb]
+\centering
+\caption{Sensitivity Analysis: Comparison of Detection Methods at $4\sigma$}
+\label{tab:contamination}
+\begin{threeparttable}
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabularx}{\linewidth}{@{} l c c c c @{}}
+\toprule
+\textbf{Method} & \textbf{Threshold} & \textbf{Outliers} & \textbf{Case Purity} & \textbf{Connected (\%)}\\
+\midrule
+Isolation Forest (Baseline) & $4\sigma$ & 269 & 84.4\% & 68.8\% \\
+Cohesion Composite Only     & $4\sigma$ & 599 & 89.1\% & 25.7\% \\
+\textbf{Hybrid (IF $\cap$ Cohesion)} & \textbf{$4\sigma$} & \textbf{277} & \textbf{93.5\%} & \textbf{49.1\%} \\
+\bottomrule
+\end{tabularx}
+\begin{tablenotes}
+\item \textit{Note:} The Hybrid method combines general multivariate anomalies (IF) with domain-specific cohesion scores, increasing Case Purity by +9.1 percentage points over the baseline.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+\FloatBarrier  
+
+Table~\ref{tab:contamination} demonstrates the superiority of the hybrid approach. 
+While Isolation Forest alone achieves 84.4\% purity, augmenting it with the cohesion filter improves purity to \textbf{93.5\%}. 
+This indicates that approximately 9\% of statistical outliers are legitimate prolific collaborators, who are successfully filtered out by the cohesion requirement.
+
+
+
+
+% \subsection{Network Forensics (Largest Outlier Component)}
+% Among outlier-outlier edges, the largest connected component has 24 members. Within this group, a single node occupies a central position based on betweenness centrality and structural connectivity, suggesting a coordinating role. Temporal activity shows a sudden-burst pattern with high internal citation intensity in 2021 and 2024 (internal mass by year: 2020$=0.016$; 2021$=3.81$; 2022$=1.31$; 2023$=1.33$; 2024$=9.29$).
+
+% \textbf{Note:} \emph{Internal mass} refers to the total weight of citation edges 
+% connecting members within the same component during each year, 
+% capturing the intensity of internal referencing over time.
+
+
+% \begin{figure}[H]
+%   \centering
+%   \safeincludegraphics{figure_syndicate_timeline.jpg}
+%   \caption{Largest syndicate timeline. Top: cumulative internal citations; Bottom: yearly growth rate. 
+%   Two distinct waves appear in 2021 and 2024, indicating episodic bursts of internal activity.}
+%   \label{fig:timeline}
+% \end{figure}
+
+
+% \begin{figure}[H]
+%   \centering
+%   \safeincludegraphics[width=.88\linewidth]{figure_largest_cartel.jpg}
+%   \caption{Largest outlier syndicate (node size $\propto$ betweenness centrality, i.e., structural importance as a broker in the network). 
+%     The central node (yellow) is a likely coordinator.}
+%   \label{fig:largest-syndicate}
+% \end{figure}
+
+% Figures~\ref{fig:timeline} and~\ref{fig:largest-syndicate} show how this largest outlier syndicate 
+% operates: temporal bursts in 2021 and 2024 coincide with dense internal citation flows, 
+% and node size reflects betweenness centrality (a measure of brokerage in the network). 
+% No personally identifying information is shown or implied; the analysis concerns only network structure and aggregated citation behavior.
+
+\subsection{Network Forensics (Largest Outlier Component)}
+
+The core of the largest outlier syndicate ($n=6$) exhibits a distinct \textbf{hub-and-spoke topology} rather than a dense, uniform mesh. 
+Within this group, the flow imbalance analysis reveals a clear hierarchy: a single \textbf{``Primary Beneficiary''} occupies the central position, receiving directed citation flows from peripheral \textbf{``Sycophants''} who define themselves by giving significantly more citations than they receive.
+
+Temporal activity supports the orchestration hypothesis, showing a sudden-burst pattern with high internal citation intensity. 
+As shown in the timeline analysis, citation accumulation is not organic but driven by coordinated waves, particularly evident in 2021 and 2024.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure3_Timeline.png}
+  \caption{Largest syndicate timeline. Top: cumulative internal citations; Bottom: yearly growth rate. 
+  Two distinct waves appear in 2021 and 2024, indicating episodic bursts of internal activity consistent with coordinated behavior.}
+  \label{fig:timeline}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.85\linewidth]{Figure4_Network.png}
+  \caption{The Cartel's Core: Flow Hierarchy of the Largest Syndicate ($n=6$). 
+  Node size is proportional to \emph{Net Benefit} (Citations Received minus Given). 
+  Node color indicates role: The central \textbf{Beneficiary} (Blue) receives citations, while peripheral \textbf{Sycophants} (Red) behave as net givers. 
+  This asymmetric structure reveals a pronounced \emph{flow imbalance} within the syndicate: peripheral members act as net citation givers toward one central node.}
+  \label{fig:largest-syndicate}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=\linewidth]{Figure11_Flow_Imbalance.png}
+  \caption{Flow Imbalance and the Sycophant Phenomenon. Case authors (Red) cluster below the diagonal, indicating they systematically give more citations than they receive (Net Debtors/Sycophants). Controls (Blue) are balanced or Net Creditors.}
+  \label{fig:flow_imbalance}
+\end{figure}
+
+Figures~\ref{fig:timeline} and~\ref{fig:largest-syndicate} illustrate the operational mode of the syndicate: 
+temporal bursts coincide with directed citation flows from sycophants to a central beneficiary. 
+While Figure~\ref{fig:largest-syndicate} details the specific topology of the syndicate, Figure~\ref{fig:flow_imbalance} demonstrates that this ``Sycophant-Beneficiary'' imbalance is a pervasive systematic pattern distinguishing Cases from Controls globally.
+
+
+
+
+
+% Old v1
+% \subsection{Interpretation}
+% \textbf{Cohesion dominates.} Cases cite co-authors more and occupy denser neighborhoods (clustering), overall and in multiple subjects even after conservative matched-pair testing and BH correction.
+
+% \textbf{``Malice'' not supported overall.} Asymmetry-based signals are not elevated in cases overall; where subject-level differences appear, they manifest in velocity/burst rather than asymmetry.
+
+% \textbf{Outliers = cohesive and spiky.} Outliers exhibit very high cohesion
+% (co-authoring, clustering, triangles) \emph{and} strong spikes in max asymmetry,
+% while average asymmetries remain more moderate; this points to
+% dense, reciprocal groups with episodic "spikes" of unilateral flow.
+
+% \textbf{Syndicate structure exists but is limited.} The largest component is modest ($n=24$) with a bursty temporal footprint, suggesting episodic coordination rather than a network-wide phenomenon.
+
+
+% old v2
+% \subsection{Interpretation}
+
+% \textbf{Cohesion as the dominant pattern.}
+% The main distinction between low- and high-influence venues lies in the degree of network cohesion. 
+% Authors in low-influence journals display higher co-author citation rates, denser clustering, and 
+% more closed triadic structures. 
+% Rather than reflecting deliberate citation inflation, these patterns likely arise from small, 
+% recurrent collaboration circles and editorial environments that encourage internal visibility 
+% over outward dissemination. 
+% In this sense, ``citation cliques'' emerge as a structural outcome of network closure 
+% and community self-reinforcement.
+
+% \textbf{Relation to prior literature.}
+% These findings extend the idea of \emph{citation orchestration} \parencite{Evdaimon2024}, 
+% showing that orchestration can manifest as persistent reciprocity and dense closure 
+% rather than overt one-sided exchange. 
+% They also resonate with evidence of \emph{home bias} \parencite{Qiu2025}, 
+% suggesting that similar dynamics of local reinforcement operate at the institutional 
+% or subfield level rather than the national one. 
+% The limited role of asymmetry supports earlier concerns that citation indicators may 
+% reward visibility loops rather than genuine intellectual influence.
+
+% \textbf{Alternative explanations.}
+% Other mechanisms may contribute to the observed cohesion. 
+% Topic specialization or the narrow scope of certain low-influence venues 
+% can naturally lead to overlapping authorship and repeated citations. 
+% Structural constraints-such as small research communities, limited outlet diversity, 
+% and shared editorial networks-can further amplify local interconnection. 
+% Because productivity and subject were controlled through matching, these effects 
+% likely explain within-field variation rather than systematic bias across fields.
+
+% \textbf{Implications for evaluation.}
+% The results highlight the need for evaluation systems to consider the structure of citation networks, 
+% not only aggregate counts. 
+% Indicators incorporating co-author citation share, local clustering, or 
+% give/take balance could help distinguish organic collaboration from 
+% dense internal referencing. 
+% In research assessment, cohesion-aware metrics would offer early-warning signals 
+% for insular publication ecosystems while avoiding unfair penalization of 
+% legitimate teamwork.
+
+% \textbf{Limitations.}
+% This study relies on Crossref metadata (2020–2024), which vary in completeness across fields. 
+% The subject classification uses an LLM-based model; although reproducible, 
+% classification errors may attenuate field-specific differences. 
+% Moreover, citation links are analyzed structurally, without text-level context 
+% to infer the motivation of citing. 
+% Finally, while the Isolation Forest identifies cohesive anomalies, 
+% it cannot determine intent or misconduct.
+
+% \textbf{Future directions.}
+% Extending the temporal coverage, triangulating with independent data sources 
+% (e.g., OpenAlex or Dimensions), and integrating citation-context analysis 
+% could clarify whether cohesion-driven citation structures persist 
+% beyond the observed window. 
+% Experimental audits in selected venues could also test whether editorial or 
+% policy interventions reduce excessive within-network referencing.
+
+% \textbf{Broader implications.}
+% Overall, the dominance of cohesion over asymmetry suggests that 
+% dense local interactions-rather than systematic citation exploitation-shape 
+% the citation landscape of low-influence venues. 
+% Understanding these patterns is essential for designing fair, 
+% field-sensitive bibliometric indicators and for maintaining 
+% the integrity of scholarly communication.
+
+
+\subsection{Interpretation}
+
+\textbf{Segregation and the ``Two Worlds'' Phenomenon.}
+The distinction between low- and high-influence venues extends beyond simple density; it reflects extreme \emph{segregation}. 
+The high assortativity coefficient ($r=0.71$) and modularity ($Q=0.97$) confirm a \textbf{``Two Worlds'' hypothesis}, where Bottom-tier authors operate in closed citation economies with minimal external engagement. 
+As shown in Figure~\ref{fig:anomaly_scatter}, flagged outliers concentrate at the high-asymmetry, high-burst corner of the anomaly landscape - a region essentially unpopulated by Controls. 
+In this sense, citation cliques are not merely organic clusters but isolated silos disconnected from the broader scientific discourse.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.85\linewidth]{Figure10_Mixing_Matrix.png}
+  \caption{The ``Two Worlds'' Segregation ($r=0.71$). The mixing matrix shows extreme homophily: 73.4\% of citations from Bottom-tier authors stay within the Bottom tier. Top-tier authors are similarly insular (94.7\%), creating two isolated citation economies.}
+  \label{fig:mixing_matrix}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.80\linewidth]{Figure5_Anomaly_Scatter.png}
+  \caption{Citation Anomaly Landscape. Each point is an author plotted on $\log(1+\text{max asymmetry})$ vs.\ $\log(1+\text{max burst})$. Blue dots = Top-Tier (Control); red dots = Bottom-Tier (Case); open red circles = flagged outliers. Outliers cluster at the extreme upper-right, indicating simultaneous elevation in both asymmetry and burst - a signature inconsistent with organic citation behavior.}
+  \label{fig:anomaly_scatter}
+\end{figure}
+
+
+\textbf{Internal Hierarchy: Beneficiaries and Sycophants.}
+While broad asymmetry metrics are generally subdued, the internal structure of detected syndicates reveals a distinct \textbf{flow imbalance}. 
+As seen in the largest syndicate ($n=6$), a hub-and-spoke topology emerges where peripheral members (``Sycophants'') act as net givers to central ``Beneficiaries''. 
+This suggests that the observed cohesion serves a functional purpose: the coordinated funneling of credit to central figures, rather than reciprocal exchange among equals.
+
+\textbf{Relation to prior literature.}
+These findings extend the concept of \emph{citation orchestration} \parencite{Evdaimon2024}, showing that orchestration manifests as persistent reciprocity and dense closure. 
+The limited cross-tier mixing supports concerns about \emph{home bias} \parencite{Qiu2025} and institutional siloing. 
+However, the specificity of our \textbf{hybrid detection} (93.5\% purity) suggests that these patterns in low-influence venues are structural anomalies distinct from legitimate topic specialization.
+
+\textbf{Implications for evaluation.}
+The results highlight that aggregate counts hide structural manipulation. 
+Evaluation systems must incorporate \textbf{cohesion-aware metrics}-specifically \emph{co-author citation rates} and \emph{flow imbalance}-to distinguish organic collaboration from dense internal referencing. 
+The success of the hybrid pipeline suggests that combining multivariate anomaly detection (Isolation Forest) with targeted cohesion signals can effectively flag insular publication ecosystems.
+
+\textbf{Limitations.}
+This study relies on Crossref metadata (2020-2024), which vary in completeness. 
+While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment. 
+Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing.
+
+\textbf{Future directions.}
+Extending the temporal coverage and triangulating with independent data sources (e.g., OpenAlex) could clarify whether the observed ``Two Worlds'' segregation is widening over time. 
+Experimental audits in selected venues could also test whether editorial interventions can dismantle the ``Echo Chambers'' identified in this analysis.
+
+\textbf{Broader implications.}
+Overall, the dominance of segregation and flow imbalance suggests that low-influence venues foster \textbf{closed economies} of citation. 
+Understanding these patterns is essential for designing fair bibliometric indicators that reward genuine impact rather than inward-looking visibility loops.
+
+
+% \section{Summary and Conclusions}
+% \label{sec:conclusion}
+
+% We developed a subject-aware pipeline that integrates LLM-based journal classification, per-subject Eigenfactor scores, author tiering, and matched case-control analysis of author-author citation networks. 
+% This design allowed us to ask whether low-influence venues broadly foster distinctive citation structures once productivity (by subject-specific $h_5$) is held constant.
+
+% The evidence points to a consistent pattern. Authors publishing predominantly in low-influence journals cite co-authors more frequently, occupy denser neighborhoods, and concentrate in compact outlier groups. 
+% In contrast, metrics of one-sided or opportunistic asymmetry are not generally elevated; where differences appear, they manifest themselves as episodic bursts rather than sustained imbalances. 
+% The largest syndicates detected are modest in size and duration, underscoring that coordination is localized rather than network-wide.
+
+% \paragraph{Conclusion.}
+% Controlling for subject and productivity ($h_5$), authors in low-influence journals display \emph{abnormal} citation behavior: they show broadly higher cohesion (co-author citations, clustering) and concentrate in compact outlier clusters on network metrics associated with manipulation or suspicion, compared to matched top-tier counterparts. Low-influence venues therefore foster dense, inward-looking practices that can distort bibliometric indicators even without overt misconduct.
+
+
+\section{Summary and Conclusions}
+\label{sec:conclusion}
+
+We developed a subject-aware \textbf{hybrid pipeline} that integrates LLM-based journal classification, per-subject Eigenfactor scores, and a composite outlier detection strategy. 
+This design allowed us to isolate specific behavioral signatures of manipulation once productivity (by subject-specific $h_5$) is held constant.
+
+The evidence points to a highly structured phenomenon. 
+Authors publishing predominantly in low-influence journals cite co-authors \textbf{6.7$\times$ more frequently} and exhibit \textbf{11$\times$ greater clique strength} compared to their top-tier counterparts. 
+Rather than random noise, outlier syndicates display a \textbf{hub-and-spoke topology}, where peripheral ``Sycophants'' funnel citations to central ``Beneficiaries'' through coordinated bursts. 
+The flow imbalance analysis (Figure~\ref{fig:flow_imbalance}) confirms that Case authors systematically give more citations than they receive. 
+Critically, as shown in Figure~\ref{fig:temporal_velocity}, this gap is \textbf{not converging}: Top-Tier authors accumulate citations at an accelerating rate relative to Cases, confirming that the ``Two Worlds'' segregation is structurally entrenched and widening over time.
+
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.85\linewidth]{Figure6_Temporal_Velocity.png}
+  \caption{Citation Output Trajectory by Tier (2020--present). Cumulative citations per author for Bottom-Tier Cases (solid red) and Top-Tier Controls (dashed blue), with shaded confidence bands. The diverging trajectories confirm that the influence gap between tiers is \emph{widening}, not converging, over time.}
+  \label{fig:temporal_velocity}
+\end{figure}
+
+\paragraph{Conclusion.}
+Controlling for subject and productivity, the \textbf{hybrid detection strategy} identifies structurally anomalous citation groups with \textbf{93.5\% Case purity} (proportion of flagged authors belonging to the Bottom tier). 
+These groups are characterized not by simple asymmetry, but by a specific \textbf{cohesion fingerprint}-extreme co-author citation rates, dense local clustering, and tunnel vision. 
+Consequently, low-influence venues do not merely host lower-quality work; they foster \textbf{segregated, inward-looking citation economies} that actively distort bibliometric indicators through structural manipulation - a divide that is deepening with each passing year.
+
+
+\section{Funding Information}
+This research did not receive a specific grant from any funding agency in the public, commercial or non-profit sectors.
+
+\section{Author Contributions}
+Conceptualization: P.-A.S., D.S.; Methodology: P.-A.S.; Software: P.-A.S., G.A.; 
+Data curation: P.-A.S., G.A.; Validation: P.-A.S., G.A., D.S.; Formal analysis: P.-A.S., G.A.; 
+Visualization: P.-A.S.; Writing - original draft: G.A.; Writing - review \& editing: P.-A.S., G.A., D.S.; 
+Supervision: D.S.; Project administration: D.S.
+
+\section{Competing Interests}
+The authors declare no conflict of interest.
+
+\section{Data and Code Availability}
+\label{sec:data}
+All essential data and code for this study are openly available at Zenodo under a CC BY license \parencite{dataset_zenodo}.
+
+
+\printbibliography
+
+\end{document}
