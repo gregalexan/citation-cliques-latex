@@ -237,8 +237,8 @@ Sensitivity analysis utilized z-score thresholds ($1\sigma, 2\sigma, 3\sigma, 4\
 Community detection used the Louvain method \parencite{Blondel2008}.
 
 \textbf{Outlier Detection Procedure.}\label{sec:outlier-proc}
-We developed a subject-aware \textbf{hybrid outlier detection strategy} linking multivariate anomalies to specific cohesion signatures. 
-The pipeline combines an Isolation Forest (IF) \parencite{Liu2008} with a domain-specific \textbf{Cohesion Composite Score}. 
+We developed a subject-aware hybrid outlier detection strategy linking multivariate anomalies to specific cohesion signatures. 
+The pipeline combines an Isolation Forest (IF) \parencite{Liu2008} with a domain-specific Cohesion Composite Score. 
 The IF model used standard hyperparameters (\texttt{n\_estimators=200}, \texttt{contamination=0.01}) to capture general anomalies.
 The Cohesion Score was computed as the standardized sum of the four most discriminative features: co-author citation rate, clique strength, reciprocity, and outgoing HHI\footnote{The Herfindahl-Hirschman Index (HHI) measures concentration. In this context, it quantifies the extent to which an author repeatedly cites the same narrow set of recipients, indicating a lack of source diversity.}. 
 Feature weights were assigned based on discriminative power (e.g., Co-author Rate weighted 4.0), while authority metrics were inverted.
@@ -256,7 +256,7 @@ using a subject-aware Isolation Forest.
 Together, these analyses reveal that cohesion-rather than sustained one-sided citation flows-
 is the primary structural distinction between authors publishing in low- and high-influence venues.
 
-\noindent\textit{Note on terminology.} Throughout this section, terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} that describe observed network roles (e.g., net citation giver vs.\ net citation receiver). They are adopted for descriptive economy and do not imply intent, coordination, or misconduct on the part of any individual author.
+\noindent\textbf{Note on terminology.} Throughout this section, terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} that describe observed network roles (e.g., net citation giver vs.\ net citation receiver). They are adopted for descriptive economy and do not imply intent, coordination, or misconduct on the part of any individual author.
 
 
 \noindent\textbf{Note on metrics.} We summarize the main network features used: 
