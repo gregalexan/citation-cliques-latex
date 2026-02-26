@@ -113,7 +113,7 @@ Athens University of Economics and Business (AUEB), Athens, Greece}
   Using Crossref records, we assign journals to broad subject areas, compute subject-specific Eigenfactor scores, propagate venue quality to works and authors, match authors in low- versus high-influence venues by subject and $h_5$, and analyze citation edges for cohesion and anomalies.
   Across 10,116 matched pairs, authors in low-influence venues exhibit 6.7$\times$ higher co-author citation rates and 11$\times$ greater clique strength.
   A subject-aware hybrid detection pipeline achieves 93.5\% Case purity (i.e., 93.5\% of flagged authors belong to the Bottom tier), revealing a stark ``Two Worlds'' segregation ($r=0.71$) where low-influence venues operate as closed citation economies.
-  The largest component displays a hub-and-spoke topology, funneling citations to central beneficiaries through coordinated bursts.
+  The largest component ($n= 23$) displays a hub-and-spoke topology, funneling citations to central beneficiaries through coordinated bursts.
   Overall, cohesion --rather than broad asymmetry-- accounts for the main case-control differences, suggesting that low-influence venues foster dense, inward-looking citation practices.
 \end{abstract}
 
@@ -360,10 +360,12 @@ The signature of Bottom-tier authors is greater network cohesion. Whether this m
 
 \subsection{Behavioral Archetypes (Unsupervised)}
 K-means clustering on standardized ML features reveals a clear three-way typology: \textbf{Asymmetric} (unbalanced citing), \textbf{Independent} (typical), and \textbf{Solo} (self-citing).
-Bottom-tier authors (Cases) are predominantly classified as Asymmetric ($\approx\!60\%$), while Top-tier Controls concentrate overwhelmingly in the Independent profile ($\approx\!94\%$).
-The Solo self-citing pattern appears almost exclusively among Cases.
+% Bottom-tier authors (Cases) are predominantly classified as Asymmetric ($\approx\!60\%$), while Top-tier Controls concentrate overwhelmingly in the Independent profile ($\approx\!94\%$).
+% The Solo self-citing pattern appears almost exclusively among Cases.
+Bottom-tier authors (Cases) exhibit multiple higher-cohesion strategies, including Asymmetric and Solo behaviors, while Top-tier Controls converge overwhelmingly on the Independent profile. The Solo self-citing pattern appears almost exclusively among Cases.
 
 This divergence is consistent with clique-like behavior: Case authors follow multiple higher-cohesion strategies, whereas Controls converge on a single low-cohesion, outward-looking profile.
+Figure~\ref{fig:lda} illustrates this separation: the LDA projection reveals minimal overlap between tiers, with Cases clustering toward the Cohesion-driven extreme and Controls toward the Authority-driven regime.
 
 \begin{figure}[H]
   \centering
@@ -699,6 +701,8 @@ The success of the hybrid pipeline suggests that combining multivariate anomaly 
 This study relies on Crossref metadata (2020-2024), which vary in completeness.
 While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
 Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing.
+Finally, the network analysis is conducted at a structural level and does not expose the identities of the individual authors involved; flagged nodes are treated as anonymous structural roles (e.g., ``Beneficiary'' or ``Sycophant'') rather than named individuals.
+Future work could combine the structural fingerprint with author disambiguation and profile-level inspection to move from structural suspicion to targeted auditing.
 
 \textbf{Future directions.}
 Extending the temporal coverage and triangulating with independent data sources (e.g., OpenAlex) could clarify whether the observed ``Two Worlds'' segregation is widening over time.
