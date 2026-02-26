@@ -343,8 +343,8 @@ Enhanced cohesion is a recurrent feature across subjects, but its expression var
   \safeincludegraphics[width=0.95\linewidth]{Figure5_SubjectHeatmap.pdf}
   \caption{\textbf{Subject-Specific Effect Sizes (Cliff's $\delta$).}
     Each cell reports the effect size for a given metric within a subject area.
-    \textbf{Positive values (red)} indicate that Cases exhibit higher values than Controls.
-    \textbf{Negative values (blue)} indicate that Controls exhibit higher values than Cases.
+    Positive values (red) indicate that Cases exhibit higher values than Controls.
+    Negative values (blue) indicate that Controls exhibit higher values than Cases.
     Co-author Citation Rate shows near-zero or slightly positive
     values across all subjects, while velocity and burstiness
     are uniformly negative, with Life Sciences (Subject 2) displaying the
@@ -378,19 +378,7 @@ This divergence is consistent with clique-like behavior: Case authors follow mul
   \label{fig:lda}
 \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \safeincludegraphics[width=0.75\linewidth]{Figure5b_Archetypes.pdf}
-  \caption{\textbf{Behavioural Archetypes by Tier.} Stacked bar chart showing the proportion of authors in each archetype by tier. Bottom-tier authors (Cases) are split between \emph{Asymmetric} (blue) and \emph{Independent} (light blue), with minimal \emph{Solo} (pale red). Top-tier Controls are overwhelmingly \emph{Asymmetric}, with only a small fraction \emph{Independent} and virtually no \emph{Solo} behaviour.}
-  \label{fig:archetypes}
-\end{figure}
 
-\begin{figure}[H]
-  \centering
-  \safeincludegraphics[width=0.7\linewidth]{Figure2b_AuthorityProfile.pdf}
-  \caption{\textbf{Top-Tier vs.\ Bottom-Tier Baseline.} Fold-change of Top-Tier Controls relative to Bottom-Tier Cases across six dimensions: Local Clustering, Net-Giver Bias, Asymmetry, Normalised Triangles, Outgoing HHI, and Co-author Citation Rate. Controls show systematically lower cohesion and citation concentration, forming a compact, balanced profile close to the dashed reference ring.}
-  \label{fig:control_profile}
-\end{figure}
 
 \paragraph{Archetype definitions.}
 Three behavioral profiles emerge from the clustering:
@@ -568,13 +556,6 @@ As shown in the timeline analysis, citation accumulation is not organic but driv
 
 \begin{figure}[H]
   \centering
-  \safeincludegraphics[width=\linewidth]{Figure3_Timeline.pdf}
-  \caption{\textbf{Largest syndicate timeline.} Cumulative internal citations within the largest detected syndicate over time (2020--2024). Two distinct growth phases appear around 2021 and 2024, indicating episodic bursts of internal activity consistent with coordinated behavior.}
-  \label{fig:timeline}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
   \safeincludegraphics[width=\linewidth]{Figure4_Network.pdf}
   \caption{\textbf{Largest outlier citation syndicate ($n = 23$).}
   Force-directed layout of the internal citation network.
@@ -586,16 +567,9 @@ As shown in the timeline analysis, citation accumulation is not organic but driv
   \label{fig:largest-syndicate}
 \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \safeincludegraphics[width=\linewidth]{Figure11_Flow_Imbalance.pdf}
-  \caption{\textbf{Flow Imbalance and the Sycophant Phenomenon.} Case authors (Red) cluster below the diagonal, indicating they systematically give more citations than they receive (Net Debtors/Sycophants). Controls (Blue) are balanced or Net Creditors.}
-  \label{fig:flow_imbalance}
-\end{figure}
-
-Figures~\ref{fig:timeline} and~\ref{fig:largest-syndicate} illustrate the operational mode of the syndicate:
-temporal bursts coincide with directed citation flows from sycophants to a central beneficiary.
-While Figure~\ref{fig:largest-syndicate} details the specific topology of the syndicate, Figure~\ref{fig:flow_imbalance} demonstrates that this ``Sycophant-Beneficiary'' imbalance is a pervasive systematic pattern distinguishing Cases from Controls globally.
+Figure~\ref{fig:largest-syndicate} illustrates the operational mode of the syndicate:
+temporal bursts coincide with directed citation flows from sycophants to a central beneficiary,
+revealing a pervasive ``Sycophant-Beneficiary'' imbalance as a systematic pattern distinguishing Cases from Controls globally.
 
 
 
@@ -688,7 +662,7 @@ While Figure~\ref{fig:largest-syndicate} details the specific topology of the sy
 \textbf{Segregation and the ``Two Worlds'' Phenomenon.}
 The distinction between low- and high-influence venues extends beyond simple density; it reflects extreme \emph{segregation}.
 The high assortativity coefficient ($r=0.71$) and modularity ($Q=0.97$) confirm a \textbf{``Two Worlds'' hypothesis}, where Bottom-tier authors operate in closed citation economies with minimal external engagement.
-As shown in Figure~\ref{fig:anomaly_scatter}, flagged outliers concentrate at the high-asymmetry, high-burst corner of the anomaly landscape, a region essentially unpopulated by Controls.
+Flagged outliers concentrate at the high-asymmetry, high-burst corner of the anomaly landscape, a region essentially unpopulated by Controls.
 In this sense, citation cliques are not merely organic clusters but isolated silos disconnected from the broader scientific discourse.
 
 \begin{figure}[H]
@@ -703,13 +677,6 @@ In this sense, citation cliques are not merely organic clusters but isolated sil
     Below: diagonal average (84.0\%) summarises overall within-tier
     preference.}
   \label{fig:mixing_matrix}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \safeincludegraphics[width=0.80\linewidth]{Figure5_Anomaly_Scatter.pdf}
-  \caption{\textbf{Citation Anomaly Landscape.} Each point is an author plotted on $\log(1+\text{max asymmetry})$ vs.\ $\log(1+\text{max burst})$. Blue dots = Top-Tier (Control); red dots = Bottom-Tier (Case); open red circles = flagged outliers. Outliers cluster at the extreme upper-right, indicating simultaneous elevation in both asymmetry and burst -- a signature inconsistent with organic citation behavior.}
-  \label{fig:anomaly_scatter}
 \end{figure}
 
 
@@ -765,7 +732,7 @@ This design allowed us to isolate specific behavioral signatures of manipulation
 The evidence points to a highly structured phenomenon.
 Authors publishing predominantly in low-influence journals cite co-authors \textbf{6.7$\times$ more frequently} and exhibit \textbf{11$\times$ greater clique strength} compared to their top-tier counterparts.
 Rather than random noise, outlier syndicates display a \textbf{hub-and-spoke topology}, where peripheral ``Sycophants'' funnel citations to central ``Beneficiaries'' through coordinated bursts.
-The flow imbalance analysis (Figure~\ref{fig:flow_imbalance}) confirms that Case authors systematically give more citations than they receive.
+The flow imbalance analysis confirms that Case authors systematically give more citations than they receive.
 Critically, as shown in Figure~\ref{fig:temporal_velocity}, this gap is \textbf{not converging}: Top-Tier authors accumulate citations at an accelerating rate relative to Cases, confirming that the ``Two Worlds'' segregation is structurally entrenched and widening over time.
 
 \begin{figure}[H]
