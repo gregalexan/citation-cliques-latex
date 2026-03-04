@@ -332,6 +332,13 @@ The Bottom-Top gap is explained chiefly by distinct behavioral signatures. These
   \label{fig:feature_importance}
 \end{figure}
 
+\begin{figure}[H]
+  \centering
+  \safeincludegraphics[width=0.85\linewidth]{Figure6_Temporal_Velocity.pdf}
+  \caption{\textbf{Citation Output Trajectory by Tier (2020-present).} Cumulative citations per author for Bottom-Tier Cases (solid red) and Top-Tier Controls (dashed blue), with shaded confidence bands. The diverging trajectories confirm that the influence gap between tiers is \emph{widening}, not converging, over time.}
+  \label{fig:temporal_velocity}
+\end{figure}
+
 \subsection{Subject-Stratified Effects (Subjects 1-5)}
 \label{sec:by-subject}
 
@@ -659,7 +666,7 @@ revealing a pervasive ``Sycophant-Beneficiary'' imbalance as a systematic patter
 % the integrity of scholarly communication.
 
 
-\subsection{Interpretation}
+\subsection{Discussion}
 
 \textbf{Segregation and the ``Two Worlds'' Phenomenon.}
 The distinction between low- and high-influence venues extends beyond simple density; it reflects extreme \emph{segregation}.
@@ -697,17 +704,6 @@ The results highlight that aggregate counts hide structural manipulation.
 Evaluation systems must incorporate \textbf{cohesion-aware metrics} --specifically \emph{co-author citation rates} and \emph{flow imbalance}-- to distinguish organic collaboration from dense internal referencing.
 The success of the hybrid pipeline suggests that combining multivariate anomaly detection (Isolation Forest) with targeted cohesion signals can effectively flag insular publication ecosystems.
 
-\textbf{Limitations.}
-This study relies on Crossref metadata (2020-2024), which vary in completeness.
-While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
-Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing.
-Finally, the network analysis is conducted at a structural level and does not expose the identities of the individual authors involved; flagged nodes are treated as anonymous structural roles (e.g., ``Beneficiary'' or ``Sycophant'') rather than named individuals.
-Future work could combine the structural fingerprint with author disambiguation and profile-level inspection to move from structural suspicion to targeted auditing.
-
-\textbf{Future directions.}
-Extending the temporal coverage and triangulating with independent data sources (e.g., OpenAlex) could clarify whether the observed ``Two Worlds'' segregation is widening over time.
-Experimental audits in selected venues could also test whether editorial interventions can dismantle the ``Echo Chambers'' identified in this analysis.
-
 \textbf{Broader implications.}
 Overall, the dominance of segregation and flow imbalance suggests that low-influence venues foster \textbf{closed economies} of citation.
 Understanding these patterns is essential for designing fair bibliometric indicators that reward genuine impact rather than inward-looking visibility loops.
@@ -727,6 +723,18 @@ Understanding these patterns is essential for designing fair bibliometric indica
 % Controlling for subject and productivity ($h_5$), authors in low-influence journals display \emph{abnormal} citation behavior: they show broadly higher cohesion (co-author citations, clustering) and concentrate in compact outlier clusters on network metrics associated with manipulation or suspicion, compared to matched top-tier counterparts. Low-influence venues therefore foster dense, inward-looking practices that can distort bibliometric indicators even without overt misconduct.
 
 
+\section{Limitations and Future Work}
+\label{sec:limitations}
+
+This study relies on Crossref metadata (2020-2024), which vary in completeness.
+While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
+Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing.
+Finally, the network analysis is conducted at a structural level and does not expose the identities of the individual authors involved; flagged nodes are treated as anonymous structural roles (e.g., ``Beneficiary'' or ``Sycophant'') rather than named individuals.
+
+Future work could combine the structural fingerprint with author disambiguation and profile-level inspection to move from structural suspicion to targeted auditing.
+Extending the temporal coverage and triangulating with independent data sources (e.g., OpenAlex) could clarify whether the observed ``Two Worlds'' segregation is widening over time.
+Experimental audits in selected venues could also test whether editorial interventions can dismantle the ``Echo Chambers'' identified in this analysis.
+
 \section{Summary and Conclusions}
 \label{sec:conclusion}
 
@@ -739,14 +747,6 @@ Rather than random noise, outlier syndicates display a \textbf{hub-and-spoke top
 The flow imbalance analysis confirms that Case authors systematically give more citations than they receive.
 Critically, as shown in Figure~\ref{fig:temporal_velocity}, this gap is \textbf{not converging}: Top-Tier authors accumulate citations at an accelerating rate relative to Cases, confirming that the ``Two Worlds'' segregation is structurally entrenched and widening over time.
 
-\begin{figure}[H]
-  \centering
-  \safeincludegraphics[width=0.85\linewidth]{Figure6_Temporal_Velocity.pdf}
-  \caption{\textbf{Citation Output Trajectory by Tier (2020-present).} Cumulative citations per author for Bottom-Tier Cases (solid red) and Top-Tier Controls (dashed blue), with shaded confidence bands. The diverging trajectories confirm that the influence gap between tiers is \emph{widening}, not converging, over time.}
-  \label{fig:temporal_velocity}
-\end{figure}
-
-\paragraph{Conclusion.}
 Controlling for subject and productivity, the hybrid detection strategy identifies structurally anomalous citation groups with 93.5\% Case purity (proportion of flagged authors belonging to the Bottom tier).
 These groups are characterized not by simple asymmetry, but by a specific cohesion fingerprint --extreme co-author citation rates, dense local clustering, and tunnel vision.
 Consequently, low-influence venues do not merely host lower-quality work; they foster \textbf{segregated, inward-looking citation economies} that actively distort bibliometric indicators through structural manipulation, a divide that is deepening with each passing year.
