@@ -7,14 +7,14 @@
 
 \subsection{Cross-referencing Suspicious Authors}\label{sec:suspicious-authors}
 
-To move from aggregate outlier statistics to actionable intelligence,
+To move from aggregate outlier statistics to individual-level findings,
 we cross-reference the 189 flagged outliers against real-world author
 identities and publication records.
 Each ORCID identifier is resolved to a name via the ORCID public
 API,\footnote{\url{https://pub.orcid.org}} and publication portfolios
-are reconstructed from \texttt{impact.db} by joining
-\texttt{work\_authors} to \texttt{works} and resolving journal titles
-through the \texttt{journal\_names} catalogue.
+are reconstructed by joining author\,--\,work associations to the
+Crossref works table and resolving journal titles through the ISSN
+catalogue.
 
 \subsubsection*{Suspiciousness scoring}
 
@@ -47,8 +47,10 @@ or $5\sigma$.
 
 Of the 189 outliers, 162 (85.7\%) belong to the Case (bottom-tier)
 group, confirming the precision of the Isolation Forest detector.
-Outliers concentrate in Medicine ($n=77$) and Engineering ($n=71$),
-followed by Social Sciences ($n=46$) and Natural Sciences ($n=3$).
+Grouped by ASJC general field, outlier observations concentrate in
+Medicine ($n=77$) and Engineering ($n=71$), followed by Social
+Sciences ($n=46$) and Natural Sciences ($n=3$); note that a small
+number of authors are matched in more than one field.
 A total of 131 outliers (69.3\%) belong to at least one syndicate
 (connected component among mutual outlier citation links), with the
 largest syndicate comprising 23~members (see Figure~\ref{fig:network}).
@@ -57,7 +59,7 @@ Table~\ref{tab:suspicious-top10} presents the ten highest-scoring
 authors.
 All ten exhibit co-author citation rates exceeding $5\sigma$;
 seven also show reciprocity rates beyond $5\sigma$.
-The two top-ranked authors --- both in agricultural engineering ---
+The two top-ranked authors, both in agricultural engineering,
 share an identical suspiciousness score ($S = 658.6$) and belong to
 the same 23-member syndicate, consistent with coordinated behaviour.
 The presence of authors writing in Korean, Russian, Ukrainian, and
@@ -68,11 +70,11 @@ the same ten authors.
 Typical portfolios are small (4--14 works, median~5), concentrated
 in a single regional journal, and characterised by near-zero
 outgoing citations in the global network yet elevated reciprocal
-citation links --- a pattern consistent with closed-loop mutual
+citation links, a pattern consistent with closed-loop mutual
 citation within a small community of co-authors.
 
 %% ── Table 1: Top-10 suspicious authors ────────────────────────────
-\begin{table*}[t]
+\begin{table}[t]
 \centering
 \caption{Top-10 most suspicious authors ranked by composite
   suspiciousness score $S$ (Eq.~\ref{eq:susp}).}
@@ -80,7 +82,7 @@ citation within a small community of co-authors.
 \small
 \begin{tabular}{rl l l r r l}
 \toprule
-Rank & ORCID & Name & Subject & $S$ & Works & Primary red flags \\
+Rank & ORCID & Name & Subject & $S$ & Works & Primary anomalies \\
 \midrule
   1 & \texttt{0000-0001-5794-5580} & O.\ Kochuk-Yashchenko    & Eng.  & 658.6 & 12 & co-auth.\ cit., clique str., recip.\ ($>5\sigma$) \\
   2 & \texttt{0000-0002-1998-6290} & D.\ Kucher               & Eng.  & 658.6 & 13 & co-auth.\ cit., clique str., recip.\ ($>5\sigma$) \\
@@ -99,16 +101,16 @@ Rank & ORCID & Name & Subject & $S$ & Works & Primary red flags \\
 {\footnotesize\textit{Note.}
   Suspiciousness score is a weighted $z$-score composite of six
   behavioural features.
-  Red flags indicate features exceeding $3\sigma$ or $5\sigma$
+  Anomalies indicate features exceeding $3\sigma$ or $5\sigma$
   of the population mean.
   These patterns are \emph{statistically anomalous}; they do not
   constitute proof of misconduct.
   Names are initialised for brevity; full ORCIDs are verifiable via
   \texttt{https://orcid.org/[ORCID]}.}
-\end{table*}
+\end{table}
 
 %% ── Table 2: Publication audit ────────────────────────────────────
-\begin{table*}[t]
+\begin{table}[t]
 \centering
 \caption{Publication audit profiles for top-10 suspicious authors.}
 \label{tab:author-audit}
@@ -136,12 +138,12 @@ Rank & ORCID & Works & Years & Out & In & Recip. & Primary journal \\
   In = total incoming; Recip.\ = reciprocal citation pairs.
   ``Primary journal'' is the journal in which the author published
   the most works within the 2020--2024 study window.}
-\end{table*}
+\end{table}
 
 \subsubsection*{Implications for editorial practice}
 
 The concentration of suspicious behaviour in small, regional journals
---- several of which do not appear in major indexing databases ---
+, several of which do not appear in major indexing databases,
 suggests that coordinated citation inflation is disproportionately
 prevalent in venues with limited editorial oversight.
 The publication-audit data show that the highest-scoring authors
