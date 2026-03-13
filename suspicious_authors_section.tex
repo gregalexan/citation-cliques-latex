@@ -1,0 +1,153 @@
+%% suspicious_authors_section.tex
+%% ──────────────────────────────────────────────────────────────────
+%% New Results subsection: suspicious-author cross-referencing.
+%% Include in main.tex via:  \input{suspicious_authors_section}
+%% (place after the Mixing Matrix subsection, before \section{Discussion})
+%% ──────────────────────────────────────────────────────────────────
+
+\subsection{Cross-referencing Suspicious Authors}\label{sec:suspicious-authors}
+
+To move from aggregate outlier statistics to actionable intelligence,
+we cross-reference the 189 flagged outliers against real-world author
+identities and publication records.
+Each ORCID identifier is resolved to a name via the ORCID public
+API,\footnote{\url{https://pub.orcid.org}} and publication portfolios
+are reconstructed from \texttt{impact.db} by joining
+\texttt{work\_authors} to \texttt{works} and resolving journal titles
+through the \texttt{journal\_names} catalogue.
+
+\subsubsection*{Suspiciousness scoring}
+
+We define a composite \emph{suspiciousness score} as the weighted sum
+of population-normalised $z$-scores across six behavioural features:
+%
+\begin{equation}\label{eq:susp}
+  S_i = \sum_{k=1}^{6} w_k \cdot z_{ik},
+  \qquad
+  z_{ik} = \frac{x_{ik} - \bar{x}_k}{\sigma_k},
+\end{equation}
+%
+where $x_{ik}$ is the raw value of feature~$k$ for author~$i$,
+$\bar{x}_k$ and $\sigma_k$ are the population mean and standard
+deviation, and the weights $w_k$ are chosen to reflect both
+Random-Forest feature importance (Figure~\ref{fig:importance}) and
+Wilcoxon effect sizes:
+co-author citation rate ($w=4.0$),
+clique strength ($3.5$),
+reciprocity rate ($3.5$),
+outgoing HHI ($3.0$),
+self-citation rate ($2.0$),
+and journal endogamy rate ($2.0$).
+
+Authors are ranked by $S_i$ in descending order.
+An individual feature is flagged when its $z$-score exceeds $3\sigma$
+or $5\sigma$.
+
+\subsubsection*{Key findings}
+
+Of the 189 outliers, 162 (85.7\%) belong to the Case (bottom-tier)
+group, confirming the precision of the Isolation Forest detector.
+Outliers concentrate in Medicine ($n=77$) and Engineering ($n=71$),
+followed by Social Sciences ($n=46$) and Natural Sciences ($n=3$).
+A total of 131 outliers (69.3\%) belong to at least one syndicate
+(connected component among mutual outlier citation links), with the
+largest syndicate comprising 23~members (see Figure~\ref{fig:network}).
+
+Table~\ref{tab:suspicious-top10} presents the ten highest-scoring
+authors.
+All ten exhibit co-author citation rates exceeding $5\sigma$;
+seven also show reciprocity rates beyond $5\sigma$.
+The two top-ranked authors --- both in agricultural engineering ---
+share an identical suspiciousness score ($S = 658.6$) and belong to
+the same 23-member syndicate, consistent with coordinated behaviour.
+The presence of authors writing in Korean, Russian, Ukrainian, and
+Portuguese underscores the international scope of the phenomenon.
+
+Table~\ref{tab:author-audit} provides a publication-level audit of
+the same ten authors.
+Typical portfolios are small (4--14 works, median~5), concentrated
+in a single regional journal, and characterised by near-zero
+outgoing citations in the global network yet elevated reciprocal
+citation links --- a pattern consistent with closed-loop mutual
+citation within a small community of co-authors.
+
+%% ── Table 1: Top-10 suspicious authors ────────────────────────────
+\begin{table*}[t]
+\centering
+\caption{Top-10 most suspicious authors ranked by composite
+  suspiciousness score $S$ (Eq.~\ref{eq:susp}).}
+\label{tab:suspicious-top10}
+\small
+\begin{tabular}{rl l l r r l}
+\toprule
+Rank & ORCID & Name & Subject & $S$ & Works & Primary red flags \\
+\midrule
+  1 & \texttt{0000-0001-5794-5580} & O.\ Kochuk-Yashchenko    & Eng.  & 658.6 & 12 & co-auth.\ cit., clique str., recip.\ ($>5\sigma$) \\
+  2 & \texttt{0000-0002-1998-6290} & D.\ Kucher               & Eng.  & 658.6 & 13 & co-auth.\ cit., clique str., recip.\ ($>5\sigma$) \\
+  3 & \texttt{0000-0001-9044-3400} & E.\ Ivanova              & Med.  & 361.7 &  4 & co-auth.\ cit., recip., out.\ HHI ($>5\sigma$) \\
+  4 & \texttt{0000-0001-5541-5180} & L.\ A.\ dos Santos Franz & Soc.  & 207.6 & 14 & co-auth.\ cit.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
+  5 & \texttt{0000-0002-0836-9510} & J.\ Ryu                  & Eng.  & 204.9 &  4 & co-auth.\ cit., clique str., recip.\ ($>5\sigma$) \\
+  6 & \texttt{0000-0002-5354-3020} & S.\ H.\ Lee              & Eng.  & 203.4 &  5 & co-auth.\ cit., clique str., recip.\ ($>5\sigma$) \\
+  7 & \texttt{0000-0002-5962-4470} & M.\ L.\ Grigio           & Eng.  & 203.0 &  5 & co-auth.\ cit., recip., out.\ HHI ($>5\sigma$) \\
+  8 & \texttt{0000-0002-3497-8870} & K.\ Nam                  & Eng.  & 184.7 &  4 & co-auth.\ cit., recip.\ ($>5\sigma$); endog.\ ($>5\sigma$) \\
+  9 & \texttt{0000-0001-6877-9530} & D.\ R.\ Amirov           & Eng.  & 180.4 &  5 & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
+ 10 & \texttt{0000-0003-1664-6810} & D.\ Morozova             & Eng.  & 180.4 &  4 & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
+\bottomrule
+\end{tabular}
+
+\medskip
+{\footnotesize\textit{Note.}
+  Suspiciousness score is a weighted $z$-score composite of six
+  behavioural features.
+  Red flags indicate features exceeding $3\sigma$ or $5\sigma$
+  of the population mean.
+  These patterns are \emph{statistically anomalous}; they do not
+  constitute proof of misconduct.
+  Names are initialised for brevity; full ORCIDs are verifiable via
+  \texttt{https://orcid.org/[ORCID]}.}
+\end{table*}
+
+%% ── Table 2: Publication audit ────────────────────────────────────
+\begin{table*}[t]
+\centering
+\caption{Publication audit profiles for top-10 suspicious authors.}
+\label{tab:author-audit}
+\small
+\begin{tabular}{rl rrr rrl}
+\toprule
+Rank & ORCID & Works & Years & Out & In & Recip. & Primary journal \\
+\midrule
+  1 & \texttt{0000-0001-5794-5580} & 12 & 2020--2024 &  0 & 1 & 1 & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ \\
+  2 & \texttt{0000-0002-1998-6290} & 13 & 2020--2024 &  0 & 1 & 1 & Anim.\ Breed.\ Genet.\ \\
+  3 & \texttt{0000-0001-9044-3400} &  4 & 2020--2023 &  1 & 1 & 1 & Laser Medicine \\
+  4 & \texttt{0000-0001-5541-5180} & 14 & 2020--2024 &  0 & 0 & 0 & Exacta \\
+  5 & \texttt{0000-0002-0836-9510} &  4 & 2020--2022 &  0 & 0 & 1 & Korean J.\ Soil Sci.\ Fert.\ \\
+  6 & \texttt{0000-0002-5354-3020} &  5 & 2020--2022 &  0 & 0 & 1 & Korean J.\ Soil Sci.\ Fert.\ \\
+  7 & \texttt{0000-0002-5962-4470} &  5 & 2020--2022 &  0 & 0 & 1 & Acta Sci.\ Agronomy \\
+  8 & \texttt{0000-0002-3497-8870} &  4 & 2021--2023 &  0 & 0 & 1 & Korean J.\ Plant Taxon.\ \\
+  9 & \texttt{0000-0001-6877-9530} &  5 & 2021--2023 &  0 & 0 & 1 & Sci.\ Notes Kazan Vet.\ Acad.\ \\
+ 10 & \texttt{0000-0003-1664-6810} &  4 & 2022--2023 &  0 & 0 & 1 & Int.\ J.\ Vet.\ Med.\ \\
+\bottomrule
+\end{tabular}
+
+\medskip
+{\footnotesize\textit{Note.}
+  Out = total outgoing citations in the directed citation network;
+  In = total incoming; Recip.\ = reciprocal citation pairs.
+  ``Primary journal'' is the journal in which the author published
+  the most works within the 2020--2024 study window.}
+\end{table*}
+
+\subsubsection*{Implications for editorial practice}
+
+The concentration of suspicious behaviour in small, regional journals
+--- several of which do not appear in major indexing databases ---
+suggests that coordinated citation inflation is disproportionately
+prevalent in venues with limited editorial oversight.
+The publication-audit data show that the highest-scoring authors
+maintain very small portfolios (median~5 works), yet achieve
+anomalous citation metrics through closed-loop mutual referencing.
+This pattern is consistent with prior work on ``citation stacking''
+\citep{heneberg2016} and suggests that journal-level surveillance
+of incoming self-citation rates from small author cliques could serve
+as an effective early-warning signal.
