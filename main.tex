@@ -502,7 +502,7 @@ of population-normalised $z$-scores across six behavioural features:
 where $x_{ik}$ is the raw value of feature~$k$ for author~$i$,
 $\bar{x}_k$ and $\sigma_k$ are the population mean and standard
 deviation, and the weights $w_k$ are chosen to reflect both
-Random-Forest feature importance (Figure~\ref{fig:importance}) and
+Random-Forest feature importance (Figure~\ref{fig:feature_importance}) and
 Wilcoxon effect sizes:
 co-author citation rate ($w=4.0$),
 clique strength ($3.5$),
@@ -523,7 +523,7 @@ Outliers concentrate in Medicine ($n=77$) and Engineering ($n=71$),
 followed by Social Sciences ($n=46$) and Natural Sciences ($n=3$).
 A total of 131 outliers (69.3\%) belong to at least one syndicate
 (connected component among mutual outlier citation links), with the
-largest syndicate comprising 23~members (see Figure~\ref{fig:network}).
+largest syndicate comprising 23~members (see Figure~\ref{fig:largest-syndicate}).
 
 Table~\ref{tab:suspicious-top10} presents the ten highest-scoring
 authors.
@@ -548,8 +548,8 @@ citation within a small community of co-authors.
   \caption{Top-10 most suspicious authors ranked by composite
     suspiciousness score $S$ (Eq.~\ref{eq:susp}).}
   \label{tab:suspicious-top10}
-  \small
-  \begin{tabular}{rl l l r r l}
+  \scriptsize
+  \begin{tabularx}{\linewidth}{rl l l r r X}
     \toprule
     Rank & ORCID                        & Name                     & Subject & $S$   & Works & Primary red flags                                             \\
     \midrule
@@ -564,7 +564,7 @@ citation within a small community of co-authors.
     9    & \texttt{0000-0001-6877-9530} & D.\ R.\ Amirov           & Eng.    & 180.4 & 5     & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
     10   & \texttt{0000-0003-1664-6810} & D.\ Morozova             & Eng.    & 180.4 & 4     & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 
   \medskip
   {\footnotesize\textit{Note.}
@@ -582,8 +582,8 @@ citation within a small community of co-authors.
   \centering
   \caption{Publication audit profiles for top-10 suspicious authors.}
   \label{tab:author-audit}
-  \small
-  \begin{tabular}{rl rrr rrl}
+  \scriptsize
+  \begin{tabularx}{\linewidth}{rl rrr rrX}
     \toprule
     Rank & ORCID                        & Works & Years      & Out & In & Recip. & Primary journal                  \\
     \midrule
@@ -598,7 +598,7 @@ citation within a small community of co-authors.
     9    & \texttt{0000-0001-6877-9530} & 5     & 2021--2023 & 0   & 0  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\   \\
     10   & \texttt{0000-0003-1664-6810} & 4     & 2022--2023 & 0   & 0  & 1      & Int.\ J.\ Vet.\ Med.\            \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 
   \medskip
   {\footnotesize\textit{Note.}
