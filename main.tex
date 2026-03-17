@@ -321,7 +321,7 @@ Enhanced cohesion is a recurrent feature across subjects, but its expression var
   \safeincludegraphics[width=0.95\linewidth]{Figure5_SubjectHeatmap.pdf}
   \caption{\textbf{Subject-Specific Effect Sizes (Cliff's $\delta$).}
     Each cell reports the effect size for a given metric within a subject area.
-    Positive values (red) indicate that Cases exhibit higher values than Controls.
+    Positive values (white - pale red) indicate that Cases exhibit higher values than Controls.
     Negative values (blue) indicate that Controls exhibit higher values than Cases.
     Co-author Citation Rate shows near-zero or slightly positive
     values across all subjects, while velocity and burstiness
@@ -488,8 +488,9 @@ are reconstructed from \texttt{impact.db} by joining
 \texttt{work\_authors} to \texttt{works} and resolving journal titles
 through the \texttt{journal\_names} catalogue.
 
-\subsubsection*{Suspiciousness scoring}
+% \subsubsection*{Suspiciousness scoring}
 
+\textbf{Suspiciousness scoring.}
 We define a composite \emph{suspiciousness score} as the weighted sum
 of population-normalised $z$-scores across six behavioural features:
 %
@@ -515,12 +516,12 @@ Authors are ranked by $S_i$ in descending order.
 An individual feature is flagged when its $z$-score exceeds $3\sigma$
 or $5\sigma$.
 
-\subsubsection*{Key findings}
-
+% \subsubsection*{Key findings}
+\textbf{Key Findings.}
 Of the 189 outliers, 162 (85.7\%) belong to the Case (bottom-tier)
 group, confirming the precision of the Isolation Forest detector.
-Outliers concentrate in Medicine ($n=77$) and Engineering ($n=71$),
-followed by Social Sciences ($n=46$) and Natural Sciences ($n=3$).
+Outliers concentrate in Health Sciences ($n=77$) and Physical Sciences ($n=71$),
+followed by Social Sciences ($n=46$) and Life Sciences ($n=3$).
 A total of 131 outliers (69.3\%) belong to at least one syndicate
 (connected component among mutual outlier citation links), with the
 largest syndicate comprising 23~members (see Figure~\ref{fig:largest-syndicate}).
@@ -529,7 +530,7 @@ Table~\ref{tab:suspicious-top10} presents the ten highest-scoring
 authors.
 All ten exhibit co-author citation rates exceeding $5\sigma$;
 seven also show reciprocity rates beyond $5\sigma$.
-The two top-ranked authors --- both in agricultural engineering ---
+The two top-ranked authors --both in agricultural engineering--
 share an identical suspiciousness score ($S = 658.6$) and belong to
 the same 23-member syndicate, consistent with coordinated behaviour.
 The presence of authors writing in Korean, Russian, Ukrainian, and
@@ -537,10 +538,10 @@ Portuguese underscores the international scope of the phenomenon.
 
 Table~\ref{tab:author-audit} provides a publication-level audit of
 the same ten authors.
-Typical portfolios are small (4--14 works, median~5), concentrated
+Typical portfolios are small (4-14 works, median~5), concentrated
 in a single regional journal, and characterised by near-zero
 outgoing citations in the global network yet elevated reciprocal
-citation links --- a pattern consistent with closed-loop mutual
+citation links, a pattern consistent with closed-loop mutual
 citation within a small community of co-authors.
 
 \begin{table*}[t]
@@ -608,11 +609,10 @@ citation within a small community of co-authors.
     the most works within the 2020--2024 study window.}
 \end{table*}
 
-\subsubsection*{Implications for editorial practice}
-
+% \subsubsection*{Implications for editorial practice}
+\textbf{Implications for editorial practice.}
 The concentration of suspicious behaviour in small, regional journals
---- several of which do not appear in major indexing databases ---
-suggests that coordinated citation inflation is disproportionately
+many of which do not appear in major indexing databases, suggests that coordinated citation inflation is disproportionately
 prevalent in venues with limited editorial oversight.
 The publication-audit data show that the highest-scoring authors
 maintain very small portfolios (median~5 works), yet achieve
