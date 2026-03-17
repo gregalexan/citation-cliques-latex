@@ -109,12 +109,12 @@ Athens University of Economics and Business (AUEB), Athens, Greece}
 % \end{abstract}
 
 \begin{abstract}
-  This study examines whether journals of relatively low influence --defined through subject-normalized Eigenfactor percentiles-- are associated with denser and more reciprocating patterns of author-to-author citation.
-  Using Crossref records, we assign journals to broad subject areas, compute subject-specific Eigenfactor scores, propagate venue quality to works and authors, match authors in low- versus high-influence venues by subject and $h_5$, and analyze citation edges for cohesion and anomalies.
-  Across 10,116 matched pairs, authors in low-influence venues exhibit 6.7$\times$ higher co-author citation rates and 11$\times$ greater clique strength.
-  A subject-aware hybrid detection pipeline achieves 93.5\% Case purity (i.e., 93.5\% of flagged authors belong to the Bottom tier), revealing a stark ``Two Worlds'' segregation ($r=0.71$) where low-influence venues operate as closed citation economies.
-  The largest component ($n= 23$) displays a hub-and-spoke topology, funneling citations to central beneficiaries through coordinated bursts.
-  Overall, cohesion --rather than broad asymmetry-- accounts for the main case-control differences, suggesting that low-influence venues foster dense, inward-looking citation practices.
+  This study examines whether questionable journals, defined through subject-normalized Eigenfactor percentiles, systematically foster denser and more reciprocating patterns of author-to-author citation.
+  Using Crossref records, we assign journals to broad subject areas, compute subject-specific Eigenfactor scores, propagate venue quality to works and authors, match authors in questionable versus high-influence venues by subject and $h_5$, and analyze citation edges for cohesion and anomalies.
+  Across 9,431 matched pairs, authors in questionable venues exhibit 6.7$\times$ higher co-author citation rates and 11$\times$ greater clique strength.
+  A subject-aware hybrid detection pipeline achieves 93.5\% Case purity, revealing a stark ``Two Worlds'' segregation ($r=0.71$) where questionable venues operate as closed citation economies.
+  The largest detected component ($n=23$) displays a hub-and-spoke topology in which peripheral ``Sycophants'' funnel citations to central ``Beneficiaries'' through coordinated bursts, confirming a directed flow imbalance rather than reciprocal exchange among equals.
+  Overall, cohesion, rather than broad asymmetry, accounts for the main case-control differences, suggesting that questionable venues foster segregated, inward-looking citation economies that actively distort bibliometric indicators.
 \end{abstract}
 
 \textbf{Keywords:} scientometrics; low-influence journals; citations; cliques; social network analysis; eigenfactor
@@ -146,7 +146,7 @@ Systemic and infrastructural distortions further complicate these dynamics. Nati
 
 Finally, the recognition of complex citation distortions has increased the focus on transparency and reproducibility. The \emph{LLM Guidelines} \parencite{LLMGuidelines2024} advocate for documenting decision rules and uncertainty, which is critical as machine learning becomes central to integrity audits. Supporting initiatives promote open data and verifiable auditing to prevent large-scale manipulation. These developments suggest that citation systems are socio-technical infrastructures where credibility relies on both methodological openness and quantitative rigor.
 
-The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched case-control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion}, which manifests as dense local clustering and triadic closure, as the primary diagnostic signature of citation anomalies within low-influence journals. By implementing a subject-aware isolation forest on author-to-author networks across 10,116 matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
+The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched case-control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion}, which manifests as dense local clustering and triadic closure, as the primary diagnostic signature of citation anomalies within low-influence journals. By implementing a subject-aware isolation forest on author-to-author networks across 9,431 matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
 
 \section{Methodology}
 \label{sec:methods}
@@ -189,9 +189,8 @@ Within each subject, journals in the top quartile of Eigenfactor were labeled \e
 Authors were classified as \textbf{Top} if most of their output was in high-influence journals, \textbf{Bottom} if concentrated in questionable journals, and \textbf{Mixed} otherwise. We then matched Bottom authors to Top authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
 
 \textbf{Sample and Availability.}
-The final analytical dataset includes up to 10{,}116 matched case-control author pairs per metric
-(co-author citation rate, clustering coefficient, triangles, maximum and average asymmetry, and average velocity),
-and 7{,}711 pairs for maximum citation burst.
+The final analytical dataset comprises 9{,}431 matched case-control author pairs
+(see Table~\ref{tab:sampling-funnel} for the per-subject breakdown).
 All pair-level and network-level aggregates were computed per subject area and combined
 only after validation of within-subject consistency.
 All processed data tables are available through the public replication repository
@@ -292,7 +291,7 @@ Crucially, this systemic disparity is not static: cumulative citation trajectori
 \label{sec:by-subject}
 
 \noindent\textbf{Robust cohesion, field-specific accents.}
-Enhanced cohesion is a recurrent feature across subjects, but its expression varies by field. In the health and life sciences, the divergence appears mainly as consistently higher co-author citation and stronger local clustering. In multidisciplinary and physical sciences, dense networking more often coincides with short, episodic activity waves. In the social sciences and humanities, cohesion signals are subtler, but sharper temporal concentrations of citations within short windows are more prominent.
+Enhanced cohesion is a recurrent feature across subjects, but its expression varies by field (Figure~\ref{fig:heatmap}). In the health and life sciences, the divergence appears mainly as consistently higher co-author citation and stronger local clustering. In multidisciplinary and physical sciences, dense networking more often coincides with short, episodic activity waves. In the social sciences and humanities, cohesion signals are subtler, but sharper temporal concentrations of citations within short windows are more prominent.
 
 \begin{figure}[H]
   \centering
@@ -434,7 +433,7 @@ In this sense, citation cliques are not merely organic clusters but isolated sil
 \begin{figure}[H]
   \centering
   \safeincludegraphics[width=0.85\linewidth]{Figure10_Mixing_Matrix.pdf}
-  \caption{\textbf{Citation mixing matrix ($r = 0.71$, strong homophily).}
+  \caption{\textbf{Citation mixing matrix ($r = 0.71$, $Q = 0.97$; strong homophily).}
     Row-normalised proportion of citations directed within and
     across tiers.
     Cell values show the conditional probability that an author
@@ -768,7 +767,7 @@ For each Bottom-Tier author the algorithm selected the closest available Top-Tie
 Productivity was bucketed by integer division ($b = \lfloor h_5/3 \rfloor$); candidates with $|b_{\text{case}} - b_{\text{control}}| \leq 1$ (i.e., $\pm3$~$h_5$ points) were eligible.
 Among eligible candidates the one minimising $|h_{5,\text{case}} - h_{5,\text{control}}|$ was selected.
 Each (ORCID, subject) pair was used at most once (matching without replacement).
-This procedure yielded 10,116 matched pairs across five subject areas.
+This procedure yielded 9{,}431 matched pairs across five subject areas (Table~\ref{tab:sampling-funnel}).
 
 \subsection{Fractional Citation Weights}
 Each citation edge between a citing work with $n_c$~authors and a cited work with $n_a$~authors received weight
@@ -812,6 +811,66 @@ with weights: co-author citation rate ($4.0$), clique strength ($3.5$), reciproc
 outgoing HHI ($3.0$), self-citation rate ($2.0$), journal endogamy ($2.0$).
 Standardisation uses the population mean and standard deviation.
 An author was flagged only if both the Isolation Forest anomaly score exceeded its per-subject threshold \emph{and} $S_i > 4\sigma$.
+
+
+\section{Data Derivation and Sampling}
+\label{app:sampling}
+
+The analytical dataset was derived through a multi-stage pipeline.
+This appendix documents the full data flow and the filtering decisions at each stage.
+
+\subsection{Stage~1: Raw Data Ingestion}
+Crossref metadata were ingested via \textit{alexandria3k} \parencite{Spinellis2023}, retaining works published between 2020 and 2024.
+The following fields were extracted: DOI, publication year, page information, print and electronic ISSN, reference lists (DOI-level), and author ORCID identifiers.
+
+\subsection{Stage~2: Journal-Level Metrics}
+Works were linked to journals through normalised ISSNs.
+A citability filter removed non-article items (single-page entries such as editorials and news pieces).
+For each journal, two-year and five-year citation means, the $h_5$~index, network centrality (Eigenfactor), prestige rank (SJR-like), mean article score, and context-normalised impact were computed.
+Journal citation networks were constructed from references in the reference year (2024) to publications in the preceding two-, three-, or five-year windows, depending on the metric.
+
+\subsection{Stage~3: Journal Subject Classification}
+Each journal was assigned to one of five broad subjects using an LLM-based classifier (see Appendix~\ref{app:llm}).
+The final mapping covers approximately 15{,}000 ISSNs.
+Within each subject, the 25th and 75th Eigenfactor percentiles were computed to define \emph{questionable} and \emph{high-influence} thresholds, respectively.
+
+\subsection{Stage~4: Author Population and Sampling}
+To keep computation tractable, the author population was sampled by retaining only ORCIDs whose last digit is~\texttt{0} (approximately 10\% of all ORCID-bearing authors in the Crossref snapshot).
+This deterministic filter preserves the distribution of author characteristics because the ORCID check digit is algorithmically assigned and uncorrelated with research behaviour.
+
+\subsection{Stage~5: Author Classification and Matching}
+Within the sampled population, authors were classified per subject as:
+\begin{itemize}
+  \item \textbf{Bottom Tier}: $\geq70\%$ of papers in journals below the 25th Eigenfactor percentile, with $\geq3$~papers.
+  \item \textbf{Top Tier}: $\geq70\%$ of papers in journals above the 75th Eigenfactor percentile, with $\geq3$~papers.
+\end{itemize}
+Authors not meeting either criterion were excluded.
+A subject-specific $h_5$~index was computed for each remaining author.
+Bottom-Tier authors were then matched to Top-Tier authors via greedy one-pass matching within subject, as described in Appendix~\ref{app:params}.
+
+\subsection{Stage~6: Final Dataset}
+The matching procedure yielded 10{,}116 case-control pairs across five subjects (Table~\ref{tab:sampling-funnel}).
+For the maximum citation burst metric, 7{,}711 pairs were available due to data sparsity.
+Directed author-to-author citation networks were constructed for matched authors using fractional edge weights (Appendix~\ref{app:params}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{\textbf{Matched pairs by subject area.}}
+  \label{tab:sampling-funnel}
+  \begin{tabular}{@{}lr@{}}
+    \toprule
+    \textbf{Subject} & \textbf{Pairs} \\
+    \midrule
+    Health Sciences                & 3{,}776 \\
+    Life Sciences                  & 2{,}543 \\
+    Physical Sciences              & 2{,}262 \\
+    Social Sciences \& Humanities  & 518 \\
+    Multidisciplinary              & 332 \\
+    \midrule
+    \textbf{Total}                 & \textbf{9{,}431} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 
 \section{LLM-Based Journal Classification}
