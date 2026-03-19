@@ -175,6 +175,7 @@ and join consistency before statistical analysis.
 
 \textbf{Data collection.}
 Crossref metadata were ingested via \textit{alexandria3k} \parencite{Spinellis2023}, covering works published between 2020 and 2024. We retained DOIs, years, titles, abstracts, references, author identifiers (ORCID), and normalized ISSNs for journals. Duplicates and inconsistencies were cleaned, and derived layers linked works to authors, journals, and citations.
+Appendix~\ref{app:sampling} documents the full data derivation pipeline and the filtering decisions applied at each stage.
 
 \textbf{Journal Subject Classification.}
 Each journal was assigned to one of five broad subjects: 1) Health Sciences, 2) Life Sciences, 3) Multidisciplinary, 4) Physical Sciences, 5) Social Sciences \& Humanities, using an LLM-based classifier \parencite{LLMGuidelines2024}. We used \texttt{gpt-4.1} with zero temperature and few-shot exemplars, drawing on representative titles and abstracts. Prompts and decision rules prioritized abstracts over titles and journal names. To ensure reproducibility, we used seed and cached predictions to JSON files for safety.
@@ -205,6 +206,8 @@ described in Section~\ref{sec:data}.
 For matched authors, we constructed directed author-to-author citation networks (2020--2024).
 Each citation edge between a citing work with $n_c$~authors and a cited work with $n_a$~authors received weight $w = 1/(n_c \times n_a)$, correcting for team size.
 From these edges we derived cohesion metrics (self-citation, co-author citation, clustering, triangles, $k$-core, PageRank) and pairwise anomaly metrics (reciprocity, asymmetry, velocity, citation bursts). These measures capture both dense reciprocal structures and asymmetric one-way flows.
+During exploratory analysis, raw pairwise metrics (maximum asymmetry, average velocity, and maximum burst) were also computed; in the formal pipeline they were replaced by normalised variants that are comparable across activity levels: \emph{citation balance} captures net giver/receiver bias as a bounded $(-1,+1)$ ratio, while \emph{normalised burst intensity} adjusts the largest single-peer citation weight by total incoming volume.
+Table~\ref{tab:features} (Appendix~\ref{app:features}) lists the 14 features retained for statistical testing and modelling.
 
 \subsection{Statistical Analysis and Outlier Detection}
 
@@ -222,7 +225,11 @@ We developed a subject-aware hybrid outlier detection strategy linking multivari
 The pipeline combines an Isolation Forest (IF) \parencite{Liu2008} with a domain-specific Cohesion Composite Score.
 The IF model used standard hyperparameters (\texttt{n\_estimators=200}, \texttt{contamination=0.01}) to capture general anomalies.
 The Cohesion Score was computed as the standardized sum of the four most discriminative features: co-author citation rate, clique strength, reciprocity, and outgoing HHI\footnote{The Herfindahl-Hirschman Index (HHI) measures concentration. In this context, it quantifies the extent to which an author repeatedly cites the same narrow set of recipients, indicating a lack of source diversity.}.
-All 13 features were standardised (zero mean, unit variance) and multiplied by hand-tuned weights reflecting Random-Forest importance and Wilcoxon effect sizes (e.g., Co-author Rate weighted 4.0); authority metrics were sign-inverted so that lower values indicate greater suspicion.
+We computed 14 behavioural features per author (Table~\ref{tab:features}).
+Of these, normalised burst intensity was available for only 7{,}711 of the 9{,}431 matched pairs (18\% missing) because many authors recorded no burst events in the study window.
+Statistical tests handle this by dropping incomplete pairs per metric; however, the Isolation Forest requires a complete feature matrix, and zero-imputing 18\% of values would inject a spurious signal.
+The model was therefore trained on the remaining 13 features.
+All features were standardised (zero mean, unit variance) and multiplied by hand-tuned weights reflecting Random-Forest importance and Wilcoxon effect sizes (e.g., Co-author Rate weighted 4.0); authority metrics were sign-inverted so that lower values indicate greater suspicion.
 An author was flagged as an outlier only if they satisfied both conditions: an IF anomaly score above the threshold \textbf{AND} a Cohesion z-score $> 4\sigma$ (relative to the Control baseline).
 Sensitivity tests evaluated thresholds from $1\sigma$ to $4\sigma$ to confirm the robustness of detected syndicates.
 Outlier labels were merged back into the unified ML table for downstream network analyses (results in Section~\ref{sec:outlier-results}).
@@ -278,11 +285,14 @@ This divergence is further supported by the random forest feature importances in
   \centering
   \safeincludegraphics[width=\linewidth]{Figure8_Feature_Importance.pdf}
   \caption{\textbf{Random Forest feature importances.}
-  Horizontal bars show mean decrease in impurity for each of the
-  13 graph-topology features, sorted ascending.
-    {\color{caseRed}Red} bars denote features at or above the median
-  importance; {\color{ctrlBlue}blue} bars denote below-median.
-  Inline labels give raw importance score and share of total.}
+  Horizontal bars show mean decrease in impurity for 13 of the
+  14 behavioural features listed in Table~\ref{tab:features},
+  sorted by importance.
+  Bars are coloured by feature category (see legend).
+  Inline labels give raw importance score and share of total.
+  Normalised burst intensity is excluded: it is available for only 82\% of pairs,
+  and zero-imputing the missing 18\% would inject a spurious signal into the
+  Isolation Forest (Section~\ref{sec:outlier-proc}).}
   \label{fig:feature_importance}
 \end{figure}
 
@@ -668,6 +678,7 @@ This research did not receive a specific grant from any funding agency in the pu
 \label{sec:data}
 % TODO: Replace Zenodo DOI placeholder (10.5281/zenodo.xxxxxxx) with real DOI before submission.
 All essential data and code for this study are openly available at Zenodo under a CC~BY license \parencite{dataset_zenodo}.
+The analysis is implemented in a single, self-contained script (\texttt{citation\_analysis.py}) that reproduces all results in one invocation: it loads the pre-built \texttt{rolap.db} and \texttt{impact.db} databases, runs the statistical comparisons (Section~\ref{sec:overall}), generates all eight publication figures, and produces the author suspiciousness tables (Section~\ref{sec:suspicious-authors}).
 
 
 \printbibliography
@@ -708,17 +719,13 @@ unless stated otherwise.
       & $\displaystyle\frac{\sum_{j\in C_i} w_{ij}}{\sum_{j\neq i} w_{ij}}$
       & Among non-self citations, proportion citing former co-authors ($C_i$). \\
     \addlinespace
-    Max asymmetry
-      & $\displaystyle\max_j\bigl(w_{ij} - w_{ji}\bigr)^+$
-      & Largest unreciprocated citation surplus to any single peer. \\
+    Citation balance
+      & $\displaystyle\frac{w_{\text{out}} - w_{\text{in}}}{w_{\text{out}} + w_{\text{in}} + \epsilon}$
+      & Net giver/receiver bias; positive~$\Rightarrow$ net giver. Bounded $(-1,+1)$, comparable across activity levels. \\
     \addlinespace
-    Avg.\ velocity
-      & $\displaystyle\frac{\sum_j w_{ij}}{N_{\text{out}}}$
-      & Mean outgoing citation weight per cited peer. \\
-    \addlinespace
-    Max burst
-      & $\displaystyle\max_j\, w_{ij}$
-      & Largest single-peer citation weight (spamming signal). \\
+    PageRank
+      & \text{weighted PR on } $G$
+      & Global influence score computed via weighted PageRank on the directed citation graph. \\
     \addlinespace
     Journal endogamy
       & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$
@@ -755,6 +762,10 @@ unless stated otherwise.
     Clique strength
       & clustering $\times$ co-author citation rate
       & Joint cohesion signal: dense neighbourhood \emph{and} preferential co-author citing. \\
+    \addlinespace
+    Norm.\ burst intensity\textsuperscript{\dag}
+      & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
+      & Largest single-peer citation weight normalised by total incoming volume. Available for 7{,}711 of 9{,}431 pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}). \\
     \bottomrule
   \end{tabularx}
 \end{table*}
@@ -789,8 +800,8 @@ The temporal window covers works published between 2020 and 2024 inclusive.
 
 \subsection{Outlier Detection}
 Table~\ref{tab:if-params} summarises the Isolation Forest hyper-parameters.
-The model was trained per-subject on the 13 scaled features listed in Table~\ref{tab:features}
-(PageRank was added as a 14th feature for the ML stage only).
+The model was trained per-subject on 13 of the 14 scaled features listed in Table~\ref{tab:features}
+(excluding normalised burst intensity; see Section~\ref{sec:outlier-proc}).
 
 \begin{table}[htbp]
   \centering

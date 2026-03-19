@@ -6,7 +6,7 @@ BIBER = biber
 
 all: $(MAIN).pdf
 
-$(MAIN).pdf: $(MAIN).tex references.bib suspicious_authors_section.tex
+$(MAIN).pdf: $(MAIN).tex references.bib
 	$(PDFLATEX) $(MAIN)
 	$(BIBER) $(MAIN)
 	$(PDFLATEX) $(MAIN)
