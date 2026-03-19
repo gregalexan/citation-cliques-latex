@@ -29,6 +29,7 @@
 \usepackage{threeparttable}
 \usepackage{array}
 \usepackage{tabularx}
+\usepackage{longtable}
 \usepackage{caption}
 \usepackage{float}
 \usepackage{ragged2e}
@@ -697,78 +698,86 @@ fractional citation weight from author~$i$ to author~$j$
 (see Appendix~\ref{app:params}), and sums run over non-self edges
 unless stated otherwise.
 
-\begin{table*}[htbp]
-  \centering
+{\singlespacing\small
+\begin{longtable}{@{}l p{0.25\textwidth} >{\RaggedRight\arraybackslash}p{0.38\textwidth}@{}}
   \caption{\textbf{Behavioural feature definitions.}
     All metrics are computed per author over the 2020--2024 citation network.
     $N_{\text{out}}$~= number of distinct cited authors;
     $N_{\text{in}}$~= number of distinct citing authors;
     $p_j = w_{ij} / \sum_k w_{ik}$ (outgoing share);
     $q_j = w_{ji} / \sum_k w_{ki}$ (incoming share).}
-  \label{tab:features}
-  \small
-  \begin{tabularx}{\textwidth}{@{}l l Y@{}}
-    \toprule
-    \textbf{Feature} & \textbf{Formula} & \textbf{Interpretation} \\
-    \midrule
-    Self-citation rate
-      & $\displaystyle\frac{\sum w_{ii}}{\sum_j w_{ij}}$
-      & Share of outgoing citation weight directed at the author's own works. \\
-    \addlinespace
-    Co-author citation rate
-      & $\displaystyle\frac{\sum_{j\in C_i} w_{ij}}{\sum_{j\neq i} w_{ij}}$
-      & Among non-self citations, proportion citing former co-authors ($C_i$). \\
-    \addlinespace
-    Citation balance
-      & $\displaystyle\frac{w_{\text{out}} - w_{\text{in}}}{w_{\text{out}} + w_{\text{in}} + \epsilon}$
-      & Net giver/receiver bias; positive~$\Rightarrow$ net giver. Bounded $(-1,+1)$, comparable across activity levels. \\
-    \addlinespace
-    PageRank
-      & \text{weighted PR on } $G$
-      & Global influence score computed via weighted PageRank on the directed citation graph. \\
-    \addlinespace
-    Journal endogamy
-      & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$
-      & Proportion of references citing papers in the same journal. \\
-    \addlinespace
-    Citation entropy
-      & $H = -\sum_j q_j\ln q_j$
-      & Shannon diversity of incoming citation sources. Low~$\Rightarrow$ concentrated. \\
-    \addlinespace
-    Citation HHI (in)
-      & $\sum_j q_j^{\,2}$
-      & Herfindahl--Hirschman concentration of incoming citations. \\
-    \addlinespace
-    Reciprocity rate
-      & $\displaystyle\frac{|\{j : w_{ij}>0 \wedge w_{ji}>0\}|}{|\{j : w_{ij}>0\}|}$
-      & Share of cited peers who also cite back. \\
-    \addlinespace
-    Outgoing HHI
-      & $\sum_j p_j^{\,2}$
-      & Concentration of outgoing citations (``tunnel vision''). \\
-    \addlinespace
-    Clustering coeff.
-      & $\displaystyle\frac{2\,|\{(j,k): j,k\in\mathcal{N}_i,\;(j,k)\in E\}|}{d_i(d_i-1)}$
-      & Fraction of an author's neighbours that are themselves connected. Computed on the undirected projection of the internal citation graph. \\
-    \addlinespace
-    Triangles (norm.)
-      & $\displaystyle\frac{\Delta_i}{\sum_j w_{ij} + \sum_j w_{ji} + 1}$
-      & Triangle count normalised by total citation activity. \\
-    \addlinespace
-    $k$-core number
-      & $\max\{k : i \in H_k\}$
-      & Largest $k$ such that author~$i$ belongs to the $k$-core of the undirected citation graph. \\
-    \addlinespace
-    Clique strength
-      & clustering $\times$ co-author citation rate
-      & Joint cohesion signal: dense neighbourhood \emph{and} preferential co-author citing. \\
-    \addlinespace
-    Norm.\ burst intensity\textsuperscript{\dag}
-      & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
-      & Largest single-peer citation weight normalised by total incoming volume. Available for 7{,}711 of 9{,}431 pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}). \\
-    \bottomrule
-  \end{tabularx}
-\end{table*}
+  \label{tab:features}\\
+  \toprule
+  \textbf{Feature} & \textbf{Formula} & \textbf{Interpretation} \\
+  \midrule
+  \endfirsthead
+  \multicolumn{3}{l}{\small\textit{Table~\ref*{tab:features} continued}} \\
+  \toprule
+  \textbf{Feature} & \textbf{Formula} & \textbf{Interpretation} \\
+  \midrule
+  \endhead
+  \midrule
+  \multicolumn{3}{r}{\small\textit{Continued on next page}} \\
+  \endfoot
+  \bottomrule
+  \endlastfoot
+  Self-citation rate
+    & $\displaystyle\frac{\sum w_{ii}}{\sum_j w_{ij}}$
+    & Share of outgoing citation weight directed at the author's own works. \\
+  \addlinespace
+  Co-author citation rate
+    & $\displaystyle\frac{\sum_{j\in C_i} w_{ij}}{\sum_{j\neq i} w_{ij}}$
+    & Among non-self citations, proportion citing former co-authors ($C_i$). \\
+  \addlinespace
+  Citation balance
+    & $\displaystyle\frac{w_{\text{out}} - w_{\text{in}}}{w_{\text{out}} + w_{\text{in}} + \epsilon}$
+    & Net giver/receiver bias; positive~$\Rightarrow$ net giver. Bounded $(-1,+1)$, comparable across activity levels. \\
+  \addlinespace
+  PageRank
+    & \text{weighted PR on } $G$
+    & Global influence score computed via weighted PageRank on the directed citation graph. \\
+  \addlinespace
+  Journal endogamy
+    & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$
+    & Proportion of references citing papers in the same journal. \\
+  \addlinespace
+  Citation entropy
+    & $H = -\sum_j q_j\ln q_j$
+    & Shannon diversity of incoming citation sources. Low~$\Rightarrow$ concentrated. \\
+  \addlinespace
+  Citation HHI (in)
+    & $\sum_j q_j^{\,2}$
+    & Herfindahl--Hirschman concentration of incoming citations. \\
+  \addlinespace
+  Reciprocity rate
+    & $\displaystyle\frac{|\{j : w_{ij}>0 \wedge w_{ji}>0\}|}{|\{j : w_{ij}>0\}|}$
+    & Share of cited peers who also cite back. \\
+  \addlinespace
+  Outgoing HHI
+    & $\sum_j p_j^{\,2}$
+    & Concentration of outgoing citations (``tunnel vision''). \\
+  \addlinespace
+  Clustering coeff.
+    & \resizebox{\linewidth}{!}{$\displaystyle\frac{2\,|\{(j,k)\colon j,k\in\mathcal{N}_i,\,(j,k)\in E\}|}{d_i(d_i-1)}$}
+    & Fraction of an author's neighbours that are themselves connected. Computed on the undirected projection of the internal citation graph. \\
+  \addlinespace
+  Triangles (norm.)
+    & $\displaystyle\frac{\Delta_i}{\sum_j w_{ij} + \sum_j w_{ji} + 1}$
+    & Triangle count normalised by total citation activity. \\
+  \addlinespace
+  $k$-core number
+    & $\max\{k : i \in H_k\}$
+    & Largest $k$ such that author~$i$ belongs to the $k$-core of the undirected citation graph. \\
+  \addlinespace
+  Clique strength
+    & clustering $\times$ co-author citation rate
+    & Joint cohesion signal: dense neighbourhood \emph{and} preferential co-author citing. \\
+  \addlinespace
+  Norm.\ burst intensity\textsuperscript{\dag}
+    & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
+    & Largest single-peer citation weight normalised by total incoming volume. Available for 7{,}711 of 9{,}431 pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}). \\
+\end{longtable}
+}
 
 
 \section{Matching Procedure and Detection Parameters}
