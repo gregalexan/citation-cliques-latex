@@ -168,9 +168,23 @@ Crossref metadata were ingested via \textit{alexandria3k} \parencite{Spinellis20
 Appendix~\ref{app:sampling} documents the full data derivation pipeline and the filtering decisions applied at each stage.
 
 \textbf{Journal Subject Classification.}
-Each journal was assigned to one of five broad subject areas: 1) Health Sciences, 2) Life Sciences, 3) Multidisciplinary, 4) Physical Sciences, 5) Social Sciences \& Humanities, using an LLM-based classifier \parencite{LLMGuidelines2024}. We used \texttt{gpt-4.1} with zero temperature and few-shot exemplars, drawing on representative titles and abstracts. Prompts and decision rules prioritized abstracts over titles and journal names. To ensure reproducibility, we used seed and cached predictions to JSON files for safety.
+Each journal was assigned to one of five broad subject areas: 1) Health Sciences, 
+2) Life Sciences, 3) Multidisciplinary, 4) Physical Sciences, 5) Social Sciences 
+\& Humanities, using an LLM-based classifier \parencite{LLMGuidelines2024}. 
+This taxonomy mirrors the broad subject areas of the All Science Journal 
+Classification (ASJC) scheme used by Scopus \parencite{Burnham2006}, one of the 
+most widely adopted classification frameworks in scientometrics. Separating subject 
+areas is essential for computing meaningful within-field Eigenfactor percentiles, 
+as citation practices vary substantially across disciplines \parencite{West2008}.
 
-The classifier processed journals in batches of ten ISSNs per API call, supplying for each journal up to five representative works ordered by citation count, so that the most influential works appeared first. When an abstract was unavailable, classification relied on the journal name and title alone.
+Classification was performed using \texttt{gpt-4.1} with zero temperature and 
+few-shot exemplars. The model processed journals in batches of ten ISSNs per API 
+call, supplying for each journal up to five representative works ordered by citation 
+count, so that the most influential works appeared first. Prompts and decision rules 
+prioritized abstracts over titles and journal names; when an abstract was 
+unavailable, classification relied on the journal name and title alone. 
+To ensure reproducibility, we used seed and cached predictions 
+to JSON files for safety.
 
 \textbf{Eigenfactor Computation.}
 To quantify journal influence, we computed subject-specific Eigenfactor scores \parencite{West2008} on journal citation networks (2020-2024), excluding self-citations. The computation used standard power iteration and produced normalized influence scores within each subject.
