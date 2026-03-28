@@ -119,17 +119,28 @@ Beyond well-known practices such as excessive self-citation, more coordinated be
 
 Low-impact journals provide fertile ground for these dynamics. Their emphasis on publication volume, rapid turnaround, and relaxed editorial oversight \parencite{Abalkina2025} creates environments where abnormal citation patterns can thrive. Systemic distortions such as national \emph{home bias} \parencite{Qiu2025} further interact with venue incentives, amplifying the risk that rankings and impact assessments reflect coordination rather than genuine uptake of ideas.
 
-This study investigates whether low-impact journals systematically foster cliques and abnormal citation patterns. Using large-scale bibliographic data, we implement a subject-aware pipeline that links journal influence to authors, matches Bottom- and Top-tier researchers of comparable productivity (by $h_5$ index), and analyzes their citation networks for cohesion and anomalies.
+This study investigates whether low-impact journals systematically foster cliques and abnormal citation patterns. Using large-scale bibliographic data, we implement a subject-aware pipeline that links journal influence to authors,
+matches researchers publishing in Bottom-- and Top-tier impact journals
+of comparable productivity (by $h_5$ index), and analyzes their citation networks for cohesion and anomalies.
 
 We find that extreme anomalies cluster exclusively among Bottom-tier authors in low-impact venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Top-tier counterparts.
 These results provide empirical evidence that venue incentives can shape citation behavior in ways that distort bibliometric indicators.
 Throughout this paper, authors publishing primarily in low-impact venues are referred to as \emph{cases}, and their matched counterparts in high-impact venues as \emph{controls}.
 Terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} describing observed network roles and do not imply intent or misconduct.
+Similarly we use the terms Top and Bottom to classify authors publishing
+mainly in high-- or low-impact journals, again without implying any
+judgement or view regarding the authors' and their works' scientific worth.
 
 \section{Related Work}
 \label{sec:relwork}
 
-Prior research has highlighted the fragility of citation-based indicators when used as proxies for scholarly quality. Performance measures not only shape incentives but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels, inflated impact factors, and other forms of metric manipulation that erode the interpretive value of bibliometric indicators.
+Prior research has highlighted the fragility of citation-based indicators when used as proxies for scholarly quality.
+Performance measures not only shape incentives~\cite{Goo84},
+but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels~\cite{TODO},
+inflated impact factors~\cite{TODO},
+paper mills~\cite{TODO},
+AI-generated papers~\cite{Spi25d},
+and other forms of metric manipulation that erode the interpretive value of bibliometric indicators.
 
 Venue-level frameworks were developed to mitigate some of these distortions. The Eigenfactor metric \parencite{West2008} introduced a network-based approach that discounts journal self-citations and weights each citation by the prestige of the citing venue. This recursive weighting sought to capture influence rather than popularity and to counteract local citation loops. However, later analyses have shown that such corrections remain sensitive to database coverage, field size, and reference density, indicating that structural biases persist even in sophisticated venue-level measures.
 
@@ -146,12 +157,10 @@ The present research extends this discourse by systematically examining the rela
 
 We developed a subject-aware pipeline linking journal quality to author citation behavior. The main steps were: (i) journal subject classification, (ii) computation of subject-specific Eigenfactor scores, (iii) propagation of venue quality to works and authors, (iv) matched pairing of Bottom- and Top-tier authors by productivity, and (v) construction of author-author citation networks with cohesion and anomaly features. Figure~\ref{fig:analysis-dag} illustrates the main analysis subgraph of this pipeline.
 
-To ensure consistency across all stages of the data pipeline,
-intermediate database layers were validated through
-\emph{Relational Database Unit} (RDBUnit) testing \parencite{Spinellis2024RDBUnit},
-which systematically checks referential integrity, record completeness,
-and join consistency before statistical analysis.
-
+To ensure consistency, replicability, and correctness
+across all stages of the data pipeline before statistical analysis,
+these were orchestrated through \emph{simple-rolap} \parencite{Spi24e}
+and unit-tested through \emph{RDBUnit} \parencite{Spinellis2024RDBUnit}.
 
 \begin{figure}[H]
   \centering
@@ -168,23 +177,27 @@ Crossref metadata were ingested via \textit{alexandria3k} \parencite{Spinellis20
 Appendix~\ref{app:sampling} documents the full data derivation pipeline and the filtering decisions applied at each stage.
 
 \textbf{Journal Subject Classification.}
-Each journal was assigned to one of five broad subject areas: 1) Health Sciences, 
-2) Life Sciences, 3) Multidisciplinary, 4) Physical Sciences, 5) Social Sciences 
-\& Humanities, using an LLM-based classifier \parencite{LLMGuidelines2024}. 
+Each journal was assigned to one of five broad subject areas:
+1) Health Sciences,
+2) Life Sciences,
+3) Physical Sciences,
+4) Social Sciences \& Humanities, and
+5) Multidisciplinary,
+using a LLM-based classification methods \parencite{LLMGuidelines2024}.
 This taxonomy mirrors the broad subject areas of the All Science Journal 
 Classification (ASJC) scheme used by Scopus \parencite{Burnham2006}, one of the 
 most widely adopted classification frameworks in scientometrics. Separating subject 
 areas is essential for computing meaningful within-field Eigenfactor percentiles, 
 as citation practices vary substantially across disciplines \parencite{West2008}.
 
-Classification was performed using \texttt{gpt-4.1} with zero temperature and 
+Classification was performed using the Gpt-4.1 model with zero temperature and 
 few-shot exemplars. The model processed journals in batches of ten ISSNs per API 
 call, supplying for each journal up to five representative works ordered by citation 
 count, so that the most influential works appeared first. Prompts and decision rules 
 prioritized abstracts over titles and journal names; when an abstract was 
 unavailable, classification relied on the journal name and title alone. 
-To ensure reproducibility, we used seed and cached predictions 
-to JSON files for safety.
+To ensure reproducibility, we used a fixed random number generation seed
+and cached predictions to JSON files.
 
 \textbf{Eigenfactor Computation.}
 To quantify journal influence, we computed subject-specific Eigenfactor scores \parencite{West2008} on journal citation networks (2020-2024), excluding self-citations. The computation used standard power iteration and produced normalized influence scores within each subject.
@@ -249,12 +262,11 @@ then derive unsupervised behavioral archetypes and identify statistical outliers
 using a subject-aware Isolation Forest.
 Together, these analyses reveal that cohesion-rather than sustained one-sided citation flows-
 is the primary structural distinction between authors publishing in low- and high-influence venues.
-
-\noindent\textbf{Note on metrics.} We summarize the main network features used:
+The main network features used were
 the \emph{clustering coefficient} (density of local interconnections);
 \emph{triangles} (closed three-way citation structures);
 the \emph{k-core number} (depth of embedding in dense subnetworks);
-\emph{betweenness centrality} (how often an author lies on shortest paths, a proxy for brokerage/coordination potential);
+\emph{betweenness centrality (how often an author lies on shortest paths, a proxy for brokerage/coordination potential);
 \emph{velocity} (rate of citation accumulation);
 \emph{burst} (sudden within-window surges of citations); and
 \emph{asymmetry} (imbalance in giving vs.\ receiving citations).
@@ -348,9 +360,10 @@ Figure~\ref{fig:lda} illustrates this separation: the Linear Discriminant Analys
 
 Three behavioral profiles emerge from the clustering:
 \begin{itemize}
-  \item \textbf{Asymmetric (Unbalanced)}: high \emph{max\_asymmetry} relative to cohesion; concentrated outgoing citation flows.
+  \item \textbf{Asymmetric (Unbalanced)}: high maximum asymmetry
+  relative to cohesion; concentrated outgoing citation flows.
   \item \textbf{Independent (Typical)}: balanced citing behavior, low cohesion; the dominant profile among Controls.
-  \item \textbf{Solo (Self-citing)}: high \emph{self\_citation\_rate}; nearly absent among Top-tier authors.
+  \item \textbf{Solo (Self-citing)}: high self-citation rate; nearly absent among Top-tier authors.
 \end{itemize}
 The three-way typology provides interpretable separation: \emph{lower-cohesion} profiles dominate among Controls, while \emph{higher-cohesion and asymmetric} profiles are systematically overrepresented among Cases.
 
@@ -359,7 +372,8 @@ The three-way typology provides interpretable separation: \emph{lower-cohesion} 
 Using the hybrid detection strategy at the $4\sigma$ threshold, we identified \emph{277 high-confidence outliers}.
 Of these, \textbf{93.5\%} are Bottom-tier (Case) authors (\emph{Case purity}), confirming that the pipeline predominantly isolates authors whose structural profiles deviate substantially from the Top-tier norm.
 
-Relative to non-outlier authors, the detected syndicate members show massive lifts in cohesion signals (Fig.~\ref{fig:fingerprint}):
+Relative to non-outlier authors, the detected syndicate members exhibit
+many times higher cohesion signals (Fig.~\ref{fig:fingerprint}):
 \textbf{Clique Strength $\approx 11\times$}, \textbf{Co-author Citation Rate $\approx 6.7\times$},
 \textbf{Reciprocity $\approx 4.7\times$}, and \textbf{Tunnel Vision (Outgoing HHI) $\approx 3.1\times$}.
 Note that the aggregate Case--Control fold-changes reported in Section~\ref{sec:overall} measure the same features across \emph{all} matched pairs, whereas the fingerprint ratios here compare the 277~flagged outliers to the remaining population.
@@ -660,6 +674,10 @@ This research did not receive a specific grant from any funding agency in the pu
 % TODO: Replace Zenodo DOI placeholder (10.5281/zenodo.xxxxxxx) with real DOI before submission.
 All essential data and code for this study are openly available at Zenodo under a CC~BY license \parencite{dataset_zenodo}.
 The analysis is implemented in a single, self-contained script (\texttt{citation\_analysis.py}) that reproduces all results in one invocation: it loads the pre-built \texttt{rolap.db} and \texttt{impact.db} databases, runs the statistical comparisons (Section~\ref{sec:overall}), generates all eight publication figures, and produces the author suspiciousness tables (Section~\ref{sec:suspicious-authors}).
+% TODO: Is the following OK?
+The citation databases and the derivative tables can be reproduced
+through the 2024 Crossref public data set by means of the supplied
+Unix Makefile and SQL scripts.
 
 
 \printbibliography
