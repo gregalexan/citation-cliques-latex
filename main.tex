@@ -125,7 +125,7 @@ of comparable productivity (by $h_5$ index), and analyzes their citation network
 
 We find that extreme anomalies cluster exclusively among authors publishing mostly in low-impact venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Control counterparts.
 These results provide empirical evidence that venue incentives can shape citation behavior in ways that distort bibliometric indicators.
-Throughout this paper, authors publishing primarily in low-impact venues are referred to as \emph{cases}, and their matched counterparts in high-impact venues as \emph{controls}.
+Throughout this paper, authors publishing primarily in low-impact venues are referred to as \emph{Cases}, and their matched counterparts in high-impact venues as \emph{Controls}.
 Terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} describing observed network roles and do not imply intent or misconduct.
 Similarly we use the terms Control and Case to classify authors publishing
 mainly in high-- or low-impact journals, again without implying any
@@ -150,7 +150,7 @@ Systemic and infrastructural distortions further complicate these dynamics. Nati
 
 Finally, the recognition of complex citation distortions has increased the focus on transparency and reproducibility. The \emph{LLM Guidelines} \parencite{LLMGuidelines2024} advocate for documenting decision rules and uncertainty, which is critical as machine learning becomes central to integrity audits. Supporting initiatives promote open data and verifiable auditing to prevent large-scale manipulation. These developments suggest that citation systems are socio-technical infrastructures where credibility relies on both methodological openness and quantitative rigor.
 
-The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched case-control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion}, which manifests as dense local clustering and triadic closure, as the primary diagnostic signature of citation anomalies within low-impact journals. By implementing a subject-aware isolation forest on author-to-author networks across 9,431 matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
+The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched Case--Control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion}, which manifests as dense local clustering and triadic closure, as the primary diagnostic signature of citation anomalies within low-impact journals. By implementing a subject-aware isolation forest on author-to-author networks across 9,431 matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
 
 \section{Methodology}
 \label{sec:methods}
@@ -213,7 +213,7 @@ Mixed-tier authors were excluded from the matched-pair analysis to ensure clean 
 We then matched Case authors to Control authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
 
 \textbf{Sample and Availability.}
-The final analytical dataset comprises 9{,}431 matched case-control author pairs
+The final analytical dataset comprises 9{,}431 matched Case--Control author pairs
 (see Table~\ref{tab:sampling-funnel} for the per-subject breakdown).
 All pair-level and network-level aggregates were computed per subject area and combined
 only after validation of within-subject consistency.
@@ -256,7 +256,7 @@ Outlier labels were merged back into the unified ML table for downstream network
 \section{Findings}
 \label{sec:findings}
 
-This section presents the main results of the matched case-control analysis.
+This section presents the main results of the matched Case--Control analysis.
 We first examine overall and field-specific patterns of cohesion and asymmetry,
 then derive unsupervised behavioral archetypes and identify statistical outliers
 using a subject-aware Isolation Forest.
@@ -877,7 +877,7 @@ A subject-specific $h_5$~index was computed for each remaining author.
 Bottom-Tier authors were then matched to Top-Tier authors via greedy one-pass matching within subject, as described in Appendix~\ref{app:params}.
 
 \subsection{Stage~6: Final Dataset}
-The matching procedure yielded 9{,}431 case-control pairs across five subjects (Table~\ref{tab:sampling-funnel}).
+The matching procedure yielded 9{,}431 Case--Control pairs across five subjects (Table~\ref{tab:sampling-funnel}).
 For the maximum citation burst metric, 7{,}711 pairs were available due to data sparsity.
 Directed author-to-author citation networks were constructed for matched authors using fractional edge weights (Appendix~\ref{app:params}).
 
