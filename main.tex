@@ -123,11 +123,11 @@ This study investigates whether low-impact journals systematically foster clique
 matches researchers publishing in Bottom-- and Top-tier impact journals
 of comparable productivity (by $h_5$ index), and analyzes their citation networks for cohesion and anomalies.
 
-We find that extreme anomalies cluster exclusively among Bottom-tier authors in low-impact venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Top-tier counterparts.
+We find that extreme anomalies cluster exclusively among authors publishing mostly in low-impact venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Control counterparts.
 These results provide empirical evidence that venue incentives can shape citation behavior in ways that distort bibliometric indicators.
 Throughout this paper, authors publishing primarily in low-impact venues are referred to as \emph{cases}, and their matched counterparts in high-impact venues as \emph{controls}.
 Terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} describing observed network roles and do not imply intent or misconduct.
-Similarly we use the terms Top and Bottom to classify authors publishing
+Similarly we use the terms Control and Case to classify authors publishing
 mainly in high-- or low-impact journals, again without implying any
 judgement or view regarding the authors' and their works' scientific worth.
 
@@ -155,7 +155,7 @@ The present research extends this discourse by systematically examining the rela
 \section{Methodology}
 \label{sec:methods}
 
-We developed a subject-aware pipeline linking journal quality to author citation behavior. The main steps were: (i) journal subject classification, (ii) computation of subject-specific Eigenfactor scores, (iii) propagation of venue quality to works and authors, (iv) matched pairing of Bottom- and Top-tier authors by productivity, and (v) construction of author-author citation networks with cohesion and anomaly features. Figure~\ref{fig:analysis-dag} illustrates the main analysis subgraph of this pipeline.
+We developed a subject-aware pipeline linking journal quality to author citation behavior. The main steps were: (i) journal subject classification, (ii) computation of subject-specific Eigenfactor scores, (iii) propagation of venue quality to works and authors, (iv) matched pairing of Case and Control authors by productivity, and (v) construction of author-author citation networks with cohesion and anomaly features. Figure~\ref{fig:analysis-dag} illustrates the main analysis subgraph of this pipeline.
 
 To ensure consistency, replicability, and correctness
 across all stages of the data pipeline before statistical analysis,
@@ -208,9 +208,9 @@ Within each subject, journals in the top quartile of Eigenfactor were labeled \e
 \subsection{Author Matching and Network Construction}
 
 \textbf{Author Tiering and Matching.}
-Authors were classified as \textbf{Top} if most of their output was in high-influence journals, \textbf{Bottom} if concentrated in low-impact journals, and \textbf{Mixed} otherwise.
+Authors were classified as \textbf{Control} if most of their output was in high-influence journals, \textbf{Case} if concentrated in low-impact journals, and \textbf{Mixed} otherwise.
 Mixed-tier authors were excluded from the matched-pair analysis to ensure clean separation between venue quality levels.
-We then matched Bottom authors to Top authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
+We then matched Case authors to Control authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
 
 \textbf{Sample and Availability.}
 The final analytical dataset comprises 9{,}431 matched case-control author pairs
@@ -312,8 +312,8 @@ This divergence is further supported by the random forest feature importances in
   \label{fig:feature_importance}
 \end{figure}
 
-The Bottom-Top gap is explained chiefly by distinct behavioral signatures. These patterns persist under conservative matched-pair comparisons: \textbf{12 out of 14} tested behavioral metrics remain significant after Benjamini-Hochberg FDR correction ($\alpha=0.05$) \parencite{Benjamini1995}.
-Crucially, this systemic disparity is not static: cumulative citation trajectories (2020--present) show the gap between Bottom-Tier and Top-Tier authors \emph{widening} over time, indicating an accelerating divergence rather than convergence.
+The Case--Control gap is explained chiefly by distinct behavioral signatures. These patterns persist under conservative matched-pair comparisons: \textbf{12 out of 14} tested behavioral metrics remain significant after Benjamini-Hochberg FDR correction ($\alpha=0.05$) \parencite{Benjamini1995}.
+Crucially, this systemic disparity is not static: cumulative citation trajectories (2020--present) show the gap between Case and Control authors \emph{widening} over time, indicating an accelerating divergence rather than convergence.
 
 \subsection{Subject-Stratified Effects (Subjects 1-5)}
 \label{sec:by-subject}
@@ -336,11 +336,11 @@ Enhanced cohesion is a recurrent feature across subjects, but its expression var
 
 Across fields, one-sided asymmetry measures remain generally subdued. Where differences emerge, they align more with transient speed-ups (velocity/bursts) than with persistent directional imbalance.
 
-The signature of Bottom-tier authors is greater network cohesion. Whether this manifests as intensified co-author referencing, increased local triadic closure, or episodic waves is field-dependent.
+The signature of Case authors is greater network cohesion. Whether this manifests as intensified co-author referencing, increased local triadic closure, or episodic waves is field-dependent.
 
 \subsection{Behavioral Archetypes (Unsupervised)}
 K-means clustering on standardized ML features reveals a clear three-way typology: \textbf{Asymmetric} (unbalanced citing), \textbf{Independent} (typical), and \textbf{Solo} (self-citing).
-Bottom-tier authors (Cases) exhibit multiple higher-cohesion strategies, including Asymmetric and Solo behaviors, while Top-tier Controls converge overwhelmingly on the Independent profile. The Solo self-citing pattern appears almost exclusively among Cases.
+Case authors exhibit multiple higher-cohesion strategies, including Asymmetric and Solo behaviors, while Controls converge overwhelmingly on the Independent profile. The Solo self-citing pattern appears almost exclusively among Cases.
 
 This divergence is consistent with clique-like behavior: Case authors follow multiple higher-cohesion strategies, whereas Controls converge on a single low-cohesion, outward-looking profile.
 Figure~\ref{fig:lda} illustrates this separation: the Linear Discriminant Analysis (LDA) projection reveals minimal overlap between tiers, with Cases clustering toward the Cohesion-driven extreme and Controls toward the Authority-driven regime.
@@ -350,8 +350,8 @@ Figure~\ref{fig:lda} illustrates this separation: the Linear Discriminant Analys
   \safeincludegraphics[width=0.7\linewidth]{Figure9_LDA_Separation.pdf}
   \caption{\textbf{Tier separability: LDA projection.}
     Kernel density estimates of the 1-D linear discriminant scores
-    for {\color{caseRed}Bottom-Tier (Case)} and
-      {\color{ctrlBlue}Top-Tier (Control)} authors.
+    for {\color{caseRed}Case} and
+      {\color{ctrlBlue}Control} authors.
     Dotted vertical lines mark within-tier medians.
     Directional labels indicate the dominant behavioural regime
     at each tail of the discriminant axis.}
@@ -363,14 +363,14 @@ Three behavioral profiles emerge from the clustering:
   \item \textbf{Asymmetric (Unbalanced)}: high maximum asymmetry
   relative to cohesion; concentrated outgoing citation flows.
   \item \textbf{Independent (Typical)}: balanced citing behavior, low cohesion; the dominant profile among Controls.
-  \item \textbf{Solo (Self-citing)}: high self-citation rate; nearly absent among Top-tier authors.
+  \item \textbf{Solo (Self-citing)}: high self-citation rate; nearly absent among Control authors.
 \end{itemize}
 The three-way typology provides interpretable separation: \emph{lower-cohesion} profiles dominate among Controls, while \emph{higher-cohesion and asymmetric} profiles are systematically overrepresented among Cases.
 
 \subsection{Outlier Detection Results}\label{sec:outlier-results}
 
 Using the hybrid detection strategy at the $4\sigma$ threshold, we identified \emph{277 high-confidence outliers}.
-Of these, \textbf{93.5\%} are Bottom-tier (Case) authors (\emph{Case purity}), confirming that the pipeline predominantly isolates authors whose structural profiles deviate substantially from the Top-tier norm.
+Of these, \textbf{93.5\%} are Case authors (\emph{Case purity}), confirming that the pipeline predominantly isolates authors whose structural profiles deviate substantially from the Control norm.
 
 Relative to non-outlier authors, the detected syndicate members exhibit
 many times higher cohesion signals (Fig.~\ref{fig:fingerprint}):
@@ -446,7 +446,7 @@ The hub-and-spoke topology and coordinated temporal bursts reveal a pervasive ``
 \subsection{Discussion}
 
 The distinction between low-impact and high-influence venues extends beyond simple density; it reflects extreme \emph{segregation}.
-The high assortativity coefficient ($r=0.71$) and modularity ($Q=0.97$) confirm a \textbf{``Two Worlds'' hypothesis}, where Bottom-tier authors operate in closed citation economies with minimal external engagement.
+The high assortativity coefficient ($r=0.71$) and modularity ($Q=0.97$) confirm a \textbf{``Two Worlds'' hypothesis}, where Case authors operate in closed citation economies with minimal external engagement.
 Flagged outliers concentrate at the high-asymmetry, high-burst corner of the anomaly landscape, a region essentially unpopulated by Controls.
 In this sense, citation cliques are not merely organic clusters but isolated silos disconnected from the broader scientific discourse.
 
@@ -627,7 +627,7 @@ Understanding these patterns is essential for designing fair bibliometric indica
 
 This study relies on Crossref metadata (2020--2024), which vary in completeness.
 While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
-The LLM-based journal classification (Appendix~\ref{app:llm}) was not validated against an independent ground truth; misclassification of some journals could shift the boundary between Bottom- and Top-tier authors.
+The LLM-based journal classification (Appendix~\ref{app:llm}) was not validated against an independent ground truth; misclassification of some journals could shift the boundary between Case and Control authors.
 Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing.
 Finally, the network analysis is conducted at a structural level and does not expose the identities of the individual authors involved; flagged nodes are treated as anonymous structural roles (e.g., ``Beneficiary'' or ``Sycophant'') rather than named individuals.
 
@@ -652,7 +652,7 @@ Rather than random noise, outlier syndicates display a \textbf{hub-and-spoke top
 The flow imbalance analysis confirms that Case authors systematically give more citations than they receive.
 Cumulative citation trajectories over the 2020--2024 window suggest that the gap between tiers may be widening, although a longer observation period is needed to confirm this trend.
 
-Controlling for subject and productivity, the hybrid detection strategy identifies structurally anomalous citation groups with 93.5\% Case purity (proportion of flagged authors belonging to the Bottom tier).
+Controlling for subject and productivity, the hybrid detection strategy identifies structurally anomalous citation groups with 93.5\% Case purity (proportion of flagged authors belonging to the Case group).
 These groups are characterized not by simple asymmetry, but by a specific cohesion fingerprint --extreme co-author citation rates, dense local clustering, and tunnel vision.
 Consequently, low-impact venues do not merely host lower-quality work; they foster \textbf{segregated, inward-looking citation economies} whose structural properties are associated with distortion of bibliometric indicators.
 
