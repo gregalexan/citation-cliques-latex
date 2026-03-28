@@ -37,6 +37,11 @@
 \sisetup{detect-weight,detect-family,table-number-alignment=center}
 \usepackage{makecell}
 
+% Grouping and thousands separator
+\sisetup{
+  group-separator = {\,},
+  group-minimum-digits = 4
+}
 
 % - Images: sensible defaults + safe include -
 \graphicspath{{panos/}{new_figs/}{./}}
@@ -103,7 +108,7 @@ Athens University of Economics and Business (AUEB), Athens, Greece}
 \begin{abstract}
   This study explores how low-impact journals, defined through subject-normalized Eigenfactor percentiles, are associated with denser and more reciprocating patterns of author-to-author citations.
   Using Crossref records, we assign journals to broad subject areas, compute subject-specific Eigenfactor scores, propagate venue quality to works and authors, match authors in low-- (Case) versus high-influence (Control) venues by subject and $h_5$, and analyze citation edges for cohesion and anomalies.
-  Across a 10\% sample of 9,431 matched pairs, authors in low-impact venues exhibit significantly higher cohesion: 6.7$\times$ higher co-author citation rates and 4.7$\times$ higher reciprocity in the aggregate Case--Control comparison.
+  Across a 10\% sample of \num{9431} matched pairs, authors in low-impact venues exhibit significantly higher cohesion: 6.7$\times$ higher co-author citation rates and 4.7$\times$ higher reciprocity in the aggregate Case--Control comparison.
   A subject-aware hybrid detection pipeline flags 277 outliers with 93.5\% Case purity; these outliers display an 11$\times$ clique-strength lift relative to non-outliers, revealing a stark ``Two Worlds'' segregation ($r=0.71$) where low-impact venues operate as closed citation economies.
   The largest detected component ($n=23$) displays a hub-and-spoke topology in which peripheral ``Sycophants'' funnel citations to central ``Beneficiaries'' through coordinated bursts, confirming a directed flow imbalance rather than reciprocal exchange among equals.
   Overall, cohesion, rather than broad asymmetry, accounts for the main Case--Control differences, suggesting that low-impact venues foster segregated, inward-looking citation economies that distort bibliometric indicators.
@@ -150,7 +155,7 @@ Systemic and infrastructural distortions further complicate these dynamics. Nati
 
 Finally, the recognition of complex citation distortions has increased the focus on transparency and reproducibility. The \emph{LLM Guidelines} \parencite{LLMGuidelines2024} advocate for documenting decision rules and uncertainty, which is critical as machine learning becomes central to integrity audits. Supporting initiatives promote open data and verifiable auditing to prevent large-scale manipulation. These developments suggest that citation systems are socio-technical infrastructures where credibility relies on both methodological openness and quantitative rigor.
 
-The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched Case--Control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion}, which manifests as dense local clustering and triadic closure, as the primary diagnostic signature of citation anomalies within low-impact journals. By implementing a subject-aware isolation forest on author-to-author networks across a 10\% sample of 9,431 matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
+The present research extends this discourse by systematically examining the relationship between author-level citation behaviors and the influence level of the publication venue, while controlling for individual productivity ($h_5$ index) and disciplinary norms through a matched Case--Control design. While previous studies have primarily investigated the orchestration of specific bibliometric indicators \parencite{Evdaimon2024} or semantic irregularities within article metadata \parencite{Liu2024}, this study identifies \emph{structural cohesion}, which manifests as dense local clustering and triadic closure, as the primary diagnostic signature of citation anomalies within low-impact journals. By implementing a subject-aware isolation forest on author-to-author networks across a 10\% sample of \num{9431} matched pairs, the analysis demonstrates that such cliques constitute structural byproducts of venue-level incentives rather than isolated asymmetric flows. Consequently, this approach provides a network-centric diagnostic framework for identifying organized citation practices that evade traditional bibliometric oversight by focusing on network closure patterns rather than simple citation counts.
 
 \section{Methodology}
 \label{sec:methods}
@@ -213,7 +218,7 @@ Mixed-tier authors were excluded from the matched-pair analysis to ensure clean 
 We then matched Case authors to Control authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
 
 \textbf{Sample and Availability.}
-The final analytical dataset comprises a 10\% sample of 9{,}431 matched Case--Control author pairs
+The final analytical dataset comprises a 10\% sample of \num{9431} matched Case--Control author pairs
 (see Table~\ref{tab:sampling-funnel} for the per-subject breakdown).
 All pair-level and network-level aggregates were computed per subject area and combined
 only after validation of within-subject consistency.
@@ -245,7 +250,7 @@ The pipeline combines an Isolation Forest (IF) \parencite{Liu2008} with a domain
 The IF model used standard hyperparameters (\texttt{n\_estimators=200}, \texttt{contamination=0.01}) to capture general anomalies.
 The Cohesion Score was computed as the standardized sum of the four most discriminative features: co-author citation rate, clique strength, reciprocity, and outgoing HHI\footnote{The Herfindahl-Hirschman Index (HHI) measures concentration. In this context, it quantifies the extent to which an author repeatedly cites the same narrow set of recipients, indicating a lack of source diversity.}.
 We computed 14 behavioural features per author (Table~\ref{tab:features}).
-Of these, normalised burst intensity was available for only 7{,}711 of the 9{,}431 matched pairs (18\% missing) because many authors recorded no burst events in the study window.
+Of these, normalised burst intensity was available for only \num{7711} of the \num{9431} matched pairs (18\% missing) because many authors recorded no burst events in the study window.
 Statistical tests handle this by dropping incomplete pairs per metric; however, the Isolation Forest requires a complete feature matrix, and zero-imputing 18\% of values would inject a spurious signal.
 The model was therefore trained on the remaining 13 features.
 All features were standardised (zero mean, unit variance) and multiplied by hand-tuned weights reflecting Random-Forest importance and Wilcoxon effect sizes (e.g., Co-author Rate weighted 4.0); authority metrics were sign-inverted so that lower values indicate greater suspicion.
@@ -266,7 +271,7 @@ The main network features used were
 the \emph{clustering coefficient} (density of local interconnections);
 \emph{triangles} (closed three-way citation structures);
 the \emph{k-core number} (depth of embedding in dense subnetworks);
-\emph{betweenness centrality (how often an author lies on shortest paths, a proxy for brokerage/coordination potential);
+\emph{betweenness centrality} (how often an author lies on shortest paths, a proxy for brokerage/coordination potential);
 \emph{velocity} (rate of citation accumulation);
 \emph{burst} (sudden within-window surges of citations); and
 \emph{asymmetry} (imbalance in giving vs.\ receiving citations).
@@ -292,7 +297,7 @@ Figure~\ref{fig:forest_plot} displays the mean paired difference in co-author ci
 \end{figure}
 
 The cohesion gap is not driven by a few extreme outliers but by a broad rightward shift across all four dimensions (co-author citation rate, self-citation rate, outgoing HHI, and local clustering).
-Permutation testing (10{,}000 label shuffles of Case/Control assignments) independently confirms the effect is far outside the null distribution ($p < 0.001$).
+Permutation testing (\num{10000} label shuffles of Case/Control assignments) independently confirms the effect is far outside the null distribution ($p < 0.001$).
 
 In contrast to their high internal cohesion, low-impact authors exhibit significantly lower authority metrics. Controls exhibit \textbf{3$\times$ higher PageRank} than Cases ($p=3.1 \times 10^{-145}$), and \textbf{2.2$\times$ higher Citation Entropy}, indicating that while Cases form tight cliques, they lack broad authoritative influence.
 This divergence is further supported by the random forest feature importances in Figure~\ref{fig:feature_importance}, where cohesion and concentration metrics rank as the most discriminative features for tier classification, while authority metrics like PageRank play a secondary role.
@@ -773,7 +778,7 @@ unless stated otherwise.
   \addlinespace
   Norm.\ burst intensity\textsuperscript{\dag}
     & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
-    & Largest single-peer citation weight normalised by total incoming volume. Available for 7{,}711 of 9{,}431 pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}). \\
+    & Largest single-peer citation weight normalised by total incoming volume. Available for \num{7711} of \num{9431} pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}). \\
 \end{longtable}
 }
 
@@ -795,7 +800,7 @@ For each Bottom-Tier author the algorithm selected the closest available Top-Tie
 Productivity was bucketed by integer division ($b = \lfloor h_5/3 \rfloor$); candidates with $|b_{\text{case}} - b_{\text{control}}| \leq 1$ (i.e., $\pm3$~$h_5$ points) were eligible.
 Among eligible candidates the one minimising $|h_{5,\text{case}} - h_{5,\text{control}}|$ was selected.
 Each (ORCID, subject) pair was used at most once (matching without replacement).
-This procedure yielded 9{,}431 matched pairs across five subject areas (Table~\ref{tab:sampling-funnel}).
+This procedure yielded \num{9431} matched pairs across five subject areas (Table~\ref{tab:sampling-funnel}).
 
 \subsection{Fractional Citation Weights}
 Each citation edge between a citing work with $n_c$~authors and a cited work with $n_a$~authors received weight
@@ -859,7 +864,7 @@ Journal citation networks were constructed from references in the reference year
 
 \subsection{Stage~3: Journal Subject Classification}
 Each journal was assigned to one of five broad subjects using an LLM-based classifier (see Appendix~\ref{app:llm}).
-The final mapping covers approximately 15{,}000 ISSNs.
+The final mapping covers approximately \num{15000} ISSNs.
 Within each subject, the 25th and 75th Eigenfactor percentiles were computed to define \emph{low-impact} and \emph{high-influence} thresholds, respectively.
 
 \subsection{Stage~4: Author Population and Sampling}
@@ -877,8 +882,8 @@ A subject-specific $h_5$~index was computed for each remaining author.
 Bottom-Tier authors were then matched to Top-Tier authors via greedy one-pass matching within subject, as described in Appendix~\ref{app:params}.
 
 \subsection{Stage~6: Final Dataset}
-The matching procedure yielded 9{,}431 Case--Control pairs across five subjects (Table~\ref{tab:sampling-funnel}).
-For the maximum citation burst metric, 7{,}711 pairs were available due to data sparsity.
+The matching procedure yielded \num{9431} Case--Control pairs across five subjects (Table~\ref{tab:sampling-funnel}).
+For the maximum citation burst metric, \num{7711} pairs were available due to data sparsity.
 Directed author-to-author citation networks were constructed for matched authors using fractional edge weights (Appendix~\ref{app:params}).
 
 \begin{table}[htbp]
@@ -889,13 +894,13 @@ Directed author-to-author citation networks were constructed for matched authors
     \toprule
     \textbf{Subject} & \textbf{Pairs} \\
     \midrule
-    Health Sciences                & 3{,}776 \\
-    Life Sciences                  & 2{,}543 \\
-    Physical Sciences              & 2{,}262 \\
+    Health Sciences                & \num{3776} \\
+    Life Sciences                  & \num{2543} \\
+    Physical Sciences              & \num{2262} \\
     Social Sciences \& Humanities  & 518 \\
     Multidisciplinary              & 332 \\
     \midrule
-    \textbf{Total}                 & \textbf{9{,}431} \\
+    \textbf{Total}                 & \textbf{\num{9431}} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -914,7 +919,7 @@ Each journal was classified into one of five broad categories:
 
 The prompt supplied the journal title and, where available, a representative abstract, together with few-shot exemplars for each category.
 Decision rules prioritised abstract content over titles and journal names to reduce ambiguity.
-Predictions were cached deterministically to a JSON file; the final mapping covers approximately 15,000 ISSNs stored in the \texttt{issn\_subjects} table of the study database.
+Predictions were cached deterministically to a JSON file; the final mapping covers approximately \num{15000} ISSNs stored in the \texttt{issn\_subjects} table of the study database.
 No independent ground-truth validation was performed; this is acknowledged as a limitation.
 
 
