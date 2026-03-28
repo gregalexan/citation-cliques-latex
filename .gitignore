@@ -12,7 +12,7 @@
 *.toc
 *.lof
 *.lot
+main.pdf
 
 # Keep the compiled PDFs
-!main.pdf
 !panos/main.pdf
