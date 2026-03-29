@@ -631,33 +631,32 @@ Understanding these patterns is essential for designing fair bibliometric indica
 This study relies on Crossref metadata (2020--2024), which vary in completeness.
 While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
 The LLM-based journal classification (Appendix~\ref{app:llm}) was not validated against an independent ground truth; misclassification of some journals could shift the boundary between Case and Control authors.
-Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing.
-Finally, the network analysis is conducted at a structural level and does not expose the identities of the individual authors involved; flagged nodes are treated as anonymous structural roles (e.g., ``Beneficiary'' or ``Sycophant'') rather than named individuals.
+Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing (TODO).
 
 \paragraph{Ethical considerations.}
 Where individual author profiles are discussed (Tables~\ref{tab:suspicious-top10} and~\ref{tab:author-audit}), the underlying data consist exclusively of publicly available Crossref metadata and self-declared ORCID identifiers.
 Identifying anomalous citation patterns in publicly funded research serves a legitimate accountability function, consistent with established practice in the retraction and research-integrity literature \parencite{Biagioli2020,Besancon2024}.
-Author names are initialised and no institutional affiliations are disclosed; readers can verify the underlying records through the cited ORCID links.
+Although explicit author names and institutional affiliations are omitted from the text and tables for discretion, the underlying publication records remain fully transparent and verifiable through the provided ORCID identifiers.
 
 Future work could combine the structural fingerprint with author disambiguation and profile-level inspection to move from structural suspicion to targeted auditing.
-Extending the temporal coverage and triangulating with independent data sources (e.g., OpenAlex) could clarify whether the observed ``Two Worlds'' segregation is widening over time.
-Experimental audits in selected venues could also test whether editorial interventions can dismantle the ``Echo Chambers'' identified in this analysis.
+Extending the temporal coverage could clarify whether the observed ``Two Worlds'' segregation is widening over time.
+Experimental audits in selected venues could also test whether editorial interventions can dismantle the echo chambers identified in this analysis.
 
 \section{Summary and Conclusions}
 \label{sec:conclusion}
 
 We developed a subject-aware hybrid pipeline that integrates LLM-based journal classification, per-subject Eigenfactor scores, and a composite outlier detection strategy.
-This design allowed us to isolate specific behavioral signatures once productivity (by subject-specific $h_5$) is held constant.
+This design allowed us to isolate behavioral signatures with author productivity (by subject-specific $h_5$) held constant.
 
 The evidence points to a highly structured phenomenon.
 In the aggregate Case--Control comparison, authors publishing predominantly in low-impact journals cite co-authors \textbf{6.7$\times$ more frequently}; among the 277~flagged outliers the lift is even starker, with \textbf{11$\times$ greater clique strength} relative to non-outliers.
-Rather than random noise, outlier syndicates display a \textbf{hub-and-spoke topology}, where peripheral ``Sycophants'' funnel citations to central ``Beneficiaries'' through coordinated bursts.
+Rather than random noise, outlier syndicates display a \textbf{hub-and-spoke topology}, where peripheral ``Sycophants'' funnel citations to central ``Beneficiaries'' through coordinated temporal citation bursts.
 The flow imbalance analysis confirms that Case authors systematically give more citations than they receive.
 Cumulative citation trajectories over the 2020--2024 window suggest that the gap between tiers may be widening, although a longer observation period is needed to confirm this trend.
 
 Controlling for subject and productivity, the hybrid detection strategy identifies structurally anomalous citation groups with 93.5\% Case purity (proportion of flagged authors belonging to the Case group).
-These groups are characterized not by simple asymmetry, but by a specific cohesion fingerprint --extreme co-author citation rates, dense local clustering, and tunnel vision.
-Consequently, low-impact venues do not merely host lower-quality work; they foster \textbf{segregated, inward-looking citation economies} whose structural properties are associated with distortion of bibliometric indicators.
+These groups are characterized not by simple asymmetry, but by a specific cohesion fingerprint: extreme co-author citation rates, dense local clustering, and tunnel vision.
+Consequently, some low-impact venues appear to foster \textbf{segregated, inward-looking citation economies} whose structural properties are associated with distortion of bibliometric indicators.
 
 
 \section{Author Contributions}
@@ -784,17 +783,17 @@ unless stated otherwise.
 \section{Matching Procedure and Detection Parameters}
 \label{app:params}
 
-\subsection{Author Classification}
+\subsection{Author Classification}\label{sec:author-classification}
 Authors were classified based on their publication portfolio:
 \begin{itemize}
-  \item \textbf{Bottom Tier}: $\geq70\%$ of papers published in journals below the 25th subject-specific Eigenfactor percentile, with a minimum of 3~papers.
-  \item \textbf{Top Tier}: $\geq70\%$ of papers published in journals above the 75th subject-specific Eigenfactor percentile, with a minimum of 3~papers.
+  \item \textbf{Case}: $\geq70\%$ of papers published in journals below the 25th subject-specific Eigenfactor percentile, with a minimum of 3~papers.
+  \item \textbf{Control}: $\geq70\%$ of papers published in journals above the 75th subject-specific Eigenfactor percentile, with a minimum of 3~papers.
   \item \textbf{Other}: authors not meeting either threshold.
 \end{itemize}
 
 \subsection{Matched-Pair Construction}
 Case--Control pairs were formed via greedy one-pass matching within each subject area.
-For each Bottom-Tier author the algorithm selected the closest available Top-Tier author by subject-specific $h_5$~index.
+For each Case author the algorithm selected the closest available Control author by subject-specific $h_5$~index.
 Productivity was bucketed by integer division ($b = \lfloor h_5/3 \rfloor$); candidates with $|b_{\text{case}} - b_{\text{control}}| \leq 1$ (i.e., $\pm3$~$h_5$ points) were eligible.
 Among eligible candidates the one minimising $|h_{5,\text{case}} - h_{5,\text{control}}|$ was selected.
 Each (ORCID, subject) pair was used at most once (matching without replacement).
@@ -815,6 +814,7 @@ The model was trained per-subject on 13 of the 14 scaled features listed in Tabl
 
 \begin{table}[htbp]
   \centering
+  \captionsetup{justification=centering}
   \caption{\textbf{Isolation Forest hyper-parameters.}}
   \label{tab:if-params}
   \begin{tabular}{@{}ll@{}}
@@ -857,27 +857,23 @@ The following fields were extracted: DOI, publication year, page information, pr
 \subsection{Stage~2: Journal-Level Metrics}
 Works were linked to journals through normalised ISSNs.
 A citability filter removed non-article items (single-page entries such as editorials and news pieces).
-For each journal, two-year and five-year citation means, the $h_5$~index, network centrality (Eigenfactor), prestige rank (SJR-like), mean article score, and context-normalised impact were computed.
+For each journal, two-year and five-year citation means, the $h_5$~index, network centrality (Eigenfactor) (TODO), prestige rank (SJR-like) (TODO), mean article score, and context-normalised impact were computed.
 Journal citation networks were constructed from references in the reference year (2024) to publications in the preceding two-, three-, or five-year windows, depending on the metric.
 
 \subsection{Stage~3: Journal Subject Classification}
 Each journal was assigned to one of five broad subjects using an LLM-based classifier (see Appendix~\ref{app:llm}).
 The final mapping covers approximately \num{15000} ISSNs.
-Within each subject, the 25th and 75th Eigenfactor percentiles were computed to define \emph{low-impact} and \emph{high-influence} thresholds, respectively.
+Within each subject, the 25th and 75th Eigenfactor percentiles were computed to define \emph{low-impact} and \emph{high-impact} thresholds, respectively.
 
 \subsection{Stage~4: Author Population and Sampling}
 To keep computation tractable, the author population was sampled by retaining only ORCIDs whose last digit is~\texttt{0} (approximately 10\% of all ORCID-bearing authors in the Crossref snapshot).
 This deterministic filter preserves the distribution of author characteristics because the ORCID check digit is algorithmically assigned and uncorrelated with research behaviour.
 
 \subsection{Stage~5: Author Classification and Matching}
-Within the sampled population, authors were classified per subject as:
-\begin{itemize}
-  \item \textbf{Bottom Tier}: $\geq70\%$ of papers in journals below the 25th Eigenfactor percentile, with $\geq3$~papers.
-  \item \textbf{Top Tier}: $\geq70\%$ of papers in journals above the 75th Eigenfactor percentile, with $\geq3$~papers.
-\end{itemize}
+Within the sampled population, authors were classified per subject (detailed in Section~\ref{sec:author-classification}).
 Authors not meeting either criterion were excluded.
 A subject-specific $h_5$~index was computed for each remaining author.
-Bottom-Tier authors were then matched to Top-Tier authors via greedy one-pass matching within subject, as described in Appendix~\ref{app:params}.
+Case authors were then matched to Control authors via greedy one-pass matching within subject, as described in Appendix~\ref{app:params}.
 
 \subsection{Stage~6: Final Dataset}
 The matching procedure yielded \num{9431} Case--Control pairs across five subjects (Table~\ref{tab:sampling-funnel}).
@@ -886,6 +882,7 @@ Directed author-to-author citation networks were constructed for matched authors
 
 \begin{table}[htbp]
   \centering
+  \captionsetup{justification=centering}
   \caption{\textbf{Matched pairs by subject area.}}
   \label{tab:sampling-funnel}
   \begin{tabular}{@{}lr@{}}
@@ -908,17 +905,10 @@ Directed author-to-author citation networks were constructed for matched authors
 \label{app:llm}
 
 Journal subject assignment used OpenAI \texttt{gpt-4.1} with temperature~0 and deterministic seeding.
-Each journal was classified into one of five broad categories:
-(1)~Health Sciences,
-(2)~Life Sciences,
-(3)~Multidisciplinary,
-(4)~Physical Sciences,
-(5)~Social Sciences \& Humanities.
 
-The prompt supplied the journal title and, where available, a representative abstract, together with few-shot exemplars for each category.
-Decision rules prioritised abstract content over titles and journal names to reduce ambiguity.
+The prompt supplied the journal name and, where available, a representative abstract and article titles, together with few-shot exemplars for each category.
+Decision rules prioritised abstract content over article titles and journal names to reduce ambiguity.
 Predictions were cached deterministically to a JSON file; the final mapping covers approximately \num{15000} ISSNs stored in the \texttt{issn\_subjects} table of the study database.
 No independent ground-truth validation was performed; this is acknowledged as a limitation.
-
 
 \end{document}
