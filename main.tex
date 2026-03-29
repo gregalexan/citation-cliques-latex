@@ -44,7 +44,7 @@
 }
 
 % - Images: sensible defaults + safe include -
-\graphicspath{{panos/}{new_figs/}{./}}
+\graphicspath{{figures/}{./}}
 \setkeys{Gin}{width=\linewidth,keepaspectratio}
 \newcommand{\safeincludegraphics}[2][]{\includegraphics[#1]{#2}}
 
@@ -140,11 +140,11 @@ judgement or view regarding the authors' and their works' scientific worth.
 \label{sec:relwork}
 
 Prior research has highlighted the fragility of citation-based indicators when used as proxies for scholarly quality.
-Performance measures not only shape incentives~\cite{Goo84},
-but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels~\cite{TODO},
-inflated impact factors~\cite{TODO},
-paper mills~\cite{TODO},
-AI-generated papers~\cite{Spi25d},
+Performance measures not only shape incentives~\parencite{Goo84},
+but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels~(TODO),
+inflated impact factors~(TODO),
+paper mills~(TODO),
+AI-generated papers~\parencite{Spi25d},
 and other forms of metric manipulation that erode the interpretive value of bibliometric indicators.
 
 Venue-level frameworks were developed to mitigate some of these distortions. The Eigenfactor metric \parencite{West2008} introduced a network-based approach that discounts journal self-citations and weights each citation by the prestige of the citing venue. This recursive weighting sought to capture influence rather than popularity and to counteract local citation loops. However, later analyses have shown that such corrections remain sensitive to database coverage, field size, and reference density, indicating that structural biases persist even in sophisticated venue-level measures.

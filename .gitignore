@@ -14,5 +14,3 @@
 *.lot
 main.pdf
 
-# Keep the compiled PDFs
-!panos/main.pdf
