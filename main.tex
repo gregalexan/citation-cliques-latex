@@ -118,18 +118,17 @@ Athens University of Economics and Business (AUEB), Athens, Greece}
 
 \section{Introduction}
 \label{sec:intro}
-Quantitative indicators such as citation counts, the $h$-index, and journal metrics have become central to the assessment of scholarly impact \parencite{Hirsch2005}. These measures offer convenient proxies for influence, but they also create incentives for strategic behavior and manipulation \parencite{Biagioli2020}. When deployed uncritically, citation-based indicators risk rewarding volume or visibility over substance, with unintended consequences for research integrity and evaluation systems.
+Quantitative indicators such as citation counts, the $h$-index, and journal metrics have become central to the assessment of scholarly impact \parencite{Garfield1972, Hirsch2005, Hicks2015}. These measures offer convenient proxies for influence, but they also create incentives for strategic behavior and manipulation \parencite{Goo84,Biagioli2020,Baccini2019}. When deployed uncritically, citation-based indicators risk rewarding volume or visibility over substance, with unintended consequences for research integrity and evaluation systems.
 
-Beyond well-known practices such as excessive self-citation, more coordinated behaviors have emerged. Authors may form tightly connected \emph{citation cliques} --groups that disproportionately reference one another, often within low-impact journals as defined by subject-normalized Eigenfactor percentiles \parencite{West2008}. Such practices distort indicators, undermine trust in the scholarly record, and complicate fair comparison across fields. These dynamics exemplify what has recently been described as \emph{citation orchestration} \parencite{Evdaimon2024}, where citations serve strategic rather than intellectual functions.
+Beyond well-known practices such as excessive self-citation \parencite{VanNoorden2019,Wilhite2012}, more coordinated behaviors have emerged. Authors may form tightly connected \emph{citation cliques} --groups that disproportionately reference one another, often within low-impact journals as defined by subject-normalized Eigenfactor percentiles \parencite{West2008}. Such practices distort indicators, undermine trust in the scholarly record, and complicate fair comparison across fields. These dynamics exemplify what has recently been described as \emph{citation orchestration} \parencite{Evdaimon2024}, where citations serve strategic rather than intellectual functions.
 
-Low-impact journals provide fertile ground for these dynamics. Their emphasis on publication volume, rapid turnaround, and relaxed editorial oversight \parencite{Abalkina2025} creates environments where abnormal citation patterns can thrive. Systemic distortions such as national \emph{home bias} \parencite{Qiu2025} further interact with venue incentives, amplifying the risk that rankings and impact assessments reflect coordination rather than genuine uptake of ideas.
+Low-impact journals provide fertile ground for these dynamics. Their emphasis on publication volume, rapid turnaround, and relaxed editorial oversight \parencite{Beall2012, Abalkina2025} creates environments where abnormal citation patterns can thrive. Systemic distortions such as national \emph{home bias} \parencite{Qiu2025} further interact with venue incentives, amplifying the risk that rankings and impact assessments reflect coordination rather than genuine uptake of ideas.
 
 This exploratory study investigates whether low-impact journals are significantly associated with cliques and abnormal citation patterns. Using large-scale bibliographic data, we implement a subject-aware pipeline that links journal influence to authors,
 matches researchers publishing in Bottom-- and Top-tier impact journals
 of comparable productivity (by $h_5$ index), and analyzes their citation networks for cohesion and anomalies.
 
-% We have to delete 'exlusively' and add a more accurate term here
-We find that extreme anomalies cluster exclusively among authors publishing mostly in low-impact venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Control counterparts.
+We find that extreme anomalies cluster predominantly among authors publishing mostly in low-impact venues: they concentrate in unusually dense, inward-looking structures and form compact outlier groups that set them apart from their Control counterparts.
 These results provide empirical evidence that venue incentives can shape citation behavior in ways that distort bibliometric indicators.
 Throughout this paper, authors publishing primarily in low-impact venues are referred to as \emph{Cases}, and their matched counterparts in high-impact venues as \emph{Controls}.
 Terms such as ``syndicate,'' ``sycophant,'' and ``beneficiary'' are used as \emph{structural labels} describing observed network roles and do not imply intent or misconduct.
@@ -142,15 +141,15 @@ judgement or view regarding the authors' and their works' scientific worth.
 
 Prior research has highlighted the fragility of citation-based indicators when used as proxies for scholarly quality.
 Performance measures not only shape incentives~\parencite{Goo84},
-but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels~(TODO),
-inflated impact factors~(TODO),
-paper mills~(TODO),
+but also invite gaming, from excessive self-citation to coordinated cartels \parencite{Biagioli2019,Biagioli2020}. The wider literature on the “metrics culture” documents how quantitative indicators reshape scholarly communication, creating feedback loops between evaluation systems and researcher behavior. These mechanisms underpin the emergence of citation cartels~\parencite{Fister2016,Catanzaro2024},
+inflated impact factors~\parencite{Ioannidis2024extreme,Catanzaro2024},
+paper mills~\parencite{Christopher2021,Abalkina2025},
 AI-generated papers~\parencite{Spi25d},
 and other forms of metric manipulation that erode the interpretive value of bibliometric indicators.
 
-Venue-level frameworks were developed to mitigate some of these distortions. The Eigenfactor metric \parencite{West2008} introduced a network-based approach that discounts journal self-citations and weights each citation by the prestige of the citing venue. This recursive weighting sought to capture influence rather than popularity and to counteract local citation loops. However, later analyses have shown that such corrections remain sensitive to database coverage, field size, and reference density (TODO), indicating that structural biases persist even in sophisticated venue-level measures.
+Venue-level frameworks were developed to mitigate some of these distortions. The Eigenfactor metric \parencite{West2008} introduced a network-based approach that discounts journal self-citations and weights each citation by the prestige of the citing venue. This recursive weighting sought to capture influence rather than popularity and to counteract local citation loops. However, later analyses have shown that such corrections remain sensitive to database coverage, field size, and reference density \parencite{Baccini2019}, indicating that structural biases persist even in sophisticated venue-level measures.
 
-At the author level, organized citation exchanges have been formalized as \emph{citation orchestration} \parencite{Evdaimon2024}. This framework quantifies concentrated citation flows through indicators such as the ratio of total citations to the squared $h$-index ($C/h^2$), the number of distinct authors accounting for half of one's citations ($A50\%C$), and the count of hyper-collaborators sharing over fifty joint papers ($A50$). Together, these metrics reveal unusually cohesive collaboration networks that may signal collective metric inflation. Earlier studies of citation cartels and excessive self-referencing (TODO) align with this view, emphasizing how reciprocal ties among small groups of authors can yield disproportionate bibliometric visibility. Such coordinated behaviors blur the line between collaboration and manipulation, challenging the assumption that citation networks represent organic intellectual influence.
+At the author level, organized citation exchanges have been formalized as \emph{citation orchestration} \parencite{Evdaimon2024}. This framework quantifies concentrated citation flows through indicators such as the ratio of total citations to the squared $h$-index ($C/h^2$), the number of distinct authors accounting for half of one's citations ($A50\%C$), and the count of hyper-collaborators sharing over fifty joint papers ($A50$). Together, these metrics reveal unusually cohesive collaboration networks that may signal collective metric inflation. Earlier studies of citation cartels and excessive self-referencing \parencite{Fister2016,Baccini2019,Kojaku2021,Ioannidis2025precocious,heneberg2016} align with this view, emphasizing how reciprocal ties among small groups of authors can yield disproportionate bibliometric visibility. Such coordinated behaviors blur the line between collaboration and manipulation, challenging the assumption that citation networks represent organic intellectual influence.
 
 Systemic and infrastructural distortions further complicate these dynamics. National \emph{home bias} inflates domestic citation counts, particularly in large scientific systems such as China's \parencite{Qiu2025}, while technical manipulation has emerged through “sneaked references” inserted into metadata but absent from article text \parencite{Besancon2024}. Industrial-scale paper mills produce fabricated papers that populate citation networks with artificial linkages \parencite{Abalkina2025}. Recent investigations reveal even more elaborate schemes, including the creation of fictitious author identities and peer reviewers to infiltrate legitimate journals. As reported by \textcite{Naddaf2025}, these fake personas --sometimes maintained across multiple journals-- enable mills to generate both papers and favorable reviews, prompting publishers to explore researcher identity verification frameworks and persistent identifier checks such as ORCID trust markers.
 
@@ -187,7 +186,7 @@ Each journal was assigned to one of five broad subject areas:
 3) Physical Sciences,
 4) Social Sciences \& Humanities, and
 5) Multidisciplinary,
-using a LLM-based classification methods \parencite{LLMGuidelines2024}.
+using an LLM as an annotator \parencite{LLMGuidelines2024}.
 This taxonomy mirrors the broad subject areas of the All Science Journal
 Classification (ASJC) scheme used by Scopus \parencite{Burnham2006}, one of the
 most widely adopted classification frameworks in scientometrics. Separating subject
@@ -239,9 +238,9 @@ Matched pairs were compared using Wilcoxon signed-rank tests \parencite{Wilcoxon
 Effect sizes were quantified via Cliff's $\delta$ \parencite{Cliff1993} and Cohen's $d$ \parencite{Cohen1988},
 with confidence intervals estimated through bootstrap resampling \parencite{Efron1993}.
 Robustness checks included permutation tests, placebo pairing, random-effects meta-analysis across subjects,
-and alternative outlier detectors (Isolation Forest \parencite{Liu2008}, Local Outlier Factor, One-Class SVM).
+and alternative outlier detectors (Isolation Forest \parencite{Liu2008}, Local Outlier Factor \\parencite{Breunig2000}, One-Class SVM).
 Sensitivity analysis utilized z-score thresholds ($1\sigma, 2\sigma, 3\sigma, 4\sigma$) relative to the control baseline to establish interpretable detection cutoffs.
-Community detection used the Louvain method \parencite{Blondel2008}.
+Community detection used the Louvain method \parencite{Blondel2008}, which optimises the modularity criterion \parencite{NewmanGirvan2004}.
 
 \textbf{Outlier Detection Procedure.}\label{sec:outlier-proc}
 We developed a subject-aware hybrid outlier detection strategy linking multivariate anomalies to specific cohesion signatures.
@@ -451,7 +450,7 @@ The hub-and-spoke topology and coordinated temporal bursts reveal a pervasive ``
 \subsection{Case--Control Segregation}
 
 The distinction between low-- and high-impact venues extends beyond simple density; it reflects extreme \emph{segregation}.
-The high assortativity coefficient ($r=0.71$) and modularity ($Q=0.97$) confirm a \textbf{``Two Worlds'' hypothesis}, where Case authors operate in closed citation economies with minimal external engagement (Figure~\ref{fig:mixing_matrix}).
+The high assortativity coefficient ($r=0.71$) \parencite{Newman2002} and modularity ($Q=0.97$) \parencite{NewmanGirvan2004} confirm a \textbf{``Two Worlds'' hypothesis}, where Case authors operate in closed citation economies with minimal external engagement (Figure~\ref{fig:mixing_matrix}).
 Flagged outliers concentrate at the high-asymmetry, high-burst corner of the anomaly landscape, a region essentially unpopulated by Controls.
 In this sense, citation cliques are not merely organic clusters but isolated silos disconnected from the broader scientific discourse.
 
@@ -631,7 +630,7 @@ Understanding these patterns is essential for designing fair bibliometric indica
 This study relies on Crossref metadata (2020--2024), which vary in completeness.
 While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
 The LLM-based journal classification (Appendix~\ref{app:llm}) was not validated against an independent ground truth; misclassification of some journals could shift the boundary between Case and Control authors.
-Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing (TODO).
+Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing \parencite{Liu2024}.
 
 \paragraph{Ethical considerations.}
 Where individual author profiles are discussed (Tables~\ref{tab:suspicious-top10} and~\ref{tab:author-audit}), the underlying data consist exclusively of publicly available Crossref metadata and self-declared ORCID identifiers.
@@ -759,7 +758,7 @@ unless stated otherwise.
       \addlinespace
       Clustering coeff.
                        & \resizebox{\linewidth}{!}{$\displaystyle\frac{2\,|\{(j,k)\colon j,k\in\mathcal{N}_i,\,(j,k)\in E\}|}{d_i(d_i-1)}$}
-                       & Fraction of an author's neighbours that are themselves connected. Computed on the undirected projection of the internal citation graph.                                                                                                           \\
+                       & Fraction of an author's neighbours that are themselves connected \parencite{WattsStrogatz1998}. Computed on the undirected projection of the internal citation graph.                                                                             \\
       \addlinespace
       Triangles (norm.)
                        & $\displaystyle\frac{\Delta_i}{\sum_j w_{ij} + \sum_j w_{ji} + 1}$
@@ -857,7 +856,7 @@ The following fields were extracted: DOI, publication year, page information, pr
 \subsection{Stage~2: Journal-Level Metrics}
 Works were linked to journals through normalised ISSNs.
 A citability filter removed non-article items (single-page entries such as editorials and news pieces).
-For each journal, two-year and five-year citation means, the $h_5$~index, network centrality (Eigenfactor) (TODO), prestige rank (SJR-like) (TODO), mean article score, and context-normalised impact were computed.
+For each journal, two-year and five-year citation means, the $h_5$~index, network centrality (Eigenfactor) \parencite{West2008}, prestige rank (SJR-like) \parencite{GonzalezPereira2010}, mean article score, and context-normalised impact were computed.
 Journal citation networks were constructed from references in the reference year (2024) to publications in the preceding two-, three-, or five-year windows, depending on the metric.
 
 \subsection{Stage~3: Journal Subject Classification}
