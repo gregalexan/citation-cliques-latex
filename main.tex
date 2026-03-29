@@ -94,10 +94,10 @@
 
 % Metadata
 \title{Citation Cliques in Low Impact Journals}
-\author[1]{Panagiotis-Alexios Spanakis\thanks{Co-first authors.}}
-\author[1]{Grigorios Alexandrou\samethanks}
-\author[1]{Diomidis Spinellis\thanks{Supervising professor.}}
-\affil[1]{Department of Management Science and Technology, 
+\author{Panagiotis-Alexios Spanakis}
+\author{Grigorios Alexandrou}
+\author{Diomidis Spinellis}
+\affil{Department of Management Science and Technology, 
 Athens University of Economics and Business (AUEB), Athens, Greece}
 \date{March 2026}
 
@@ -189,18 +189,18 @@ Each journal was assigned to one of five broad subject areas:
 4) Social Sciences \& Humanities, and
 5) Multidisciplinary,
 using a LLM-based classification methods \parencite{LLMGuidelines2024}.
-This taxonomy mirrors the broad subject areas of the All Science Journal 
-Classification (ASJC) scheme used by Scopus \parencite{Burnham2006}, one of the 
-most widely adopted classification frameworks in scientometrics. Separating subject 
-areas is essential for computing meaningful within-field Eigenfactor percentiles, 
+This taxonomy mirrors the broad subject areas of the All Science Journal
+Classification (ASJC) scheme used by Scopus \parencite{Burnham2006}, one of the
+most widely adopted classification frameworks in scientometrics. Separating subject
+areas is essential for computing meaningful within-field Eigenfactor percentiles,
 as citation practices vary substantially across disciplines \parencite{West2008}.
 
-Classification was performed using the Gpt-4.1 model with zero temperature and 
-few-shot exemplars. The model processed journals in batches of ten ISSNs per API 
-call, supplying for each journal up to five representative works ordered by citation 
-count, so that the most influential works appeared first. Prompts and decision rules 
-prioritized abstracts over titles and journal names; when an abstract was 
-unavailable, classification relied on the journal name and title alone. 
+Classification was performed using the Gpt-4.1 model with zero temperature and
+few-shot exemplars. The model processed journals in batches of ten ISSNs per API
+call, supplying for each journal up to five representative works ordered by citation
+count, so that the most influential works appeared first. Prompts and decision rules
+prioritized abstracts over titles and journal names; when an abstract was
+unavailable, classification relied on the journal name and title alone.
 To ensure reproducibility, we used a fixed random number generation seed
 and cached predictions to JSON files.
 
@@ -308,14 +308,14 @@ This divergence is further supported by the random forest feature importances in
   \centering
   \safeincludegraphics[width=\linewidth]{Figure8_Feature_Importance.pdf}
   \caption{\textbf{Random Forest feature importances.}
-  Horizontal bars show mean decrease in impurity for 13 of the
-  14 behavioural features listed in Table~\ref{tab:features},
-  sorted by importance.
-  Bars are coloured by feature category (see legend).
-  Inline labels give raw importance score and share of total.
-  Normalised burst intensity is excluded: it is available for only 82\% of pairs,
-  and zero-imputing the missing 18\% would inject a spurious signal into the
-  Isolation Forest (Section~\ref{sec:outlier-proc}).}
+    Horizontal bars show mean decrease in impurity for 13 of the
+    14 behavioural features listed in Table~\ref{tab:features},
+    sorted by importance.
+    Bars are coloured by feature category (see legend).
+    Inline labels give raw importance score and share of total.
+    Normalised burst intensity is excluded: it is available for only 82\% of pairs,
+    and zero-imputing the missing 18\% would inject a spurious signal into the
+    Isolation Forest (Section~\ref{sec:outlier-proc}).}
   \label{fig:feature_importance}
 \end{figure}
 
@@ -368,7 +368,7 @@ Figure~\ref{fig:lda} illustrates this separation: the Linear Discriminant Analys
 Three behavioral profiles emerge from the clustering:
 \begin{itemize}
   \item \textbf{Asymmetric (Unbalanced)}: high maximum asymmetry
-  relative to cohesion; concentrated outgoing citation flows.
+        relative to cohesion; concentrated outgoing citation flows.
   \item \textbf{Independent (Typical)}: balanced citing behavior, low cohesion; the dominant profile among Controls.
   \item \textbf{Solo (Self-citing)}: high self-citation rate; nearly absent among Control authors.
 \end{itemize}
@@ -703,86 +703,86 @@ fractional citation weight from author~$i$ to author~$j$
 (see Appendix~\ref{app:params}), and sums run over non-self edges
 unless stated otherwise.
 
-{\singlespacing\small
-\begin{longtable}{@{}l p{0.25\textwidth} >{\RaggedRight\arraybackslash}p{0.38\textwidth}@{}}
-  \caption{\textbf{Behavioural feature definitions.}
-    All metrics are computed per author over the 2020--2024 citation network.
-    $N_{\text{out}}$~= number of distinct cited authors;
-    $N_{\text{in}}$~= number of distinct citing authors;
-    $p_j = w_{ij} / \sum_k w_{ik}$ (outgoing share);
-    $q_j = w_{ji} / \sum_k w_{ki}$ (incoming share).}
-  \label{tab:features}\\
-  \toprule
-  \textbf{Feature} & \textbf{Formula} & \textbf{Interpretation} \\
-  \midrule
-  \endfirsthead
-  \multicolumn{3}{l}{\small\textit{Table~\ref*{tab:features} continued}} \\
-  \toprule
-  \textbf{Feature} & \textbf{Formula} & \textbf{Interpretation} \\
-  \midrule
-  \endhead
-  \midrule
-  \multicolumn{3}{r}{\small\textit{Continued on next page}} \\
-  \endfoot
-  \bottomrule
-  \endlastfoot
-  Self-citation rate
-    & $\displaystyle\frac{\sum w_{ii}}{\sum_j w_{ij}}$
-    & Share of outgoing citation weight directed at the author's own works. \\
-  \addlinespace
-  Co-author citation rate
-    & $\displaystyle\frac{\sum_{j\in C_i} w_{ij}}{\sum_{j\neq i} w_{ij}}$
-    & Among non-self citations, proportion citing former co-authors ($C_i$). \\
-  \addlinespace
-  Citation balance
-    & $\displaystyle\frac{w_{\text{out}} - w_{\text{in}}}{w_{\text{out}} + w_{\text{in}} + \epsilon}$
-    & Net giver/receiver bias; positive~$\Rightarrow$ net giver. Bounded $(-1,+1)$, comparable across activity levels. \\
-  \addlinespace
-  PageRank
-    & \text{weighted PR on } $G$
-    & Global influence score computed via weighted PageRank on the directed citation graph. \\
-  \addlinespace
-  Journal endogamy
-    & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$
-    & Proportion of references citing papers in the same journal. \\
-  \addlinespace
-  Citation entropy
-    & $H = -\sum_j q_j\ln q_j$
-    & Shannon diversity of incoming citation sources. Low~$\Rightarrow$ concentrated. \\
-  \addlinespace
-  Citation HHI (in)
-    & $\sum_j q_j^{\,2}$
-    & Herfindahl--Hirschman concentration of incoming citations. \\
-  \addlinespace
-  Reciprocity rate
-    & $\displaystyle\frac{|\{j : w_{ij}>0 \wedge w_{ji}>0\}|}{|\{j : w_{ij}>0\}|}$
-    & Share of cited peers who also cite back. \\
-  \addlinespace
-  Outgoing HHI
-    & $\sum_j p_j^{\,2}$
-    & Concentration of outgoing citations (``tunnel vision''). \\
-  \addlinespace
-  Clustering coeff.
-    & \resizebox{\linewidth}{!}{$\displaystyle\frac{2\,|\{(j,k)\colon j,k\in\mathcal{N}_i,\,(j,k)\in E\}|}{d_i(d_i-1)}$}
-    & Fraction of an author's neighbours that are themselves connected. Computed on the undirected projection of the internal citation graph. \\
-  \addlinespace
-  Triangles (norm.)
-    & $\displaystyle\frac{\Delta_i}{\sum_j w_{ij} + \sum_j w_{ji} + 1}$
-    & Triangle count normalised by total citation activity. \\
-  \addlinespace
-  $k$-core number
-    & $\max\{k : i \in H_k\}$
-    & Largest $k$ such that author~$i$ belongs to the $k$-core of the undirected citation graph. \\
-  \addlinespace
-  Clique strength
-    & clustering $\times$ co-author citation rate
-    & Joint cohesion signal: dense neighbourhood \emph{and} preferential co-author citing. \\
-  \addlinespace
-  Norm.\ burst intensity\textsuperscript{\dag}
-    & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
-    & Largest single-peer citation weight normalised by total incoming volume. Available for \num{7711} of \num{9431} pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}). \\
-\end{longtable}
-}
+  {\singlespacing\small
+    \begin{longtable}{@{}l p{0.25\textwidth} >{\RaggedRight\arraybackslash}p{0.38\textwidth}@{}}
+      \caption{\textbf{Behavioural feature definitions.}
+        All metrics are computed per author over the 2020--2024 citation network.
+        $N_{\text{out}}$~= number of distinct cited authors;
+        $N_{\text{in}}$~= number of distinct citing authors;
+        $p_j = w_{ij} / \sum_k w_{ik}$ (outgoing share);
+        $q_j = w_{ji} / \sum_k w_{ki}$ (incoming share).}
+      \label{tab:features}                                                                                                                                                                                                                                                 \\
+      \toprule
+      \textbf{Feature} & \textbf{Formula}                                                                                                                                                                                                        & \textbf{Interpretation} \\
+      \midrule
+      \endfirsthead
+      \multicolumn{3}{l}{\small\textit{Table~\ref*{tab:features} continued}}                                                                                                                                                                                               \\
+      \toprule
+      \textbf{Feature} & \textbf{Formula}                                                                                                                                                                                                        & \textbf{Interpretation} \\
+      \midrule
+      \endhead
+      \midrule
+      \multicolumn{3}{r}{\small\textit{Continued on next page}}                                                                                                                                                                                                            \\
+      \endfoot
+      \bottomrule
+      \endlastfoot
+      Self-citation rate
+                       & $\displaystyle\frac{\sum w_{ii}}{\sum_j w_{ij}}$
+                       & Share of outgoing citation weight directed at the author's own works.                                                                                                                                                                             \\
+      \addlinespace
+      Co-author citation rate
+                       & $\displaystyle\frac{\sum_{j\in C_i} w_{ij}}{\sum_{j\neq i} w_{ij}}$
+                       & Among non-self citations, proportion citing former co-authors ($C_i$).                                                                                                                                                                            \\
+      \addlinespace
+      Citation balance
+                       & $\displaystyle\frac{w_{\text{out}} - w_{\text{in}}}{w_{\text{out}} + w_{\text{in}} + \epsilon}$
+                       & Net giver/receiver bias; positive~$\Rightarrow$ net giver. Bounded $(-1,+1)$, comparable across activity levels.                                                                                                                                  \\
+      \addlinespace
+      PageRank
+                       & \text{weighted PR on } $G$
+                       & Global influence score computed via weighted PageRank on the directed citation graph.                                                                                                                                                             \\
+      \addlinespace
+      Journal endogamy
+                       & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$
+                       & Proportion of references citing papers in the same journal.                                                                                                                                                                                       \\
+      \addlinespace
+      Citation entropy
+                       & $H = -\sum_j q_j\ln q_j$
+                       & Shannon diversity of incoming citation sources. Low~$\Rightarrow$ concentrated.                                                                                                                                                                   \\
+      \addlinespace
+      Citation HHI (in)
+                       & $\sum_j q_j^{\,2}$
+                       & Herfindahl--Hirschman concentration of incoming citations.                                                                                                                                                                                        \\
+      \addlinespace
+      Reciprocity rate
+                       & $\displaystyle\frac{|\{j : w_{ij}>0 \wedge w_{ji}>0\}|}{|\{j : w_{ij}>0\}|}$
+                       & Share of cited peers who also cite back.                                                                                                                                                                                                          \\
+      \addlinespace
+      Outgoing HHI
+                       & $\sum_j p_j^{\,2}$
+                       & Concentration of outgoing citations (``tunnel vision'').                                                                                                                                                                                          \\
+      \addlinespace
+      Clustering coeff.
+                       & \resizebox{\linewidth}{!}{$\displaystyle\frac{2\,|\{(j,k)\colon j,k\in\mathcal{N}_i,\,(j,k)\in E\}|}{d_i(d_i-1)}$}
+                       & Fraction of an author's neighbours that are themselves connected. Computed on the undirected projection of the internal citation graph.                                                                                                           \\
+      \addlinespace
+      Triangles (norm.)
+                       & $\displaystyle\frac{\Delta_i}{\sum_j w_{ij} + \sum_j w_{ji} + 1}$
+                       & Triangle count normalised by total citation activity.                                                                                                                                                                                             \\
+      \addlinespace
+      $k$-core number
+                       & $\max\{k : i \in H_k\}$
+                       & Largest $k$ such that author~$i$ belongs to the $k$-core of the undirected citation graph.                                                                                                                                                        \\
+      \addlinespace
+      Clique strength
+                       & clustering $\times$ co-author citation rate
+                       & Joint cohesion signal: dense neighbourhood \emph{and} preferential co-author citing.                                                                                                                                                              \\
+      \addlinespace
+      Norm.\ burst intensity\textsuperscript{\dag}
+                       & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
+                       & Largest single-peer citation weight normalised by total incoming volume. Available for \num{7711} of \num{9431} pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}).                           \\
+    \end{longtable}
+  }
 
 
 \section{Matching Procedure and Detection Parameters}
@@ -823,14 +823,14 @@ The model was trained per-subject on 13 of the 14 scaled features listed in Tabl
   \label{tab:if-params}
   \begin{tabular}{@{}ll@{}}
     \toprule
-    \textbf{Parameter} & \textbf{Value} \\
+    \textbf{Parameter}     & \textbf{Value}                 \\
     \midrule
-    \texttt{n\_estimators}  & 200 \\
-    \texttt{contamination}  & 0.01 \\
-    \texttt{max\_samples}   & \texttt{auto} ($\min(256, n)$) \\
-    \texttt{max\_features}  & 1.0 (all features) \\
-    \texttt{bootstrap}      & False \\
-    \texttt{random\_state}  & 42 \\
+    \texttt{n\_estimators} & 200                            \\
+    \texttt{contamination} & 0.01                           \\
+    \texttt{max\_samples}  & \texttt{auto} ($\min(256, n)$) \\
+    \texttt{max\_features} & 1.0 (all features)             \\
+    \texttt{bootstrap}     & False                          \\
+    \texttt{random\_state} & 42                             \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -894,15 +894,15 @@ Directed author-to-author citation networks were constructed for matched authors
   \label{tab:sampling-funnel}
   \begin{tabular}{@{}lr@{}}
     \toprule
-    \textbf{Subject} & \textbf{Pairs} \\
+    \textbf{Subject}              & \textbf{Pairs}      \\
     \midrule
-    Health Sciences                & \num{3776} \\
-    Life Sciences                  & \num{2543} \\
-    Physical Sciences              & \num{2262} \\
-    Social Sciences \& Humanities  & 518 \\
-    Multidisciplinary              & 332 \\
+    Health Sciences               & \num{3776}          \\
+    Life Sciences                 & \num{2543}          \\
+    Physical Sciences             & \num{2262}          \\
+    Social Sciences \& Humanities & 518                 \\
+    Multidisciplinary             & 332                 \\
     \midrule
-    \textbf{Total}                 & \textbf{\num{9431}} \\
+    \textbf{Total}                & \textbf{\num{9431}} \\
     \bottomrule
   \end{tabular}
 \end{table}
