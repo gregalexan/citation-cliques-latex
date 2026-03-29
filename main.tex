@@ -193,7 +193,8 @@ most widely adopted classification frameworks in scientometrics. Separating subj
 areas is essential for computing meaningful within-field Eigenfactor percentiles,
 as citation practices vary substantially across disciplines \parencite{West2008}.
 
-Classification was performed using the Gpt-4.1 model with zero temperature and
+Classification was performed using OpenAI \texttt{gpt-4.1}
+(snapshot \texttt{gpt-4.1-2025-04-14}, accessed June~2025) with zero temperature and
 few-shot exemplars. The model processed journals in batches of ten ISSNs per API
 call, supplying for each journal up to five representative works ordered by citation
 count, so that the most influential works appeared first. Prompts and decision rules
@@ -201,6 +202,10 @@ prioritized abstracts over titles and journal names; when an abstract was
 unavailable, classification relied on the journal name and title alone.
 To ensure reproducibility, we used a fixed random number generation seed
 and cached predictions to JSON files.
+The full prompt template and representative input--output pairs are
+included in the replication package \parencite{dataset_zenodo}.
+No open-weight baseline model was evaluated; this is acknowledged
+as a limitation (Section~\ref{sec:limitations}).
 
 \textbf{Eigenfactor Computation.}
 To quantify journal impact, we computed subject-specific Eigenfactor scores \parencite{West2008} on journal citation networks (2020--2024), excluding self-citations. The computation used standard power iteration and produced normalized influence scores within each subject.
@@ -238,7 +243,7 @@ Matched pairs were compared using Wilcoxon signed-rank tests \parencite{Wilcoxon
 Effect sizes were quantified via Cliff's $\delta$ \parencite{Cliff1993} and Cohen's $d$ \parencite{Cohen1988},
 with confidence intervals estimated through bootstrap resampling \parencite{Efron1993}.
 Robustness checks included permutation tests, placebo pairing, random-effects meta-analysis across subjects,
-and alternative outlier detectors (Isolation Forest \parencite{Liu2008}, Local Outlier Factor \\parencite{Breunig2000}, One-Class SVM).
+and alternative outlier detectors (Isolation Forest \parencite{Liu2008}, Local Outlier Factor \parencite{Breunig2000}, One-Class SVM).
 Sensitivity analysis utilized z-score thresholds ($1\sigma, 2\sigma, 3\sigma, 4\sigma$) relative to the control baseline to establish interpretable detection cutoffs.
 Community detection used the Louvain method \parencite{Blondel2008}, which optimises the modularity criterion \parencite{NewmanGirvan2004}.
 
@@ -630,6 +635,10 @@ Understanding these patterns is essential for designing fair bibliometric indica
 This study relies on Crossref metadata (2020--2024), which vary in completeness.
 While the hybrid filter significantly reduces false positives, the distinction between a ``cartel'' and a hyper-specialized research group remains a probabilistic assessment.
 The LLM-based journal classification (Appendix~\ref{app:llm}) was not validated against an independent ground truth; misclassification of some journals could shift the boundary between Case and Control authors.
+Additionally, journal classification relied solely on a proprietary
+model (\texttt{gpt-4.1-2025-04-14}) without an open-weight baseline
+comparison and without independent human validation of the resulting
+labels \parencite{LLMGuidelines2024}.
 Moreover, citation links are analyzed structurally, without text-level context to infer the motivation of citing \parencite{Liu2024}.
 
 \paragraph{Ethical considerations.}
@@ -903,11 +912,15 @@ Directed author-to-author citation networks were constructed for matched authors
 \section{LLM-Based Journal Classification}
 \label{app:llm}
 
-Journal subject assignment used OpenAI \texttt{gpt-4.1} with temperature~0 and deterministic seeding.
+Journal subject assignment used OpenAI \texttt{gpt-4.1}
+(snapshot \texttt{gpt-4.1-2025-04-14}, accessed June~2025)
+with temperature~0 and deterministic seeding.
 
 The prompt supplied the journal name and, where available, a representative abstract and article titles, together with few-shot exemplars for each category.
 Decision rules prioritised abstract content over article titles and journal names to reduce ambiguity.
 Predictions were cached deterministically to a JSON file; the final mapping covers approximately \num{15000} ISSNs stored in the \texttt{issn\_subjects} table of the study database.
-No independent ground-truth validation was performed; this is acknowledged as a limitation.
+No independent ground-truth validation against human annotators was
+performed, and no open-weight model was used as a baseline;
+both are acknowledged as limitations (Section~\ref{sec:limitations}).
 
 \end{document}
