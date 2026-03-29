@@ -159,7 +159,7 @@ The present research extends this discourse by systematically examining the rela
 \section{Methodology}
 \label{sec:methods}
 
-We developed a subject-aware pipeline linking journal quality to author citation behavior. The main steps were: (i) journal subject classification, (ii) computation of subject-specific Eigenfactor scores, (iii) propagation of venue quality to works and authors, (iv) matched pairing of Case and Control authors by productivity, and (v) construction of author-author citation networks with cohesion and anomaly features. Figure~\ref{fig:analysis-dag} illustrates the main analysis subgraph of this pipeline.
+We developed a subject-area-aware pipeline linking journal quality to author citation behavior. The main steps were: (i) journal subject classification, (ii) computation of subject-specific journal Eigenfactor scores, (iii) propagation of venue impact to works and authors, (iv) matched pairing of Case and Control authors based on journal impact and productivity, and (v) construction of author--author citation networks with cohesion and anomaly features. Figure~\ref{fig:analysis-dag} illustrates the main analysis subgraph of this pipeline.
 
 To ensure consistency, replicability, and correctness
 across all stages of the data pipeline before statistical analysis,
@@ -168,7 +168,7 @@ and unit-tested through \emph{RDBUnit} \parencite{Spinellis2024RDBUnit}.
 
 \begin{figure}[H]
   \centering
-  \safeincludegraphics{graph_v2.png}
+  \safeincludegraphics{graph_v2.pdf}
   \caption{Analysis DAG for the social-network stage. Ellipses represent derived tables and arrows indicate dependencies. Curated inputs feed \texttt{citation\_network\_final} and downstream aggregates.}
   \label{fig:analysis-dag}
 \end{figure}
@@ -204,15 +204,15 @@ To ensure reproducibility, we used a fixed random number generation seed
 and cached predictions to JSON files.
 
 \textbf{Eigenfactor Computation.}
-To quantify journal influence, we computed subject-specific Eigenfactor scores \parencite{West2008} on journal citation networks (2020-2024), excluding self-citations. The computation used standard power iteration and produced normalized influence scores within each subject.
+To quantify journal impact, we computed subject-specific Eigenfactor scores \parencite{West2008} on journal citation networks (2020--2024), excluding self-citations. The computation used standard power iteration and produced normalized influence scores within each subject.
 
-\textbf{Defining Venue Quality.}
-Within each subject, journals in the top quartile of Eigenfactor were labeled \emph{high-influence}, and those in the bottom quartile \emph{low-impact}. Labels propagate to works (by ISSN) and to authors through their portfolios. Alternative thresholds and persistence checks were evaluated for robustness.
+\textbf{Defining Venue Impact.}
+Within each subject, journals in the top quartile of Eigenfactor were labeled \emph{high-impact}, and those in the bottom quartile \emph{low-impact}. Labels propagate to works (by ISSN) and to authors through their portfolios. Alternative thresholds and persistence checks were evaluated for robustness.
 
 \subsection{Author Matching and Network Construction}
 
 \textbf{Author Tiering and Matching.}
-Authors were classified as \textbf{Control} if most of their output was in high-influence journals, \textbf{Case} if concentrated in low-impact journals, and \textbf{Mixed} otherwise.
+Authors were classified as \textbf{Control} if most of their output was in high-impact journals, \textbf{Case} if concentrated in low-impact journals, and \textbf{Mixed} otherwise.
 Mixed-tier authors were excluded from the matched-pair analysis to ensure clean separation between venue quality levels.
 We then matched Case authors to Control authors of similar productivity (subject-specific $h_5$ index), ensuring comparability in output volume and field.
 
@@ -230,7 +230,7 @@ For matched authors, we constructed directed author-to-author citation networks 
 Each citation edge between a citing work with $n_c$~authors and a cited work with $n_a$~authors received weight $w = 1/(n_c \times n_a)$, correcting for team size.
 From these edges we derived cohesion metrics (self-citation, co-author citation, clustering, triangles, $k$-core, PageRank) and pairwise anomaly metrics (reciprocity, asymmetry, velocity, citation bursts). These measures capture both dense reciprocal structures and asymmetric one-way flows.
 During exploratory analysis, raw pairwise metrics (maximum asymmetry, average velocity, and maximum burst) were also computed; in the formal pipeline they were replaced by normalised variants that are comparable across activity levels: \emph{citation balance} captures net giver/receiver bias as a bounded $(-1,+1)$ ratio, while \emph{normalised burst intensity} adjusts the largest single-peer citation weight by total incoming volume.
-Table~\ref{tab:features} (Appendix~\ref{app:features}) lists the 14 features retained for statistical testing and modelling.
+Table~\ref{tab:features} (Appendix~\ref{app:features}) lists the 14 features employed for statistical testing and modelling.
 
 \subsection{Statistical Analysis and Outlier Detection}
 
@@ -248,6 +248,7 @@ We developed a subject-aware hybrid outlier detection strategy linking multivari
 The pipeline combines an Isolation Forest (IF) \parencite{Liu2008} with a domain-specific Cohesion Composite Score.
 The IF model used standard hyperparameters (\texttt{n\_estimators=200}, \texttt{contamination=0.01}) to capture general anomalies.
 The Cohesion Score was computed as the standardized sum of the four most discriminative features: co-author citation rate, clique strength, reciprocity, and outgoing HHI\footnote{The Herfindahl-Hirschman Index (HHI) measures concentration. In this context, it quantifies the extent to which an author repeatedly cites the same narrow set of recipients, indicating a lack of source diversity.}.
+
 We computed 14 behavioural features per author (Table~\ref{tab:features}).
 Of these, normalised burst intensity was available for only \num{7711} of the \num{9431} matched pairs (18\% missing) because many authors recorded no burst events in the study window.
 Statistical tests handle this by dropping incomplete pairs per metric; however, the Isolation Forest requires a complete feature matrix, and zero-imputing 18\% of values would inject a spurious signal.
@@ -255,7 +256,7 @@ The model was therefore trained on the remaining 13 features.
 All features were standardised (zero mean, unit variance) and multiplied by hand-tuned weights reflecting Random-Forest importance and Wilcoxon effect sizes (e.g., Co-author Rate weighted 4.0); authority metrics were sign-inverted so that lower values indicate greater suspicion.
 An author was flagged as an outlier only if they satisfied both conditions: an IF anomaly score above the threshold \textbf{AND} a Cohesion z-score $> 4\sigma$ (relative to the Control baseline).
 Sensitivity tests evaluated thresholds from $1\sigma$ to $4\sigma$ to confirm the robustness of detected syndicates.
-Outlier labels were merged back into the unified ML table for downstream network analyses (results in Section~\ref{sec:outlier-results}).
+Outlier labels were merged back into the unified Machine Learning (ML) table for downstream network analyses (results in Section~\ref{sec:outlier-results}).
 
 \section{Findings}
 \label{sec:findings}
