@@ -52,6 +52,9 @@
 \usepackage{xcolor}
 \definecolor{caseRed}{HTML}{b2182b}
 \definecolor{ctrlBlue}{HTML}{2166ac}
+\definecolor{hubSalmon}{HTML}{f4a582}
+\definecolor{giverPink}{HTML}{e377c2}
+\definecolor{recvrCyan}{HTML}{17becf}
 
 % Captions: avoid wide lines
 \captionsetup{
@@ -286,8 +289,7 @@ the \emph{k-core number} (depth of embedding in dense subnetworks);
 \label{sec:overall}
 
 At the aggregate level, authors publishing primarily in low-impact venues display markedly stronger \emph{cohesion}:
-% TODO Specify what values are compared: Average / Median?, e.g. On average ...
-they cite co-authors \textbf{6.7$\times$ more frequently} ($p=9.1 \times 10^{-66}$), exhibit \textbf{4.7$\times$ higher reciprocity rates} ($p=2.7 \times 10^{-44}$), and show \textbf{3.1$\times$ greater outgoing concentration} (tunnel vision, $p \approx 0$).
+on average, they cite co-authors \textbf{6.7$\times$ more frequently} ($p=9.1 \times 10^{-66}$), exhibit \textbf{4.7$\times$ higher reciprocity rates} ($p=2.7 \times 10^{-44}$), and show \textbf{3.1$\times$ greater outgoing concentration} (tunnel vision, $p \approx 0$).
 Figure~\ref{fig:forest_plot} displays the mean paired difference in co-author citation rates across subject fields.
 
 \begin{figure}[H]
@@ -300,9 +302,50 @@ Figure~\ref{fig:forest_plot} displays the mean paired difference in co-author ci
     Marker $\bullet$ = field estimate; $\blacklozenge$ = overall.
     $\Delta$ labels report rounded effect sizes.
     The dashed vertical line marks zero (no difference);
-    the pale red shading highlights the Case-higher region.}
+    the pale red shading covers the positive region where
+    Case authors exceed Controls.}
   \label{fig:forest_plot}
 \end{figure}
+
+Table~\ref{tab:metrics-overview} summarises the aggregate Case--Control
+contrast across all \num{9431} matched pairs and illustrates it with a
+representative pair drawn from Health Sciences.
+
+\begin{table}[H]
+  \centering
+  \caption{\textbf{Case--Control metric averages and example pair.}
+    Mean values computed over all \num{9431} matched pairs.
+    The example pair is drawn from Health Sciences (Subject~1),
+    both non-outlier.}
+  \label{tab:metrics-overview}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{} l S[table-format=1.4] S[table-format=1.4]
+                      S[table-format=1.4] S[table-format=1.4] @{}}
+    \toprule
+    & \multicolumn{2}{c}{\textbf{Mean}} & \multicolumn{2}{c}{\textbf{Example pair}} \\
+    \cmidrule(lr){2-3} \cmidrule(l){4-5}
+    \textbf{Metric} & {Case} & {Control} & {Case} & {Control} \\
+    \midrule
+    ORCID
+      & {---} & {---}
+      & \multicolumn{1}{c}{\texttt{\dots6313-3810}}
+      & \multicolumn{1}{c}{\texttt{\dots0952-8680}} \\
+    \addlinespace
+    Co-author cit.\ rate  & 0.0040 & 0.0006 & 0.0031 & 0.0005 \\
+    Self-citation rate    & 0.0278 & 0.0107 & 0.0272 & 0.0104 \\
+    Reciprocity rate      & 0.0042 & 0.0009 & 0.0290 & 0.0256 \\
+    Outgoing HHI          & 0.0868 & 0.0277 & 0.0168 & 0.0256 \\
+    Clustering coeff.     & 0.0612 & 0.0525 & 0.3000 & 0.0000 \\
+    Clique strength       & 0.0011 & 0.0001 & 0.0009 & 0.0000 \\
+    Citation balance      & 0.7580 & 0.9642 & 0.9638 & 1.0000 \\
+    PageRank ($\times 10^{5}$) & 3.74 & 7.63 & 17.10 & 3.75 \\
+    $k$-core number       & 0.7080 & 1.2170 & 3.0000 & 1.0000 \\
+    Citation entropy      & 0.1210 & 0.2640 & 1.0990 & 0.0000 \\
+    Journal endogamy      & 0.0727 & 0.0887 & 0.0886 & 0.0984 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 The cohesion gap is not driven by a few extreme outliers but by a broad rightward shift across all four dimensions (co-author citation rate, self-citation rate, outgoing HHI, and local clustering).
 Permutation testing (\num{10000} label shuffles of Case--Control assignments) independently confirms the effect is far outside the null distribution ($p < 0.001$).
@@ -340,7 +383,7 @@ Enhanced Case cohesion is a recurrent feature across subjects, but its expressio
     Negative values (blue) indicate that Controls exhibit higher values than Cases.
     Co-author Citation Rate shows near-zero or slightly positive
     values across all subjects, while velocity and burstiness
-    are uniformly negative, with Life Sciences (Subject 2) displaying the
+    are uniformly negative, with Life Sciences displaying the
     largest deficit in burstiness ($\delta = -0.73$).
     \textit{Note.} While `Cohesion' (Co-author Rate) is universally high, other traits like `Burstiness' vary by field, confirming the `Subject--Specific Accents' hypothesis.}
   \label{fig:heatmap}
@@ -361,22 +404,32 @@ Figure~\ref{fig:lda} illustrates this separation: the Linear Discriminant Analys
   \centering
   \safeincludegraphics[width=0.7\linewidth]{Figure9_LDA_Separation.pdf}
   \caption{\textbf{Tier separability: LDA projection.}
-    Kernel density estimates of the 1-D linear discriminant scores
-    for {\color{caseRed}Case} and
-      {\color{ctrlBlue}Control} authors.
+    Kernel density estimates of the scores produced by projecting
+    each author's standardised feature vector onto the single
+    Linear Discriminant Analysis (LDA) axis that maximally separates
+    {\color{caseRed}Case} from {\color{ctrlBlue}Control} authors.
     Dotted vertical lines mark within-tier medians.
-    Negative linear discriminant scores correspond to the behavioural regime dominated by Cases (e.g., higher cohesion or anomalies), while positive scores align with typical Control behaviour.}
+    Negative scores correspond to the cohesion-driven regime
+    (higher co-author citation, clustering, and reciprocity),
+    while positive scores correspond to the independent regime
+    (lower cohesion, typical citing behaviour).}
   \label{fig:lda}
 \end{figure}
 
 Three behavioral profiles emerge from the clustering:
 \begin{enumerate}
-  \item \textbf{Asymmetric (Unbalanced)}: high maximum asymmetry
-        relative to cohesion; concentrated outgoing citation flows.
-  \item \textbf{Independent (Typical)}: balanced citing behavior, low cohesion; the dominant profile among Controls.
-  \item \textbf{Solo (Self-citing)}: high self-citation rate; nearly absent among Control authors.
+  \item \textbf{Asymmetric} ($n = 2{,}807$; 10.7\,\% of Cases, 19.0\,\% of Controls):
+        high citation asymmetry and structural prominence (k-core, triadic closure);
+        more prevalent among Controls, reflecting genuine network centrality.
+  \item \textbf{Independent} ($n = 16{,}026$; 89.0\,\% of Cases, 80.9\,\% of Controls):
+        low cohesion and connectivity; the dominant profile for both tiers.
+  \item \textbf{Solo} ($n = 29$; 0.3\,\% of Cases, ${<}\,0.1$\,\% of Controls):
+        extreme self-citation, co-author citation, and reciprocity;
+        nearly exclusive to Case authors (27 of 29).
 \end{enumerate}
-The three-way typology provides interpretable separation: \emph{lower-cohesion} profiles dominate among Controls, while \emph{higher-cohesion and asymmetric} profiles are systematically overrepresented among Cases.
+The Solo pattern—characterised by co-author citation rates nearly 200 times the population mean—appears almost exclusively among Cases.
+Controls are proportionally more represented in the Asymmetric cluster, consistent with the structural prominence of top-tier authors.
+Both tiers are dominated by the Independent baseline profile.
 
 \subsection{Outlier Detection Results}\label{sec:outlier-results}
 
@@ -443,12 +496,15 @@ As shown in the timeline analysis, citation accumulation is not organic but driv
   \centering
   \safeincludegraphics[width=\linewidth]{Figure4_Network.pdf}
   \caption{\textbf{Largest outlier citation syndicate ($n = 23$).}
-  Force-directed layout of the internal citation network.
+  Force-directed layout of the internal directed citation network.
   Node size is proportional to betweenness centrality;
-  \colorbox{caseRed!20}{\strut salmon} = hub (maximum betweenness);
-  {\color{caseRed}red} = syndicate member.
-  Edge width scales with aggregate citation weight.
-  The inset box summarises graph statistics.}
+  \colorbox{hubSalmon!40}{\strut salmon} = hub (highest betweenness);
+  \colorbox{giverPink!40}{\strut pink} = net giver (out-degree > in-degree);
+  \colorbox{recvrCyan!40}{\strut cyan} = net receiver.
+  Arrows indicate the direction of citation flow;
+  edge width scales with the number of citations between two authors.
+  The inset box reports node count, directed edge count, and
+  graph density.}
   \label{fig:largest-syndicate}
 \end{figure}
 
@@ -530,7 +586,7 @@ authors.
 All ten exhibit co-author citation rates exceeding $5\sigma$;
 seven also show reciprocity rates beyond $5\sigma$.
 The two top-ranked authors --- both in agricultural engineering---
-share an identical suspiciousness score ($S = 658.6$) and belong to
+share an identical outlier score ($S = 658.6$) and belong to
 the same 23-member syndicate, consistent with coordinated behaviour.
 The presence of authors writing in Korean, Russian, Ukrainian, and
 Portuguese underscores the international scope of the phenomenon.
@@ -584,16 +640,16 @@ small community of co-authors.
     \toprule
     Rank & ORCID                        & Works & Years      & Out & In & Recip. & Primary journal                  \\
     \midrule
-    1    & \texttt{0000-0001-5794-5580} & 12    & 2020--2024 & 1   & 3  & 1      & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ \\
-    2    & \texttt{0000-0002-1998-6290} & 13    & 2020--2024 & 1   & 3  & 1      & Anim.\ Breed.\ Genet.\           \\
-    3    & \texttt{0000-0001-9044-3400} & 4     & 2020--2023 & 1   & 1  & 1      & Laser Medicine                   \\
-    4    & \texttt{0000-0001-5541-5180} & 14    & 2020--2024 & 2   & 0  & 0      & Exacta                           \\
-    5    & \texttt{0000-0002-0836-9510} & 4     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\     \\
-    6    & \texttt{0000-0002-5354-3020} & 5     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\     \\
-    7    & \texttt{0000-0002-5962-4470} & 5     & 2020--2022 & 1   & 1  & 1      & Acta Sci.\ Agronomy              \\
-    8    & \texttt{0000-0002-3497-8870} & 4     & 2021--2023 & 2   & 1  & 1      & Korean J.\ Plant Taxon.\         \\
-    9    & \texttt{0000-0001-6877-9530} & 5     & 2021--2023 & 2   & 1  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\   \\
-    10   & \texttt{0000-0003-1664-6810} & 4     & 2022--2023 & 2   & 1  & 1      & Int.\ J.\ Vet.\ Med.\            \\
+    1    & \texttt{0000-0001-5794-5580} & 12    & 2020--2024 & 1   & 3  & 1      & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ (6)  \\
+    2    & \texttt{0000-0002-1998-6290} & 13    & 2020--2024 & 1   & 3  & 1      & Anim.\ Breed.\ Genet.\ (7)            \\
+    3    & \texttt{0000-0001-9044-3400} & 4     & 2020--2023 & 1   & 1  & 1      & Laser Medicine (2)                     \\
+    4    & \texttt{0000-0001-5541-5180} & 14    & 2020--2024 & 2   & 0  & 0      & Exacta (5)                             \\
+    5    & \texttt{0000-0002-0836-9510} & 4     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (4)      \\
+    6    & \texttt{0000-0002-5354-3020} & 5     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (5)      \\
+    7    & \texttt{0000-0002-5962-4470} & 5     & 2020--2022 & 1   & 1  & 1      & Acta Sci.\ Agronomy (2)                \\
+    8    & \texttt{0000-0002-3497-8870} & 4     & 2021--2023 & 2   & 1  & 1      & Korean J.\ Plant Taxon.\ (3)           \\
+    9    & \texttt{0000-0001-6877-9530} & 5     & 2021--2023 & 2   & 1  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\ (2)    \\
+    10   & \texttt{0000-0003-1664-6810} & 4     & 2022--2023 & 2   & 1  & 1      & Int.\ J.\ Vet.\ Med.\ (2)             \\
     \bottomrule
   \end{tabularx}
 
@@ -686,7 +742,7 @@ This research did not receive a specific grant from any funding agency in the pu
 \label{sec:data}
 % TODO: Replace Zenodo DOI placeholder (10.5281/zenodo.xxxxxxx) with real DOI before submission.
 All essential data and code for this study are openly available at Zenodo under a CC~BY license \parencite{dataset_zenodo}.
-The analysis is implemented in a single, self-contained script (\texttt{citation\_analysis.py}) that reproduces all results in one invocation: it loads the pre-built \texttt{rolap.db} and \texttt{impact.db} databases, runs the statistical comparisons (Section~\ref{sec:overall}), generates all eight publication figures, and produces the author suspiciousness tables (Section~\ref{sec:suspicious-authors}).
+The analysis is implemented in a single, self-contained script (\texttt{citation\_analysis.py}) that reproduces all results in one invocation: it loads the pre-built \texttt{rolap.db} and \texttt{impact.db} databases, runs the statistical comparisons (Section~\ref{sec:overall}), generates all eight publication figures, and produces the author outlier tables (Section~\ref{sec:suspicious-authors}).
 % TODO: Is the following OK?
 The citation databases and the derivative tables can be reproduced
 through the 2024 Crossref public data set by means of the supplied
