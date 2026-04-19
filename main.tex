@@ -857,6 +857,14 @@ Authors were classified based on their publication portfolio:
   \item \textbf{Control}: $\geq70\%$ of papers published in journals above the 75th subject-specific Eigenfactor percentile, with a minimum of 3~papers.
   \item \textbf{Other}: authors not meeting either threshold.
 \end{itemize}
+The 70\% threshold ensures that classified authors are predominantly active
+in one venue stratum while tolerating occasional cross-tier publications
+(e.g.\ a single paper in a high-impact journal by an otherwise low-tier
+author).  Lower thresholds (50--60\%) admit too many mixed-portfolio
+authors, diluting the behavioural contrast; higher thresholds ($\geq$80\%)
+reduce sample sizes substantially and bias the cohort toward single-journal
+authors.  The 70\% cut-off balances purity against statistical power and
+matches the convention used in prior venue-stratified studies.
 
 \subsection{Matched-Pair Construction}
 Case--Control pairs were formed via greedy one-pass matching within each subject area.
@@ -872,7 +880,9 @@ Each citation edge between a citing work with $n_c$~authors and a cited work wit
   w = \frac{1}{n_c \times n_a}\,.
 \]
 Self-loops ($i = j$) were retained and tracked via a Boolean flag for the self-citation rate metric; all other metrics were computed on non-self edges.
-The temporal window covers works published between 2020 and 2024 inclusive.
+The temporal window covers works published between 2020 and 2024 inclusive,
+yielding \num{2525512} weighted citation edges (\num{2507806} non-self,
+\num{17706} self-citations) among \num{18862} study authors.
 
 \subsection{Outlier Detection}
 Table~\ref{tab:if-params} summarises the Isolation Forest hyper-parameters.
