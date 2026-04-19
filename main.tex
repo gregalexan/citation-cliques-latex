@@ -321,28 +321,28 @@ representative pair drawn from Health Sciences.
   \small
   \setlength{\tabcolsep}{4pt}
   \begin{tabular}{@{} l S[table-format=1.4] S[table-format=1.4]
-      S[table-format=1.4] S[table-format=1.4] @{}}
+                      S[table-format=1.4] S[table-format=1.4] @{}}
     \toprule
-                               & \multicolumn{2}{c}{\textbf{Mean}}           & \multicolumn{2}{c}{\textbf{Example pair}}                      \\
+    & \multicolumn{2}{c}{\textbf{Mean}} & \multicolumn{2}{c}{\textbf{Example pair}} \\
     \cmidrule(lr){2-3} \cmidrule(l){4-5}
-    \textbf{Metric}            & {Case}                                      & {Control}                                 & {Case} & {Control} \\
+    \textbf{Metric} & {Case} & {Control} & {Case} & {Control} \\
     \midrule
     ORCID
-                               & {---}                                       & {---}
-                               & \multicolumn{1}{c}{\texttt{\dots6313-3810}}
-                               & \multicolumn{1}{c}{\texttt{\dots0952-8680}}                                                                  \\
+      & {---} & {---}
+      & \multicolumn{1}{c}{\texttt{\dots6313-3810}}
+      & \multicolumn{1}{c}{\texttt{\dots0952-8680}} \\
     \addlinespace
-    Co-author cit.\ rate       & 0.0040                                      & 0.0006                                    & 0.0031 & 0.0005    \\
-    Self-citation rate         & 0.0278                                      & 0.0107                                    & 0.0272 & 0.0104    \\
-    Reciprocity rate           & 0.0042                                      & 0.0009                                    & 0.0290 & 0.0256    \\
-    Outgoing HHI               & 0.0868                                      & 0.0277                                    & 0.0168 & 0.0256    \\
-    Clustering coeff.          & 0.0612                                      & 0.0525                                    & 0.3000 & 0.0000    \\
-    Clique strength            & 0.0011                                      & 0.0001                                    & 0.0009 & 0.0000    \\
-    Citation balance           & 0.7580                                      & 0.9642                                    & 0.9638 & 1.0000    \\
-    PageRank ($\times 10^{5}$) & 3.74                                        & 7.63                                      & 17.10  & 3.75      \\
-    $k$-core number            & 0.7080                                      & 1.2170                                    & 3.0000 & 1.0000    \\
-    Citation entropy           & 0.1210                                      & 0.2640                                    & 1.0990 & 0.0000    \\
-    Journal endogamy           & 0.0727                                      & 0.0887                                    & 0.0886 & 0.0984    \\
+    Co-author cit.\ rate  & 0.0040 & 0.0006 & 0.0031 & 0.0005 \\
+    Self-citation rate    & 0.0278 & 0.0107 & 0.0272 & 0.0104 \\
+    Reciprocity rate      & 0.0042 & 0.0009 & 0.0290 & 0.0256 \\
+    Outgoing HHI          & 0.0868 & 0.0277 & 0.0168 & 0.0256 \\
+    Clustering coeff.     & 0.0612 & 0.0525 & 0.3000 & 0.0000 \\
+    Clique strength       & 0.0011 & 0.0001 & 0.0009 & 0.0000 \\
+    Citation balance      & 0.7580 & 0.9642 & 0.9638 & 1.0000 \\
+    PageRank ($\times 10^{5}$) & 3.74 & 7.63 & 17.10 & 3.75 \\
+    $k$-core number       & 0.7080 & 1.2170 & 3.0000 & 1.0000 \\
+    Citation entropy      & 0.1210 & 0.2640 & 1.0990 & 0.0000 \\
+    Journal endogamy      & 0.0727 & 0.0887 & 0.0886 & 0.0984 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -407,7 +407,7 @@ Figure~\ref{fig:lda} illustrates this separation: the Linear Discriminant Analys
     Kernel density estimates of the scores produced by projecting
     each author's standardised feature vector onto the single
     Linear Discriminant Analysis (LDA) axis that maximally separates
-      {\color{caseRed}Case} from {\color{ctrlBlue}Control} authors.
+    {\color{caseRed}Case} from {\color{ctrlBlue}Control} authors.
     Dotted vertical lines mark within-tier medians.
     Negative scores correspond to the cohesion-driven regime
     (higher co-author citation, clustering, and reciprocity),
@@ -428,7 +428,7 @@ Three behavioral profiles emerge from the clustering:
         nearly exclusive to Case authors (27 of 29).
 \end{enumerate}
 The Solo pattern—characterised by co-author citation rates nearly 200 times the population mean—appears almost exclusively among Cases.
-Controls are proportionally more represented in the Asymmetric cluster, consistent with the structural prominence of Control authors.
+Controls are proportionally more represented in the Asymmetric cluster, consistent with the structural prominence of top-tier authors.
 Both tiers are dominated by the Independent baseline profile.
 
 \subsection{Outlier Detection Results}\label{sec:outlier-results}
@@ -496,15 +496,15 @@ As shown in the timeline analysis, citation accumulation is not organic but driv
   \centering
   \safeincludegraphics[width=\linewidth]{Figure4_Network.pdf}
   \caption{\textbf{Largest outlier citation syndicate ($n = 23$).}
-    Force-directed layout of the internal directed citation network.
-    Node size is proportional to betweenness centrality;
-    \colorbox{hubSalmon!40}{\strut salmon} = hub (highest betweenness);
-    \colorbox{giverPink!40}{\strut pink} = net giver (out-degree > in-degree);
-    \colorbox{recvrCyan!40}{\strut cyan} = net receiver.
-    Arrows indicate the direction of citation flow;
-    edge width scales with the number of citations between two authors.
-    The inset box reports node count, directed edge count, and
-    graph density.}
+  Force-directed layout of the internal directed citation network.
+  Node size is proportional to betweenness centrality;
+  \colorbox{hubSalmon!40}{\strut salmon} = hub (highest betweenness);
+  \colorbox{giverPink!40}{\strut pink} = net giver (out-degree > in-degree);
+  \colorbox{recvrCyan!40}{\strut cyan} = net receiver.
+  Arrows indicate the direction of citation flow;
+  edge width scales with the number of citations between two authors.
+  The inset box reports node count, directed edge count, and
+  graph density.}
   \label{fig:largest-syndicate}
 \end{figure}
 
@@ -638,18 +638,18 @@ small community of co-authors.
   \scriptsize
   \begin{tabularx}{\linewidth}{rl rrr rrX}
     \toprule
-    Rank & ORCID                        & Works & Years      & Out & In & Recip. & Primary journal                      \\
+    Rank & ORCID                        & Works & Years      & Out & In & Recip. & Primary journal                  \\
     \midrule
-    1    & \texttt{0000-0001-5794-5580} & 12    & 2020--2024 & 1   & 3  & 1      & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ (6) \\
-    2    & \texttt{0000-0002-1998-6290} & 13    & 2020--2024 & 1   & 3  & 1      & Anim.\ Breed.\ Genet.\ (7)           \\
-    3    & \texttt{0000-0001-9044-3400} & 4     & 2020--2023 & 1   & 1  & 1      & Laser Medicine (2)                   \\
-    4    & \texttt{0000-0001-5541-5180} & 14    & 2020--2024 & 2   & 0  & 0      & Exacta (5)                           \\
-    5    & \texttt{0000-0002-0836-9510} & 4     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (4)     \\
-    6    & \texttt{0000-0002-5354-3020} & 5     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (5)     \\
-    7    & \texttt{0000-0002-5962-4470} & 5     & 2020--2022 & 1   & 1  & 1      & Acta Sci.\ Agronomy (2)              \\
-    8    & \texttt{0000-0002-3497-8870} & 4     & 2021--2023 & 2   & 1  & 1      & Korean J.\ Plant Taxon.\ (3)         \\
-    9    & \texttt{0000-0001-6877-9530} & 5     & 2021--2023 & 2   & 1  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\ (2)   \\
-    10   & \texttt{0000-0003-1664-6810} & 4     & 2022--2023 & 2   & 1  & 1      & Int.\ J.\ Vet.\ Med.\ (2)            \\
+    1    & \texttt{0000-0001-5794-5580} & 12    & 2020--2024 & 1   & 3  & 1      & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ (6)  \\
+    2    & \texttt{0000-0002-1998-6290} & 13    & 2020--2024 & 1   & 3  & 1      & Anim.\ Breed.\ Genet.\ (7)            \\
+    3    & \texttt{0000-0001-9044-3400} & 4     & 2020--2023 & 1   & 1  & 1      & Laser Medicine (2)                     \\
+    4    & \texttt{0000-0001-5541-5180} & 14    & 2020--2024 & 2   & 0  & 0      & Exacta (5)                             \\
+    5    & \texttt{0000-0002-0836-9510} & 4     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (4)      \\
+    6    & \texttt{0000-0002-5354-3020} & 5     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (5)      \\
+    7    & \texttt{0000-0002-5962-4470} & 5     & 2020--2022 & 1   & 1  & 1      & Acta Sci.\ Agronomy (2)                \\
+    8    & \texttt{0000-0002-3497-8870} & 4     & 2021--2023 & 2   & 1  & 1      & Korean J.\ Plant Taxon.\ (3)           \\
+    9    & \texttt{0000-0001-6877-9530} & 5     & 2021--2023 & 2   & 1  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\ (2)    \\
+    10   & \texttt{0000-0003-1664-6810} & 4     & 2022--2023 & 2   & 1  & 1      & Int.\ J.\ Vet.\ Med.\ (2)             \\
     \bottomrule
   \end{tabularx}
 
@@ -864,7 +864,8 @@ author).  Lower thresholds (50--60\%) admit too many mixed-portfolio
 authors, diluting the behavioural contrast; higher thresholds ($\geq$80\%)
 reduce sample sizes substantially and bias the cohort toward single-journal
 authors.  The 70\% cut-off balances purity against statistical power and
-matches the convention used in prior venue-stratified studies.
+is consistent with the majority-venue classification used in large-scale
+author-level analyses \parencite{Ioannidis2019,Ioannidis2024extreme}.
 
 \subsection{Matched-Pair Construction}
 Case--Control pairs were formed via greedy one-pass matching within each subject area.
@@ -879,6 +880,10 @@ Each citation edge between a citing work with $n_c$~authors and a cited work wit
 \[
   w = \frac{1}{n_c \times n_a}\,.
 \]
+This fractional counting scheme \parencite{PerianeRodriguez2016}
+down-weights edges from heavily co-authored papers, preventing a
+single multi-author article from dominating an individual's citation
+profile.
 Self-loops ($i = j$) were retained and tracked via a Boolean flag for the self-citation rate metric; all other metrics were computed on non-self edges.
 The temporal window covers works published between 2020 and 2024 inclusive,
 yielding \num{2525512} weighted citation edges (\num{2507806} non-self,
