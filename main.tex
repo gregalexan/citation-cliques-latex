@@ -806,7 +806,7 @@ unless stated otherwise.
       \endlastfoot
       Self-citation rate
                        & $\displaystyle\frac{\sum w_{ii}}{\sum_j w_{ij}}$
-                       & Share of outgoing citation weight directed at the author's own works.                                                                                                                                                                             \\
+                       & Share of outgoing citation weight directed at the author's own works \parencite{Aksnes2003}.                                                                                                                                                     \\
       \addlinespace
       Co-author citation rate
                        & $\displaystyle\frac{\sum_{j\in C_i} w_{ij}}{\sum_{j\neq i} w_{ij}}$
@@ -818,7 +818,7 @@ unless stated otherwise.
       \addlinespace
       PageRank
                        & \text{weighted PR on } $G$
-                       & Global influence score computed via weighted PageRank on the directed citation graph.                                                                                                                                                             \\
+                       & Global influence score computed via weighted PageRank on the directed citation graph \parencite{Page1999}.                                                                                                                                       \\
       \addlinespace
       Journal endogamy
                        & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$
@@ -826,19 +826,19 @@ unless stated otherwise.
       \addlinespace
       Citation entropy
                        & $H = -\sum_j q_j\ln q_j$
-                       & Shannon diversity of incoming citation sources. Low~$\Rightarrow$ concentrated.                                                                                                                                                                   \\
+                       & Shannon diversity \parencite{Shannon1948} of incoming citation sources. Low~$\Rightarrow$ concentrated.                                                                                                                                          \\
       \addlinespace
       Citation HHI (in)
                        & $\sum_j q_j^{\,2}$
-                       & Herfindahl--Hirschman concentration of incoming citations.                                                                                                                                                                                        \\
+                       & Herfindahl--Hirschman concentration index \parencite{Hirschman1964} of incoming citations.                                                                                                                                                       \\
       \addlinespace
       Reciprocity rate
                        & $\displaystyle\frac{|\{j : w_{ij}>0 \wedge w_{ji}>0\}|}{|\{j : w_{ij}>0\}|}$
-                       & Share of cited peers who also cite back.                                                                                                                                                                                                          \\
+                       & Share of cited peers who also cite back \parencite{Newman2002}.                                                                                                                                                                                  \\
       \addlinespace
       Outgoing HHI
                        & $\sum_j p_j^{\,2}$
-                       & Concentration of outgoing citations (``tunnel vision'').                                                                                                                                                                                          \\
+                       & Herfindahl--Hirschman concentration \parencite{Hirschman1964} of outgoing citations (``tunnel vision'').                                                                                                                                         \\
       \addlinespace
       Clustering coeff.
                        & \resizebox{\linewidth}{!}{$\displaystyle\frac{2\,|\{(j,k)\colon j,k\in\mathcal{N}_i,\,(j,k)\in E\}|}{d_i(d_i-1)}$}
@@ -850,7 +850,7 @@ unless stated otherwise.
       \addlinespace
       $k$-core number
                        & $\max\{k : i \in H_k\}$
-                       & Largest $k$ such that author~$i$ belongs to the $k$-core of the undirected citation graph.                                                                                                                                                        \\
+                       & Largest $k$ such that author~$i$ belongs to the $k$-core of the undirected citation graph \parencite{Seidman1983}.                                                                                                                               \\
       \addlinespace
       Clique strength
                        & clustering $\times$ co-author citation rate
@@ -858,7 +858,7 @@ unless stated otherwise.
       \addlinespace
       Norm.\ burst intensity\textsuperscript{\dag}
                        & $\displaystyle\frac{\max_j w_{ij}}{\text{in\_strength} + 1}$
-                       & Largest single-peer citation weight normalised by total incoming volume. Available for \num{7711} of \num{9431} pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}).                           \\
+                       & Largest single-peer citation weight normalised by total incoming volume; inspired by burst-detection methods for streaming events \parencite{Kleinberg2003}. Available for \num{7711} of \num{9431} pairs; excluded from the Random Forest owing to 18\% missing data (see Section~\ref{sec:outlier-proc}).                           \\
     \end{longtable}
   }
 
