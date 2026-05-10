@@ -317,8 +317,8 @@ representative pair drawn from Health Sciences.
   \centering
   \caption{\textbf{Case--Control metric averages and example pair.}
     Mean values computed over all \num{9431} matched pairs.
-    The example pair is drawn from Health Sciences (Subject~1),
-    both non-outlier.}
+    The example pair is drawn from Health Sciences (Subject~1);
+    both elements are not outliers.}
   \label{tab:metrics-overview}
   \small
   \setlength{\tabcolsep}{4pt}
@@ -349,7 +349,9 @@ representative pair drawn from Health Sciences.
   \end{tabular}
 \end{table}
 
-The cohesion gap is not driven by a few extreme outliers but by a broad rightward shift across all four dimensions (co-author citation rate, self-citation rate, outgoing HHI, and local clustering).
+The cohesion gap is driven by a broad rightward shift across all four dimensions
+(co-author citation rate, self-citation rate, outgoing HHI,
+and local clustering) rather than by a few extreme outliers.
 Permutation testing (\num{10000} label shuffles of Case--Control assignments) independently confirms the effect is far outside the null distribution ($p < 0.001$).
 
 In contrast to their high internal cohesion, Case authors exhibit significantly lower authority metrics. Controls exhibit \textbf{3$\times$ higher PageRank} than Cases ($p=3.1 \times 10^{-145}$), and \textbf{2.2$\times$ higher Citation Entropy}, indicating that while Cases have a similar ciation volume, they lack broad authoritative influence.
@@ -492,7 +494,9 @@ The largest outlier syndicate ($n=23$) exhibits a distinct hub-and-spoke topolog
 Within this group, the flow imbalance analysis reveals a clear hierarchy: a single \textbf{``Primary Beneficiary''} occupies the central position, receiving directed citation flows from peripheral \textbf{``Sycophants''} who define themselves by giving significantly more citations than they receive.
 
 Temporal activity supports the orchestration hypothesis, showing a sudden-burst pattern with high internal citation intensity.
-As shown in the timeline analysis, citation accumulation is not organic but driven by coordinated waves, particularly evident in 2021 and 2024.
+As shown in the timeline analysis, citation accumulation,
+rather than organic,
+is driven by coordinated waves, particularly evident in 2021 and 2024.
 
 \begin{figure}[H]
   \centering
