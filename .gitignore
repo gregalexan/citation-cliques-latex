@@ -1,0 +1,28 @@
+.depend
+.depend.all
+reports
+rolap
+simple-rolap
+tables
+.venv
+
+# Databases
+*.db
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Generated images
+*.png
+*.pdf
+
+# Editor/tool artifacts
+tags
+uv.lock

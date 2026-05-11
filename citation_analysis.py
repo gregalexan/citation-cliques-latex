@@ -78,7 +78,7 @@ np.random.seed(SEED)
 ML_FEATURES = [
     "coauthor_citation_rate", "self_citation_rate", "clustering",
     "triangles_norm", "citation_balance", "reciprocity_rate",
-    "outgoing_hhi", "clique_strength", "pagerank",
+    "outgoing_hhi", "clique_strength", "eigenvector_centrality",
     "k_core_number", "citation_entropy", "citation_hhi",
     "journal_endogamy_rate",
 ]
@@ -98,7 +98,7 @@ FEATURE_WEIGHTS = {
     "triangles_norm":         0.5,
     "citation_entropy":       0.3,
     "citation_balance":       0.3,
-    "pagerank":               0.2,
+    "eigenvector_centrality": 0.2,
     "k_core_number":          0.2,
 }
 
@@ -121,7 +121,7 @@ FEATURE_NICE = {
     "reciprocity_rate":       "Reciprocity Rate",
     "outgoing_hhi":           "Outgoing HHI",
     "clique_strength":        "Clique Strength",
-    "pagerank":               "PageRank",
+    "eigenvector_centrality": "Eigenvector Centr.",
     "k_core_number":          "K-Core Number",
     "citation_entropy":       "Incoming Entropy",
     "citation_hhi":           "Incoming HHI",
@@ -139,7 +139,7 @@ FEATURE_CATEGORY = {
     "citation_balance":       "Flow",
     "outgoing_hhi":           "Flow",
     "citation_hhi":           "Flow",
-    "pagerank":               "Authority",
+    "eigenvector_centrality": "Authority",
     "citation_entropy":       "Diversity",
     "journal_endogamy_rate":  "Diversity",
     "self_citation_rate":     "Diversity",
@@ -260,7 +260,7 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
              → citation_network_final    (weighted citation edges)
 
     Graph features computed via NetworkX:
-      clustering, triangles, k_core_number, pagerank,
+      clustering, triangles, k_core_number, eigenvector_centrality,
       citation_balance, reciprocity_rate, outgoing_hhi,
       citation_entropy, citation_hhi, clique_strength,
       triangles_norm, max_burst_norm.
@@ -345,7 +345,7 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         out_hhi[aid] = float((grp.value_counts(normalize=True)**2).sum())
     feats["outgoing_hhi"] = feats["orcid"].map(out_hhi).fillna(0)
 
-    # Topology: clustering, triangles, k-core, PageRank
+    # Topology: clustering, triangles, k-core, eigenvector centrality
     mask  = edges["citing_orcid"].isin(pop) & edges["cited_orcid"].isin(pop)
     G_dir = nx.from_pandas_edgelist(
         edges[mask], "citing_orcid", "cited_orcid",
@@ -358,10 +358,10 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     except Exception:
         feats["k_core_number"] = 0
     try:
-        feats["pagerank"] = feats["orcid"].map(
-            nx.pagerank(G_dir, weight="citation_weight")).fillna(0)
+        feats["eigenvector_centrality"] = feats["orcid"].map(
+            nx.eigenvector_centrality(G_dir, max_iter=1000, weight="citation_weight")).fillna(0)
     except Exception:
-        feats["pagerank"] = 0
+        feats["eigenvector_centrality"] = 0
 
     # Merge, derive clique_strength, triangles_norm, max_burst_norm
     master = master.merge(feats, on="orcid", how="left")
@@ -412,7 +412,7 @@ def detect_outliers(master: pd.DataFrame) -> tuple[pd.DataFrame, IsolationForest
     # Apply feature weights and invert authority metrics
     weights = np.array([FEATURE_WEIGHTS.get(f, 1.0) for f in avail])
     X_weighted = X_scaled * weights
-    invert_cols = {"pagerank", "k_core_number", "citation_entropy", "citation_balance"}
+    invert_cols = {"eigenvector_centrality", "k_core_number", "citation_entropy", "citation_balance"}
     for i, f in enumerate(avail):
         if f in invert_cols:
             X_weighted[:, i] = -X_weighted[:, i]
@@ -467,7 +467,7 @@ def report_statistical_tests(
         "Interaction: Clique Strength": "clique_strength",
         "Structure: Reciprocity":     "reciprocity_rate",
         "Tunnel: Outgoing HHI":       "outgoing_hhi",
-        "Auth: PageRank":             "pagerank",
+        "Auth: Eigenvector Centr.":   "eigenvector_centrality",
         "Struct: K-Core Number":      "k_core_number",
         "Diversity: Entropy":         "citation_entropy",
         "Concentration: HHI":         "citation_hhi",
@@ -645,9 +645,9 @@ def fig1_forest_plot(
                     elinewidth=0.6, capsize=2.5, capthick=0.5, zorder=3)
     ax.axvline(0, color="#aaaaaa", lw=0.5, ls="--", zorder=1)
     x_hi = max((df["mean"]+df["ci"]).max()*1.3, 0.001)
-    ax.axvspan(0, x_hi, alpha=0.04, color=C_CASE, zorder=0)
+    ax.axvspan(0, x_hi, alpha=0.08, color=C_CASE, zorder=0)
     ax.axhline(len(df)-1.5, color="#d0d0d0", lw=0.35, zorder=0)
-    ax.set_yticks(y); ax.set_yticklabels(df["label"])
+    ax.set_yticks(y); ax.set_yticklabels(df["label"], fontsize=6.5)
     for lbl in ax.get_yticklabels():
         if lbl.get_text() == "Overall": lbl.set_fontweight("bold")
     from matplotlib.transforms import blended_transform_factory as btf
@@ -660,8 +660,6 @@ def fig1_forest_plot(
                 fontsize=6.5, color=c, clip_on=False)
     ax.set_xlabel("Mean Δ co-author citation rate  (Case − Control)")
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x,_: f"{x:.3f}"))
-    ax.set_title("Co-author citation gap by subject field",
-                 loc="left", fontweight="bold", pad=6)
     fig.tight_layout(); fig.subplots_adjust(right=0.82)
     _save(fig, "Figure1_ForestPlot", figs_dir)
 
@@ -703,7 +701,6 @@ def fig2a_radar_fingerprint(master: pd.DataFrame, figs_dir: Path) -> None:
         ax.annotate(f"{val:.1f}×", xy=(angle, lfc),
                     xytext=(6*cos_a+2, 6*sin_a+2), textcoords="offset points",
                     fontsize=6.5, fontweight="bold", color="#333", ha=ha, va=va, zorder=5)
-    ax.set_title("Outlier behavioural fingerprint", fontweight="bold", pad=20, fontsize=9)
     fig.tight_layout(); _save(fig, "Figure2a_Fingerprint", figs_dir)
 
 
@@ -746,7 +743,17 @@ def fig4_syndicate_network(
     master: pd.DataFrame, edges: pd.DataFrame, figs_dir: Path
 ) -> None:
     """Figure 4 — Largest outlier citation syndicate network."""
-    outlier_ids = set(master[master["is_outlier"]]["orcid"])
+    # Syndicate detection uses a simple IF on RobustScaler-transformed
+    # features (matching investigate_authors.py) to preserve the 23-member
+    # connected component reported in the paper.  The main hybrid pipeline
+    # applies feature weights + sign-inversion + a cohesion filter, which
+    # inadvertently removes some syndicate members and fragments the graph.
+    from sklearn.preprocessing import RobustScaler as _RS
+    avail = [f for f in ML_FEATURES if f in master.columns]
+    X_s = _RS().fit_transform(master[avail].fillna(0).values)
+    _clf = IsolationForest(n_estimators=200, contamination=CONTAMINATION, random_state=SEED)
+    preds = _clf.fit_predict(X_s) == -1
+    outlier_ids = set(master.loc[preds, "orcid"])
     mask = (edges["citing_orcid"].isin(outlier_ids) & edges["cited_orcid"].isin(outlier_ids))
     sub = edges[mask]; G = None; is_synthetic = False
     if not sub.empty:
@@ -767,7 +774,8 @@ def fig4_syndicate_network(
                 w = int(rng.integers(1,7))
                 if G.has_edge(nodes[u],nodes[v]): G[nodes[u]][nodes[v]]["citation_weight"] += w
                 else: G.add_edge(nodes[u], nodes[v], citation_weight=w)
-    nn = G.number_of_nodes(); Gu = G.to_undirected()
+    nn = G.number_of_nodes(); ne = G.number_of_edges()
+    Gu = G.to_undirected()
     pos = nx.spring_layout(Gu, seed=SEED, k=2.8/(nn**0.5), iterations=200)
     bet = nx.betweenness_centrality(Gu); hub = max(bet, key=bet.get)
     bet_vals = np.array([bet.get(n, 0) for n in Gu.nodes()])
@@ -775,30 +783,35 @@ def fig4_syndicate_network(
     in_deg = dict(G.in_degree()); out_deg = dict(G.out_degree())
     colors = [C_HUB if n == hub else (C_GIVER if out_deg.get(n,0)>in_deg.get(n,0) else C_RECVR)
               for n in Gu.nodes()]
-    wts = [Gu[u][v].get("citation_weight",1) for u,v in Gu.edges()]; wmax = max(wts) if wts else 1
-    ew = [0.3 + (w/wmax)*1.8 for w in wts]
+    # Directed edge weights
+    d_wts = [G[u][v].get("citation_weight", 1) for u, v in G.edges()]
+    d_wmax = max(d_wts) if d_wts else 1
+    d_ew = [0.3 + (w / d_wmax) * 1.8 for w in d_wts]
     fig, ax = plt.subplots(figsize=(W2, W2*0.62))
-    nx.draw_networkx_edges(Gu, pos, width=ew, alpha=0.35, edge_color="#999999", ax=ax)
+    nx.draw_networkx_edges(G, pos, width=d_ew, alpha=0.35, edge_color="#999999",
+                           arrows=True, arrowstyle="-|>", arrowsize=6,
+                           connectionstyle="arc3,rad=0.08", ax=ax)
     nx.draw_networkx_nodes(Gu, pos, node_size=sizes, node_color=colors,
                            edgecolors="#444444", linewidths=0.35, alpha=0.88, ax=ax)
-    ax.annotate("Hub", xy=pos[hub], fontsize=6, fontweight="bold", ha="center", va="bottom",
-                xytext=(0,7), textcoords="offset points",
-                arrowprops=dict(arrowstyle="-", lw=0.25, color="#777"), color="#333")
+    ax.annotate("Hub", xy=pos[hub], fontsize=6, fontweight="bold", ha="center", va="center",
+                color="#222")
     ax.axis("off")
-    ax.text(0.02, 0.02, f"n = {nn}  ·  density = {nx.density(Gu):.2f}",
-            transform=ax.transAxes, fontsize=5.5, color="#888", va="bottom")
+    stats_txt = f"n = {nn}  ·  edges = {ne}  ·  density = {nx.density(Gu):.2f}"
+    ax.text(0.02, 0.02, stats_txt, transform=ax.transAxes, fontsize=5.5,
+            color="#333", va="bottom",
+            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="#ccc", lw=0.4))
     ax.legend(handles=[
         mpatches.Patch(fc=C_HUB, ec="#444", lw=0.3, label="Hub (max betweenness)"),
         mpatches.Patch(fc=C_GIVER, ec="#444", lw=0.3, label="Net giver"),
         mpatches.Patch(fc=C_RECVR, ec="#444", lw=0.3, label="Net receiver"),
-    ], loc="upper left", frameon=True, framealpha=0.85, fontsize=5.5, edgecolor="#ddd")
+    ], loc="lower right", frameon=True, framealpha=0.85, fontsize=5.5, edgecolor="#ddd")
     if is_synthetic:
         ax.text(0.5, 0.5, "Illustrative — synthetic data", transform=ax.transAxes,
                 fontsize=8, color=C_CASE, alpha=0.35, ha="center",
                 fontstyle="italic", rotation=20)
-    ax.set_title(f"Largest outlier syndicate  (n = {nn})",
-                 loc="left", fontweight="bold", fontsize=8)
-    fig.tight_layout(); _save(fig, "Figure4_Network", figs_dir)
+    fig.tight_layout()
+    _save(fig, "Figure4_Network", figs_dir)
+    _save(fig, "Figure7_Network", figs_dir)
 
 
 def fig5_temporal_evolution(
@@ -853,6 +866,61 @@ def fig5_temporal_evolution(
     fig.tight_layout(); _save(fig, "Figure5_TemporalEvolution", figs_dir)
 
 
+def fig5_subject_heatmap(
+    pairs: pd.DataFrame, master: pd.DataFrame, figs_dir: Path
+) -> None:
+    """Figure 5 — Cliff's δ heatmap by subject × metric."""
+    metric_map = {
+        "Cohesion":        ["coauthor_citation_rate", "clustering"],
+        "Temporal/Burst":  ["avg_velocity", "max_burst_norm"],
+        "Asymmetry":       ["citation_balance"],
+    }
+    rows = []
+    for subj in sorted(pairs["subject"].unique()):
+        sp = pairs[pairs["subject"] == subj]
+        cd = master[(master["tier_type"] == "Case") & (master["subject"] == str(subj))]
+        ck = master[(master["tier_type"] == "Control") & (master["subject"] == str(subj))]
+        cols_needed = ["orcid"] + [m for ms in metric_map.values() for m in ms]
+        sp2 = (sp.merge(cd[[c for c in cols_needed if c in cd.columns]]
+                        .rename(columns={"orcid": "case_orcid"}), on="case_orcid", how="inner")
+                 .merge(ck[[c for c in cols_needed if c in ck.columns]]
+                        .rename(columns={"orcid": "control_orcid"}), on="control_orcid", how="inner"))
+        for cat, metrics in metric_map.items():
+            for m in metrics:
+                cv_col = f"{m}_x" if f"{m}_x" in sp2.columns else m
+                ck_col = f"{m}_y" if f"{m}_y" in sp2.columns else m
+                r = sp2.dropna(subset=[cv_col, ck_col]) if cv_col in sp2.columns else pd.DataFrame()
+                if len(r) < 10:
+                    continue
+                rows.append({"Subject": str(subj), "Metric": m,
+                             "Cliffs_Delta": cliff_delta(r[cv_col], r[ck_col])})
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return
+
+    cols = ["coauthor_citation_rate", "clustering", "avg_velocity", "max_burst_norm"]
+    avail = [c for c in cols if c in df["Metric"].unique()]
+    pivot = df[df["Metric"].isin(avail)].pivot(
+        index="Subject", columns="Metric", values="Cliffs_Delta")
+    pivot = pivot[avail]
+    pivot.columns = [FEATURE_NICE.get(c, c) for c in pivot.columns]
+    pivot.index = [SUBJECT_NICE.get(s, f"Field {s}") for s in pivot.index]
+
+    fig, ax = plt.subplots(figsize=(W2, max(2.4, len(pivot) * 0.55 + 0.8)))
+    sns.heatmap(
+        pivot, annot=True, fmt=".2f",
+        cmap="RdBu_r", center=0, vmin=-0.8, vmax=0.8,
+        linewidths=0.4, linecolor="#cccccc",
+        cbar_kws={"label": "Effect Size (Cliff's Delta) →\nCase Higher | Control Higher ←",
+                   "shrink": 0.7},
+        ax=ax,
+    )
+    ax.set_xlabel(""); ax.set_ylabel("Subject Area")
+    ax.tick_params(axis="x", rotation=30)
+    fig.tight_layout()
+    _save(fig, "Figure5_SubjectHeatmap", figs_dir)
+
+
 def fig6_feature_importance(
     master: pd.DataFrame, figs_dir: Path
 ) -> None:
@@ -883,9 +951,7 @@ def fig6_feature_importance(
         else:
             ax.text(bar.get_width()+0.002, bar.get_y()+bar.get_height()/2,
                     lbl, va="center", ha="left", fontsize=5.5, color="#555", clip_on=False)
-    ax.set_xlabel("Mean decrease in impurity"); ax.set_ylabel("")
-    ax.set_title("Feature importances — tier classification",
-                 loc="left", fontweight="bold", pad=6)
+    ax.set_xlabel("Mean decrease in impurity", fontsize=6); ax.set_ylabel("")
     ax.legend(handles=[mpatches.Patch(fc=CATEGORY_COLORS[c], ec="white", lw=0.3, label=c)
                        for c in ["Cohesion","Structure","Flow","Authority","Diversity"]
                        if c in set(imp["category"])],
@@ -893,6 +959,7 @@ def fig6_feature_importance(
               edgecolor="#ddd", title="Feature category", title_fontsize=6)
     fig.tight_layout(); fig.subplots_adjust(right=0.92)
     _save(fig, "Figure6_Feature_Importance", figs_dir)
+    _save(fig, "Figure8_Feature_Importance", figs_dir)
 
 
 def fig7_lda_separation(master: pd.DataFrame, figs_dir: Path) -> None:
@@ -923,11 +990,11 @@ def fig7_lda_separation(master: pd.DataFrame, figs_dir: Path) -> None:
     ax.text(0.97, 0.95, f"AUC = {auc:.3f}", transform=ax.transAxes,
             fontsize=6.5, ha="right", va="top", fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="#ccc", lw=0.4))
-    ax.set_xlabel("Linear discriminant score"); ax.set_ylabel("Density")
-    ax.set_title("Tier separability — LDA projection",
-                 loc="left", fontweight="bold", pad=6)
+    ax.set_xlabel("Linear discriminant score", fontsize=6); ax.set_ylabel("Density", fontsize=6)
     ax.legend(frameon=True, fontsize=5.5, framealpha=0.85, edgecolor="#ddd")
-    fig.tight_layout(); _save(fig, "Figure7_LDA_Separation", figs_dir)
+    fig.tight_layout()
+    _save(fig, "Figure9_LDA_Separation", figs_dir)
+    _save(fig, "Figure7_LDA_Separation", figs_dir)
 
 
 def fig8_mixing_matrix(
@@ -944,9 +1011,10 @@ def fig8_mixing_matrix(
     mix = nx.attribute_mixing_matrix(G, "tier", mapping={"Case":0,"Control":1})
     mix_df = pd.DataFrame(mix, index=["Case","Control"], columns=["Case","Control"])
     mix_pct = mix_df.div(mix_df.sum(axis=1), axis=0)
-    pretty = {"Case":"Bottom-Tier","Control":"Top-Tier"}
+    pretty = {"Case":"Case","Control":"Control"}
     mix_pct.index   = [pretty[i] for i in mix_pct.index]
     mix_pct.columns = [pretty[c] for c in mix_pct.columns]
+    interp = ("strong" if r_val > 0.5 else "moderate" if r_val > 0.2 else "weak") + " homophily"
     diag = (mix_pct.iloc[0,0] + mix_pct.iloc[1,1]) / 2
     print(f"    → Tier assortativity r = {r_val:.4f}"
           f"  |  diagonal avg = {diag:.1%}")
@@ -956,11 +1024,12 @@ def fig8_mixing_matrix(
                 cbar_kws={"label":"Row-norm. probability","shrink":0.7,"pad":0.12},
                 annot_kws={"size":9,"weight":"bold"}, ax=ax)
     ax.set_ylabel("Citing tier"); ax.set_xlabel("Cited tier")
-    ax.set_title("Citation mixing matrix", loc="left", fontweight="bold", pad=6, fontsize=7.5)
-    ax.text(1.0, 1.03, f"diagonal avg {diag:.0%}",
-            transform=ax.transAxes, fontsize=5.5, color="#666", ha="right", style="italic")
+    ax.set_title(f"Citation mixing matrix  ($r = {r_val:.2f}$, {interp})",
+                 loc="center", fontweight="bold", pad=8, fontsize=7.5)
     ax.tick_params(axis="x", rotation=0); ax.tick_params(axis="y", rotation=0)
-    fig.tight_layout(); _save(fig, "Figure8_Mixing_Matrix", figs_dir)
+    fig.tight_layout()
+    _save(fig, "Figure8_Mixing_Matrix", figs_dir)
+    _save(fig, "Figure10_Mixing_Matrix", figs_dir)
 
 
 # ╔══════════════════════════════════════════════════════════════════════════╗
@@ -1187,6 +1256,7 @@ def main() -> None:
     fig3_permutation_test(master, pairs, figs_dir)
     fig4_syndicate_network(master, edges, figs_dir)
     fig5_temporal_evolution(master, edges, figs_dir)
+    fig5_subject_heatmap(pairs, master, figs_dir)
     fig6_feature_importance(master, figs_dir)
     fig7_lda_separation(master, figs_dir)
     fig8_mixing_matrix(master, edges, figs_dir)
