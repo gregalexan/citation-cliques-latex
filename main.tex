@@ -102,9 +102,7 @@
 \author{Diomidis Spinellis}
 \affil{Department of Management Science and Technology, 
 Athens University of Economics and Business (AUEB), Athens, Greece}
-\date{
-  \today
-}
+\date{}
 
 \begin{document}
 \maketitle
@@ -239,7 +237,7 @@ described in Section~\ref{sec:data}.
 \textbf{Citation Network and Metrics.}
 For matched authors, we constructed directed author-to-author citation networks (2020--2024).
 Each citation edge between a citing work with $n_c$~authors and a cited work with $n_a$~authors received weight $w = 1/(n_c \times n_a)$, correcting for team size.
-From these edges we derived cohesion metrics (self-citation, co-author citation, clustering, triangles, $k$-core, PageRank) and pairwise anomaly metrics (reciprocity, asymmetry, velocity, citation bursts). These measures capture both dense reciprocal structures and asymmetric one-way flows.
+From these edges we derived cohesion metrics (self-citation, co-author citation, clustering, triangles, $k$-core, eigenvector centrality) and pairwise anomaly metrics (reciprocity, asymmetry, velocity, citation bursts). These measures capture both dense reciprocal structures and asymmetric one-way flows.
 During exploratory analysis, raw pairwise metrics (maximum asymmetry, average velocity, and maximum burst) were also computed; in the formal pipeline they were replaced by normalised variants that are comparable across activity levels: \emph{citation balance} captures net giver/receiver bias as a bounded $(-1,+1)$ ratio, while \emph{normalised burst intensity} adjusts the largest single-peer citation weight by total incoming volume.
 Table~\ref{tab:features} (Appendix~\ref{app:features}) lists the 14 features employed for statistical testing and modelling.
 
@@ -317,8 +315,8 @@ representative pair drawn from Health Sciences.
   \centering
   \caption{\textbf{Case--Control metric averages and example pair.}
     Mean values computed over all \num{9431} matched pairs.
-    The example pair is drawn from Health Sciences (Subject~1);
-    both elements are not outliers.}
+    The example pair is drawn from Health Sciences (Subject~1),
+    both non-outlier.}
   \label{tab:metrics-overview}
   \small
   \setlength{\tabcolsep}{4pt}
@@ -331,8 +329,8 @@ representative pair drawn from Health Sciences.
     \midrule
     ORCID
       & {---} & {---}
-      & \multicolumn{1}{c}{\dots-3810}
-      & \multicolumn{1}{c}{\dots-8680} \\
+      & \multicolumn{1}{c}{\texttt{\dots3810}}
+      & \multicolumn{1}{c}{\texttt{\dots8680}} \\
     \addlinespace
     Co-author cit.\ rate  & 0.0040 & 0.0006 & 0.0031 & 0.0005 \\
     Self-citation rate    & 0.0278 & 0.0107 & 0.0272 & 0.0104 \\
@@ -341,7 +339,7 @@ representative pair drawn from Health Sciences.
     Clustering coeff.     & 0.0612 & 0.0525 & 0.3000 & 0.0000 \\
     Clique strength       & 0.0011 & 0.0001 & 0.0009 & 0.0000 \\
     Citation balance      & 0.7580 & 0.9642 & 0.9638 & 1.0000 \\
-    PageRank ($\times 10^{5}$) & 3.74 & 7.63 & 17.10 & 3.75 \\
+    Eigenvector centr.\ ($\times 10^{5}$) & 1.18 & 15.36 & 0.00 & 0.00 \\
     $k$-core number       & 0.7080 & 1.2170 & 3.0000 & 1.0000 \\
     Citation entropy      & 0.1210 & 0.2640 & 1.0990 & 0.0000 \\
     Journal endogamy      & 0.0727 & 0.0887 & 0.0886 & 0.0984 \\
@@ -349,13 +347,12 @@ representative pair drawn from Health Sciences.
   \end{tabular}
 \end{table}
 
-The cohesion gap is driven by a broad rightward shift across all four dimensions
-(co-author citation rate, self-citation rate, outgoing HHI,
-and local clustering) rather than by a few extreme outliers.
+The cohesion gap is not driven by a few extreme outliers but by a broad rightward shift across all four dimensions (co-author citation rate, self-citation rate, outgoing HHI, and local clustering).
 Permutation testing (\num{10000} label shuffles of Case--Control assignments) independently confirms the effect is far outside the null distribution ($p < 0.001$).
 
-In contrast to their high internal cohesion, Case authors exhibit significantly lower authority metrics. Controls exhibit \textbf{3$\times$ higher PageRank} than Cases ($p=3.1 \times 10^{-145}$), and \textbf{2.2$\times$ higher Citation Entropy}, indicating that while Cases have a similar ciation volume, they lack broad authoritative influence.
-This divergence is further supported by the random forest feature importances in Figure~\ref{fig:feature_importance}, where cohesion and concentration metrics rank as the most discriminative features for tier classification, while authority metrics such as PageRank play a secondary role.
+In contrast to their high internal cohesion, Case authors exhibit significantly lower authority metrics. Controls exhibit \textbf{13$\times$ higher eigenvector centrality} than Cases ($p=3.4 \times 10^{-132}$), and \textbf{2.2$\times$ higher Citation Entropy}, indicating that while Cases have a similar ciation volume, they lack broad authoritative influence.
+Note that the example pair in Table~\ref{tab:metrics-overview} both show near-zero eigenvector centrality at the $\times 10^{5}$ scale, which is consistent with the right-skewed distribution of this metric: the aggregate mean is driven by a small number of highly connected authors, and individual pairs can deviate substantially from the population average.
+This divergence is further supported by the random forest feature importances in Figure~\ref{fig:feature_importance}, where cohesion and concentration metrics rank as the most discriminative features for tier classification, while authority metrics such as eigenvector centrality play a secondary role.
 
 \begin{figure}[H]
   \centering
@@ -380,7 +377,7 @@ Enhanced Case cohesion is a recurrent feature across subjects, but its expressio
 
 \begin{figure}[H]
   \centering
-  \safeincludegraphics[width=0.75\linewidth]{Figure5_SubjectHeatmap.pdf}
+  \safeincludegraphics[width=0.95\linewidth]{Figure5_SubjectHeatmap.pdf}
   \caption{\textbf{Subject-Specific Effect Sizes (Cliff's $\delta$).}
     Each cell reports the effect size for a given metric within a subject area.
     Positive values (white--pale red) indicate that Cases exhibit higher values than Controls.
@@ -494,9 +491,7 @@ The largest outlier syndicate ($n=23$) exhibits a distinct hub-and-spoke topolog
 Within this group, the flow imbalance analysis reveals a clear hierarchy: a single \textbf{``Primary Beneficiary''} occupies the central position, receiving directed citation flows from peripheral \textbf{``Sycophants''} who define themselves by giving significantly more citations than they receive.
 
 Temporal activity supports the orchestration hypothesis, showing a sudden-burst pattern with high internal citation intensity.
-As shown in the timeline analysis, citation accumulation,
-rather than organic,
-is driven by coordinated waves, particularly evident in 2021 and 2024.
+As shown in the timeline analysis, citation accumulation is not organic but driven by coordinated waves, particularly evident in 2021 and 2024.
 
 \begin{figure}[H]
   \centering
@@ -525,7 +520,7 @@ In this sense, citation cliques are not merely organic clusters but isolated sil
 
 \begin{figure}[H]
   \centering
-  \safeincludegraphics[width=0.5\linewidth]{Figure10_Mixing_Matrix.pdf}
+  \safeincludegraphics[width=0.85\linewidth]{Figure10_Mixing_Matrix.pdf}
   \caption{\textbf{Citation mixing matrix ($r = 0.71$, $Q = 0.97$; strong homophily).}
     Row-normalised proportion of citations directed within and
     across tiers.
@@ -620,7 +615,7 @@ small community of co-authors.
 
 \begin{table*}[t]
   \centering
-  \caption{Top-10 authors ranked by composite
+  \caption{Top-10 Case authors ranked by composite
     outlier score $S$ (Eq.~\ref{eq:susp}).}
   \label{tab:suspicious-top10}
   \scriptsize
@@ -628,16 +623,16 @@ small community of co-authors.
     \toprule
     Rank & ORCID                        & Subject & $S$   & Works & Primary flags                                                 \\
     \midrule
-    1    & \texttt{0000-0001-5794-5580} & Eng.    & 658.6 & 12    & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
-    2    & \texttt{0000-0002-1998-6290} & Eng.    & 658.6 & 13    & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
-    3    & \texttt{0000-0001-9044-3400} & Med.    & 361.7 & 4     & co-auth.\ cit., recip., out.\ HHI ($>5\sigma$)                \\
-    4    & \texttt{0000-0001-5541-5180} & Soc.    & 207.6 & 14    & co-auth.\ cit.\ ($>5\sigma$); self-cit.\ ($>3\sigma$)         \\
-    5    & \texttt{0000-0002-0836-9510} & Eng.    & 204.9 & 4     & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
-    6    & \texttt{0000-0002-5354-3020} & Eng.    & 203.4 & 5     & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
-    7    & \texttt{0000-0002-5962-4470} & Eng.    & 203.0 & 5     & co-auth.\ cit., recip., out.\ HHI ($>5\sigma$)                \\
-    8    & \texttt{0000-0002-3497-8870} & Eng.    & 184.7 & 4     & co-auth.\ cit., recip.\ ($>5\sigma$); endog.\ ($>5\sigma$)    \\
-    9    & \texttt{0000-0001-6877-9530} & Eng.    & 180.4 & 5     & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
-    10   & \texttt{0000-0003-1664-6810} & Eng.    & 180.4 & 4     & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
+    1    & \texttt{\dots5580} & Eng.    & 658.6 & 12    & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
+    2    & \texttt{\dots6290} & Eng.    & 658.6 & 13    & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
+    3    & \texttt{\dots3400} & Med.    & 361.7 & 4     & co-auth.\ cit., recip., out.\ HHI ($>5\sigma$)                \\
+    4    & \texttt{\dots5180} & Soc.    & 207.6 & 14    & co-auth.\ cit.\ ($>5\sigma$); self-cit.\ ($>3\sigma$)         \\
+    5    & \texttt{\dots9510} & Eng.    & 204.9 & 4     & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
+    6    & \texttt{\dots3020} & Eng.    & 203.4 & 5     & co-auth.\ cit., clique str., recip.\ ($>5\sigma$)             \\
+    7    & \texttt{\dots4470} & Eng.    & 203.0 & 5     & co-auth.\ cit., recip., out.\ HHI ($>5\sigma$)                \\
+    8    & \texttt{\dots8870} & Eng.    & 184.7 & 4     & co-auth.\ cit., recip.\ ($>5\sigma$); endog.\ ($>5\sigma$)    \\
+    9    & \texttt{\dots9530} & Eng.    & 180.4 & 5     & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
+    10   & \texttt{\dots6810} & Eng.    & 180.4 & 4     & co-auth.\ cit., recip.\ ($>5\sigma$); self-cit.\ ($>3\sigma$) \\
     \bottomrule
   \end{tabularx}
 
@@ -652,23 +647,23 @@ small community of co-authors.
 
 \begin{table*}[t]
   \centering
-  \caption{Publication audit profiles for top-10 outlier authors.}
+  \caption{Publication audit profiles for top-10 outlier Case authors.}
   \label{tab:author-audit}
   \scriptsize
   \begin{tabularx}{\linewidth}{rl rrr rrX}
     \toprule
     Rank & ORCID                        & Works & Years      & Out & In & Recip. & Primary journal                  \\
     \midrule
-    1    & \texttt{0000-0001-5794-5580} & 12    & 2020--2024 & 1   & 3  & 1      & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ (6)  \\
-    2    & \texttt{0000-0002-1998-6290} & 13    & 2020--2024 & 1   & 3  & 1      & Anim.\ Breed.\ Genet.\ (7)            \\
-    3    & \texttt{0000-0001-9044-3400} & 4     & 2020--2023 & 1   & 1  & 1      & Laser Medicine (2)                     \\
-    4    & \texttt{0000-0001-5541-5180} & 14    & 2020--2024 & 2   & 0  & 0      & Exacta (5)                             \\
-    5    & \texttt{0000-0002-0836-9510} & 4     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (4)      \\
-    6    & \texttt{0000-0002-5354-3020} & 5     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (5)      \\
-    7    & \texttt{0000-0002-5962-4470} & 5     & 2020--2022 & 1   & 1  & 1      & Acta Sci.\ Agronomy (2)                \\
-    8    & \texttt{0000-0002-3497-8870} & 4     & 2021--2023 & 2   & 1  & 1      & Korean J.\ Plant Taxon.\ (3)           \\
-    9    & \texttt{0000-0001-6877-9530} & 5     & 2021--2023 & 2   & 1  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\ (2)    \\
-    10   & \texttt{0000-0003-1664-6810} & 4     & 2022--2023 & 2   & 1  & 1      & Int.\ J.\ Vet.\ Med.\ (2)             \\
+    1    & \texttt{\dots5580} & 12    & 2020--2024 & 1   & 3  & 1      & Bull.\ Sumy Nat.\ Agrar.\ Univ.\ (6)  \\
+    2    & \texttt{\dots6290} & 13    & 2020--2024 & 1   & 3  & 1      & Anim.\ Breed.\ Genet.\ (7)            \\
+    3    & \texttt{\dots3400} & 4     & 2020--2023 & 1   & 1  & 1      & Laser Medicine (2)                     \\
+    4    & \texttt{\dots5180} & 14    & 2020--2024 & 2   & 0  & 0      & Exacta (5)                             \\
+    5    & \texttt{\dots9510} & 4     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (4)      \\
+    6    & \texttt{\dots3020} & 5     & 2020--2022 & 3   & 5  & 1      & Korean J.\ Soil Sci.\ Fert.\ (5)      \\
+    7    & \texttt{\dots4470} & 5     & 2020--2022 & 1   & 1  & 1      & Acta Sci.\ Agronomy (2)                \\
+    8    & \texttt{\dots8870} & 4     & 2021--2023 & 2   & 1  & 1      & Korean J.\ Plant Taxon.\ (3)           \\
+    9    & \texttt{\dots9530} & 5     & 2021--2023 & 2   & 1  & 1      & Sci.\ Notes Kazan Vet.\ Acad.\ (2)    \\
+    10   & \texttt{\dots6810} & 4     & 2022--2023 & 2   & 1  & 1      & Int.\ J.\ Vet.\ Med.\ (2)             \\
     \bottomrule
   \end{tabularx}
 
@@ -760,7 +755,6 @@ This research did not receive a specific grant from any funding agency in the pu
 
 \section{Data and Code Availability}
 \label{sec:data}
-% TODO: Replace Zenodo DOI placeholder (10.5281/zenodo.xxxxxxx) with real DOI before submission.
 All essential data and code for this study are openly available at Zenodo under a CC~BY license \parencite{dataset_zenodo}.
 The analysis is implemented in a single, self-contained script (\texttt{citation\_analysis.py}) that reproduces all results in one invocation: it loads the pre-built \texttt{rolap.db} and \texttt{impact.db} databases, runs the statistical comparisons (Section~\ref{sec:overall}), generates all eight publication figures, and produces the author outlier tables (Section~\ref{sec:suspicious-authors}).
 % TODO: Is the following OK?
@@ -820,9 +814,9 @@ unless stated otherwise.
                        & $\displaystyle\frac{w_{\text{out}} - w_{\text{in}}}{w_{\text{out}} + w_{\text{in}} + \epsilon}$
                        & Net giver/receiver bias; positive~$\Rightarrow$ net giver. Bounded $(-1,+1)$, comparable across activity levels.                                                                                                                                  \\
       \addlinespace
-      PageRank
-                       & \text{weighted PR on } $G$
-                       & Global influence score computed via weighted PageRank on the directed citation graph \parencite{Page1999}.                                                                                                                                       \\
+      Eigenvector centrality
+                       & $\lambda_1$-eigenvector of $G$
+                       & Global prestige score: leading eigenvector of the weighted directed citation graph \parencite{Bonacich1987}.                                                                                                                                       \\
       \addlinespace
       Journal endogamy
                        & $\displaystyle\frac{|\{\text{refs with same ISSN}\}|}{|\{\text{all refs}\}|}$

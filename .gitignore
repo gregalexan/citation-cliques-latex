@@ -1,16 +1,28 @@
-# LaTeX auxiliary files
+.depend
+.depend.all
+reports
+rolap
+simple-rolap
+tables
+.venv
+
+# Databases
+*.db
+
+# LaTeX build artifacts
 *.aux
-*.bbl
-*.bcf
-*.blg
-*.fdb_latexmk
-*.fls
 *.log
 *.out
-*.run.xml
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
 *.synctex.gz
-*.toc
-*.lof
-*.lot
-main.pdf
 
+# Generated images
+*.png
+*.pdf
+
+# Editor/tool artifacts
+tags
+uv.lock
