@@ -135,6 +135,17 @@ class PairedInferenceTests(unittest.TestCase):
         self.assertAlmostEqual(adjusted[2], 0.04)
         self.assertTrue(math.isnan(adjusted[3]))
 
+    def test_matching_balance_reports_and_enforces_h5_caliper(self) -> None:
+        pairs = self.pairs.assign(case_h5=[1, 5], control_h5=[4, 5])
+        overall = analysis.matching_balance(pairs).iloc[0]
+        self.assertEqual(overall["max_absolute_h5_difference"], 3)
+        pairs.loc[0, "control_h5"] = 5
+        with self.assertRaisesRegex(AssertionError, "h5 caliper"):
+            analysis.matching_balance(pairs)
+        pairs.loc[0, "control_h5"] = np.nan
+        with self.assertRaisesRegex(AssertionError, "missing.*h5"):
+            analysis.matching_balance(pairs)
+
 
 class ScreenAndReuseTests(unittest.TestCase):
     @staticmethod
@@ -164,6 +175,68 @@ class ScreenAndReuseTests(unittest.TestCase):
         self.assertTrue(bool(extreme["cohesion_confirmation"]))
         self.assertTrue(bool(extreme["final_flag"]))
         self.assertTrue(pd.isna(incomplete["final_flag"]))
+        self.assertTrue(pd.isna(incomplete["detector_exceeds_threshold"]))
+        self.assertTrue(pd.isna(incomplete["cohesion_exceedance_count"]))
+        self.assertTrue(pd.isna(incomplete["cohesion_confirmation"]))
+
+    def test_detector_confirmation_overlap_and_rank_association(self) -> None:
+        screened = pd.DataFrame(
+            {
+                "eligible": [True, True, True, True, False, True],
+                "detector_complete": [True, True, True, True, True, False],
+                "detector_score": [1.0, 2.0, 3.0, 4.0, 99.0, np.nan],
+                "detector_exceeds_threshold": [
+                    False,
+                    False,
+                    True,
+                    True,
+                    False,
+                    False,
+                ],
+                "cohesion_exceedance_count": [0, 2, 1, 3, 4, 0],
+                "cohesion_confirmation": [False, True, False, True, False, False],
+                "final_flag": pd.Series(
+                    [False, False, False, True, False, pd.NA], dtype="boolean"
+                ),
+            }
+        )
+        overlap = analysis.detector_confirmation_overlap(screened)
+        counts = overlap.set_index(
+            ["detector_exceeds_threshold", "cohesion_confirmation"]
+        )["row_count"]
+        self.assertEqual(set(counts), {1})
+        self.assertEqual(set(overlap["screenable_rows"]), {4})
+        self.assertTrue(np.allclose(overlap["share_of_screenable"], 0.25))
+        self.assertEqual(set(overlap["spearman_n"]), {4})
+        self.assertTrue(np.allclose(overlap["spearman_rho"], 0.8))
+
+    def test_feature_ablation_keeps_canonical_complete_rows(self) -> None:
+        features = self.detector_fixture()
+        reduced = analysis.screen_anomalies(
+            features,
+            seed=42,
+            detector_features=tuple(
+                feature
+                for feature in analysis.DETECTOR_FEATURES
+                if feature != "reciprocity"
+            ),
+        )
+        self.assertTrue(pd.isna(reduced.set_index("orcid").loc["M", "final_flag"]))
+
+        canonical = analysis.screen_anomalies(features, seed=42)
+        ablation = analysis.run_anomaly_feature_ablation(
+            features,
+            seed=42,
+            reference_keys=analysis._flag_key_set(canonical),
+        )
+        self.assertEqual(
+            list(ablation["omitted_feature"]), list(analysis.DETECTOR_FEATURES)
+        )
+        self.assertEqual(set(ablation["quantile"]), {0.99})
+        self.assertEqual(set(ablation["seed"]), {42})
+        self.assertTrue(ablation["reference_jaccard"].between(0, 1).all())
+        for row in ablation.itertuples(index=False):
+            self.assertNotIn(row.omitted_feature, row.retained_features.split("|"))
 
     def test_components_reuse_only_canonical_keys(self) -> None:
         flagged = {("s", node) for node in ["A", "B", "C", "D", "E"]}
@@ -343,8 +416,14 @@ class ArtifactWriterTests(unittest.TestCase):
         screened["cohesion_confirmation"] = False
         screened["detector_complete"] = True
         screened["final_flag"] = pd.Series(False, index=screened.index, dtype="boolean")
-        screened.loc[screened["orcid"] == "A0", "final_flag"] = True
+        fixture_flag = screened["orcid"].eq("A0")
+        screened.loc[fixture_flag, "detector_score"] = 1.0
+        screened.loc[fixture_flag, "detector_exceeds_threshold"] = True
+        screened.loc[fixture_flag, "cohesion_exceedance_count"] = 2
+        screened.loc[fixture_flag, "cohesion_confirmation"] = True
+        screened.loc[fixture_flag, "final_flag"] = True
         enrichment = analysis.anomaly_enrichment(screened)
+        overlap = analysis.detector_confirmation_overlap(screened)
         sensitivity = pd.DataFrame(
             {
                 "quantile": [0.975, 0.99, 0.995],
@@ -357,6 +436,35 @@ class ArtifactWriterTests(unittest.TestCase):
                 "case_to_control_enrichment": [math.inf] * 3,
                 "reference_jaccard": [1.0] * 3,
                 "flag_set_hash": ["fixture"] * 3,
+            }
+        )
+        feature_ablation = pd.DataFrame(
+            {
+                "omitted_feature": analysis.DETECTOR_FEATURES,
+                "omitted_feature_label": [
+                    analysis.METRIC_LABELS[feature]
+                    for feature in analysis.DETECTOR_FEATURES
+                ],
+                "retained_features": [
+                    "|".join(
+                        retained
+                        for retained in analysis.DETECTOR_FEATURES
+                        if retained != omitted
+                    )
+                    for omitted in analysis.DETECTOR_FEATURES
+                ],
+                "quantile": [0.99] * len(analysis.DETECTOR_FEATURES),
+                "seed": [42] * len(analysis.DETECTOR_FEATURES),
+                "flagged_rows": [1] * len(analysis.DETECTOR_FEATURES),
+                "case_flagged_rows": [1] * len(analysis.DETECTOR_FEATURES),
+                "control_flagged_rows": [0] * len(analysis.DETECTOR_FEATURES),
+                "case_flagged_share": [1 / pair_count]
+                * len(analysis.DETECTOR_FEATURES),
+                "control_flagged_share": [0.0] * len(analysis.DETECTOR_FEATURES),
+                "case_to_control_enrichment": [math.inf]
+                * len(analysis.DETECTOR_FEATURES),
+                "reference_jaccard": [1.0] * len(analysis.DETECTOR_FEATURES),
+                "flag_set_hash": ["fixture"] * len(analysis.DETECTOR_FEATURES),
             }
         )
         empty_edges = pd.DataFrame(
@@ -391,6 +499,8 @@ class ArtifactWriterTests(unittest.TestCase):
                 screened=screened,
                 enrichment=enrichment,
                 sensitivity=sensitivity,
+                overlap=overlap,
+                feature_ablation=feature_ablation,
                 components=components,
                 mixing=mixing,
             )
@@ -399,6 +509,10 @@ class ArtifactWriterTests(unittest.TestCase):
                 "author_features_final.csv",
                 "tables/paired_primary.tex",
                 "tables/anomaly_enrichment.tex",
+                "tables/anomaly_overlap.csv",
+                "tables/anomaly_overlap.tex",
+                "tables/anomaly_feature_ablation.csv",
+                "tables/anomaly_feature_ablation.tex",
                 "tables/tier_mixing.tex",
                 "figures/paired_effects.pdf",
                 "figures/anomaly_enrichment.pdf",
@@ -411,6 +525,10 @@ class ArtifactWriterTests(unittest.TestCase):
             macros = (output / "results_macros.tex").read_text(encoding="utf-8")
             self.assertIn(r"\newcommand{\PrimaryFindingText}", macros)
             self.assertIn(r"\newcommand{\CaseShareAmongFlagsPercent}", macros)
+            self.assertIn(r"\newcommand{\AnomalyOverlapFindingText}", macros)
+            self.assertIn(
+                r"\newcommand{\AnomalyFeatureAblationFindingText}", macros
+            )
 
 
 class ScratchDatabaseTests(unittest.TestCase):

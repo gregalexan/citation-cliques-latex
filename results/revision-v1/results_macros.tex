@@ -2,6 +2,8 @@
 \newcommand{\AnalysisVersion}{revision-v1}
 \newcommand{\MatchedPairCount}{9,431}
 \newcommand{\ExactHFivePairCount}{5,736}
+\newcommand{\MaximumAbsoluteHFiveDifference}{2}
+\newcommand{\HFiveCaliperViolationCount}{0}
 \newcommand{\PrimaryCoauthorCitationRatePairCount}{6,848}
 \newcommand{\PrimaryCoauthorCitationRateCaseMedian}{0.000}
 \newcommand{\PrimaryCoauthorCitationRateControlMedian}{0.029}
@@ -93,6 +95,26 @@
 \newcommand{\FlaggedControlPercent}{0.04}
 \newcommand{\CaseControlEnrichment}{16.14}
 \newcommand{\AnomalyFisherP}{0.0000}
+\newcommand{\AnomalyScreenableCount}{3,870}
+\newcommand{\DetectorThresholdCount}{200}
+\newcommand{\DetectorThresholdPercent}{5.17}
+\newcommand{\CohesionConfirmationCount}{55}
+\newcommand{\CohesionConfirmationPercent}{1.42}
+\newcommand{\DetectorConfirmationOverlapCount}{53}
+\newcommand{\DetectorConfirmationOverlapPercent}{1.37}
+\newcommand{\DetectorOnlyCount}{147}
+\newcommand{\CohesionOnlyCount}{2}
+\newcommand{\DetectorCohesionSpearmanN}{3,870}
+\newcommand{\DetectorCohesionSpearmanRho}{0.385}
+\newcommand{\DetectorCohesionSpearmanP}{0.0000}
+\newcommand{\AnomalyFeatureAblationFlaggedMinimum}{50}
+\newcommand{\AnomalyFeatureAblationFlaggedMaximum}{55}
+\newcommand{\AnomalyFeatureAblationJaccardMinimum}{0.907}
+\newcommand{\AnomalyFeatureAblationJaccardMaximum}{0.981}
+\newcommand{\AnomalyFeatureAblationEnrichmentMinimum}{15.15}
+\newcommand{\AnomalyFeatureAblationEnrichmentMaximum}{16.80}
+\newcommand{\AnomalyOverlapFindingText}{Among 3,870 screenable author--subject rows, 200 exceeded the detector threshold, 55 met the cohesion restriction, and 53 met both; 147 were detector-only and 2 restriction-only. Detector score and cohesion exceedance count had Spearman $\rho=0.385$ ($p<0.001$).}
+\newcommand{\AnomalyFeatureAblationFindingText}{Across 5 leave-one-feature-out detector fits, final-flag Jaccard similarity with the canonical flags ranged from 0.907 to 0.981, and Case/Control enrichment ranged from 15.15 to 16.80.}
 \newcommand{\AnomalyFindingText}{The screen flagged 0.70\% of eligible Case rows and 0.04\% of Controls (16.14-fold enrichment).}
 \newcommand{\AnomalyDetailedFindingText}{Of 6,960 eligible Case and 9,171 eligible Control rows, 1,897 and 1,973, respectively, had all detector inputs. The canonical rule flagged 49 Cases and 4 Controls (0.70\% versus 0.04\% of eligible rows; 16.14-fold enrichment; $p<0.001$ by Fisher's exact test).}
 \newcommand{\WithinTierMixingPercent}{93.91}

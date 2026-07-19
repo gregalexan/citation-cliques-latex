@@ -19,12 +19,17 @@ export UNIT ?= $(SQL_TESTS)
 
 include ../common/Makefile
 
-.PHONY: check-inputs pipeline analysis sql-test python-test verify manuscript \
-	reviewer-response reproduce
+.PHONY: check-inputs match-audit pipeline analysis sql-test python-test verify \
+	manuscript reviewer-response reproduce
 
 check-inputs:
 	@test -r "$(MAINDB).db" || { echo "Missing raw snapshot: $(MAINDB).db" >&2; exit 2; }
 	@test -r "$(COHORT_DB)" || { echo "Missing retained cohort database: $(COHORT_DB)" >&2; exit 2; }
+
+match-audit: check-inputs match_authors.py author_matched_candidates.sql
+	@echo "[Audit deterministic hard-caliper matching without modifying the cohort]"
+	$(PYTHON) match_authors.py --audit \
+		--audit-output "$(RESULTS_DIR)/matching_audit.txt" "$(COHORT_DB)"
 
 # Matching is deterministic and materialized by Python after SQL candidate
 # generation.  The analysis key in this table is (ORCID, subject).
@@ -76,5 +81,5 @@ reviewer-response: manuscript
 
 # One supported, offline entry point.  No identity lookup or network request is
 # performed by any prerequisite of this target.
-reproduce: verify pipeline analysis manuscript reviewer-response
+reproduce: verify match-audit pipeline analysis manuscript reviewer-response
 	@echo "[Reproduction complete: $(RESULTS_DIR)]"

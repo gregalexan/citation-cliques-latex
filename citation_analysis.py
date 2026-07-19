@@ -27,7 +27,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from scipy.stats import fisher_exact, rankdata, wilcoxon
+from scipy.stats import fisher_exact, rankdata, spearmanr, wilcoxon
 from sklearn.ensemble import IsolationForest
 
 
@@ -36,6 +36,7 @@ DEFAULT_DATABASE = Path("rolap.db")
 DEFAULT_OUTPUT_DIRECTORY = Path("results") / ANALYSIS_VERSION
 DEFAULT_SEED = 42
 MAX_MATCHED_PAIRS = 9_431
+MATCHING_H5_CALIPER = 3
 YEARS = tuple(range(2020, 2025))
 
 PRIMARY_METRICS = (
@@ -782,8 +783,12 @@ def matching_balance(pairs: pd.DataFrame) -> pd.DataFrame:
     work = pairs.copy()
     work["case_h5"] = pd.to_numeric(work["case_h5"], errors="coerce")
     work["control_h5"] = pd.to_numeric(work["control_h5"], errors="coerce")
+    if work[["case_h5", "control_h5"]].isna().any().any():
+        raise AssertionError("a retained pair is missing a subject-keyed h5 value")
     work["h5_difference"] = work["case_h5"] - work["control_h5"]
     work["exact_h5"] = work["h5_difference"].eq(0) & work["h5_difference"].notna()
+    if work["h5_difference"].abs().gt(MATCHING_H5_CALIPER).any():
+        raise AssertionError("a retained pair exceeds the inclusive h5 caliper")
     rows: list[dict[str, object]] = []
     groups: list[tuple[str, pd.DataFrame]] = [("Overall", work)]
     groups.extend((str(subject), group) for subject, group in work.groupby("subject", sort=True))
@@ -799,6 +804,9 @@ def matching_balance(pairs: pd.DataFrame) -> pd.DataFrame:
                 "median_h5_difference": float(observed.median()) if len(observed) else math.nan,
                 "median_absolute_h5_difference": (
                     float(observed.abs().median()) if len(observed) else math.nan
+                ),
+                "max_absolute_h5_difference": (
+                    float(observed.abs().max()) if len(observed) else math.nan
                 ),
             }
         )
@@ -840,17 +848,29 @@ def screen_anomalies(
     *,
     quantile: float = 0.99,
     seed: int = DEFAULT_SEED,
+    detector_features: Sequence[str] = DETECTOR_FEATURES,
 ) -> pd.DataFrame:
     """Subject-Control Isolation Forest with a four-measure confirmation.
 
     Eligibility means at least one identified non-self outgoing citation.
-    Scoring additionally requires all five declared detector features.  A final
+    Scoring additionally requires all five declared detector features so that
+    feature-ablation fits use the same rows as the canonical model.  A final
     flag requires a score above the subject's Control quantile and at least two
     of four raw cohesion measures above their corresponding Control quantiles.
     """
 
     if not 0 < quantile < 1:
         raise ValueError("quantile must lie in (0, 1)")
+    detector_features = tuple(detector_features)
+    if not detector_features:
+        raise ValueError("at least one detector feature is required")
+    if len(set(detector_features)) != len(detector_features):
+        raise ValueError("detector features must be unique")
+    unknown_features = sorted(set(detector_features) - set(DETECTOR_FEATURES))
+    if unknown_features:
+        raise ValueError(
+            f"unknown detector feature(s): {', '.join(unknown_features)}"
+        )
     required = ("subject", "orcid", "tier_type", "eligible") + DETECTOR_FEATURES
     _require_columns(features, required, "features")
     result = features.copy()
@@ -859,9 +879,15 @@ def screen_anomalies(
     ).all(axis=1)
     result["detector_score"] = np.nan
     result["detector_threshold"] = np.nan
-    result["detector_exceeds_threshold"] = False
-    result["cohesion_exceedance_count"] = 0
-    result["cohesion_confirmation"] = False
+    result["detector_exceeds_threshold"] = pd.Series(
+        pd.NA, index=result.index, dtype="boolean"
+    )
+    result["cohesion_exceedance_count"] = pd.Series(
+        pd.NA, index=result.index, dtype="Int64"
+    )
+    result["cohesion_confirmation"] = pd.Series(
+        pd.NA, index=result.index, dtype="boolean"
+    )
     result["final_flag"] = pd.Series(False, index=result.index, dtype="boolean")
     result.loc[result["eligible"] & ~result["detector_complete"], "final_flag"] = pd.NA
     result["screen_quantile"] = float(quantile)
@@ -887,7 +913,7 @@ def screen_anomalies(
         subject_scored = result.loc[scored_index]
         transformed, _ = robust_scale_against_controls(
             subject_scored,
-            DETECTOR_FEATURES,
+            detector_features,
             control_mask=subject_scored.index.isin(control_index),
         )
         model = IsolationForest(
@@ -920,11 +946,11 @@ def screen_anomalies(
         result.loc[scored_index, "cohesion_confirmation"] = confirmation
         result.loc[scored_index, "final_flag"] = score_exceeds & confirmation.to_numpy()
 
-    result["cohesion_exceedance_count"] = result["cohesion_exceedance_count"].astype(int)
     flag_mask = result["final_flag"].fillna(False).astype(bool)
+    confirmation_mask = result["cohesion_confirmation"].fillna(False).astype(bool)
     if (flag_mask & ~result["eligible"]).any():
         raise AssertionError("an ineligible row was flagged")
-    if (flag_mask & ~result["cohesion_confirmation"]).any():
+    if (flag_mask & ~confirmation_mask).any():
         raise AssertionError("a flag bypassed cohesion confirmation")
     return result
 
@@ -997,13 +1023,19 @@ def run_anomaly_sensitivity(
     quantiles: Sequence[float] = (0.975, 0.99, 0.995),
     seeds: Sequence[int] = tuple(range(DEFAULT_SEED, DEFAULT_SEED + 10)),
     reference_keys: set[tuple[str, str]] | None = None,
+    detector_features: Sequence[str] = DETECTOR_FEATURES,
 ) -> pd.DataFrame:
     """Repeat the single screen across three thresholds and ten fixed seeds."""
 
     rows: list[dict[str, object]] = []
     for quantile in quantiles:
         for seed in seeds:
-            screened = screen_anomalies(features, quantile=quantile, seed=int(seed))
+            screened = screen_anomalies(
+                features,
+                quantile=quantile,
+                seed=int(seed),
+                detector_features=detector_features,
+            )
             keys = _flag_key_set(screened)
             summary = anomaly_enrichment(screened).set_index("tier_type")
             union = keys | (reference_keys or set())
@@ -1026,6 +1058,116 @@ def run_anomaly_sensitivity(
                     "flag_set_hash": flag_set_hash(keys),
                 }
             )
+    return pd.DataFrame(rows)
+
+
+def detector_confirmation_overlap(screened: pd.DataFrame) -> pd.DataFrame:
+    """Return the detector/confirmation 2-by-2 table and rank association."""
+
+    required = (
+        "eligible",
+        "detector_complete",
+        "detector_score",
+        "detector_exceeds_threshold",
+        "cohesion_exceedance_count",
+        "cohesion_confirmation",
+        "final_flag",
+    )
+    _require_columns(screened, required, "screened features")
+    screenable = screened[screened["eligible"] & screened["detector_complete"]].copy()
+    diagnostics = (
+        "detector_score",
+        "detector_exceeds_threshold",
+        "cohesion_exceedance_count",
+        "cohesion_confirmation",
+        "final_flag",
+    )
+    if screenable[list(diagnostics)].isna().any().any():
+        raise AssertionError("a screenable row has an undefined screen diagnostic")
+    expected_flags = (
+        screenable["detector_exceeds_threshold"].astype(bool)
+        & screenable["cohesion_confirmation"].astype(bool)
+    )
+    observed_flags = (
+        screenable["final_flag"].astype("boolean").fillna(False).astype(bool)
+    )
+    if not expected_flags.equals(observed_flags):
+        raise AssertionError("final_flag does not equal detector/confirmation overlap")
+
+    association_rows = (
+        screenable[["detector_score", "cohesion_exceedance_count"]]
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+    )
+    if (
+        len(association_rows) < 2
+        or association_rows["detector_score"].nunique() < 2
+        or association_rows["cohesion_exceedance_count"].nunique() < 2
+    ):
+        rho = p_value = math.nan
+    else:
+        rho, p_value = spearmanr(
+            association_rows["detector_score"],
+            association_rows["cohesion_exceedance_count"],
+        )
+    denominator = len(screenable)
+    rows: list[dict[str, object]] = []
+    for detector_exceeds in (False, True):
+        for cohesion_confirms in (False, True):
+            count = int(
+                (
+                    screenable["detector_exceeds_threshold"].eq(detector_exceeds)
+                    & screenable["cohesion_confirmation"].eq(cohesion_confirms)
+                ).sum()
+            )
+            rows.append(
+                {
+                    "detector_exceeds_threshold": detector_exceeds,
+                    "cohesion_confirmation": cohesion_confirms,
+                    "row_count": count,
+                    "share_of_screenable": count / denominator if denominator else math.nan,
+                    "screenable_rows": denominator,
+                    "spearman_n": len(association_rows),
+                    "spearman_rho": float(rho),
+                    "spearman_p": float(p_value),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def run_anomaly_feature_ablation(
+    features: pd.DataFrame,
+    *,
+    quantile: float = 0.99,
+    seed: int = DEFAULT_SEED,
+    reference_keys: set[tuple[str, str]] | None = None,
+) -> pd.DataFrame:
+    """Leave out each detector feature at the canonical threshold and seed."""
+
+    if reference_keys is None:
+        reference_keys = _flag_key_set(
+            screen_anomalies(features, quantile=quantile, seed=seed)
+        )
+    rows: list[dict[str, object]] = []
+    for omitted_feature in DETECTOR_FEATURES:
+        retained_features = tuple(
+            feature for feature in DETECTOR_FEATURES if feature != omitted_feature
+        )
+        row = run_anomaly_sensitivity(
+            features,
+            quantiles=(quantile,),
+            seeds=(seed,),
+            reference_keys=reference_keys,
+            detector_features=retained_features,
+        ).iloc[0].to_dict()
+        rows.append(
+            {
+                "omitted_feature": omitted_feature,
+                "omitted_feature_label": METRIC_LABELS[omitted_feature],
+                "retained_features": "|".join(retained_features),
+                **row,
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -1381,17 +1523,19 @@ def write_matching_table(balance: pd.DataFrame, path: Path) -> None:
                 f"{row.n_exact_h5:,}",
                 _format_number(row.median_h5_difference, 2),
                 _format_number(row.median_absolute_h5_difference, 2),
+                _format_number(row.max_absolute_h5_difference, 0),
             ]
         )
     _write_complete_table(
         path,
         caption="Matching balance overall and by subject.",
         label="tab:matching-balance",
-        alignment="lrrrrr",
-        headers=("Subject", "Pairs", "$h_5$ observed", "Exact $h_5$", r"Median $\Delta h_5$", r"Median $|\Delta h_5|$"),
+        alignment="lrrrrrr",
+        headers=("Subject", "Pairs", "$h_5$ observed", "Exact $h_5$", r"Median $\Delta h_5$", r"Median $|\Delta h_5|$", r"Maximum $|\Delta h_5|$"),
         rows=rows,
         note=(
-            r"$\Delta h_5$ is Case minus Control. Exact-$h_5$ pairs form a sensitivity cohort; "
+            r"$\Delta h_5$ is Case minus Control. Every pair must satisfy "
+            r"$|\Delta h_5|\leq3$. Exact-$h_5$ pairs form a sensitivity cohort; "
             r"they do not replace the primary matched cohort."
         ),
     )
@@ -1518,6 +1662,107 @@ def write_anomaly_sensitivity_table(summary: pd.DataFrame, path: Path) -> None:
         headers=("Control percentile", "Flagged, median [range]", "Case share", "Control share", "Enrichment", "Jaccard vs. canonical"),
         rows=rows,
         note="Each row summarises ten fixed seeds; the canonical screen uses the 99th percentile and seed 42.",
+    )
+
+
+def write_anomaly_overlap_table(overlap: pd.DataFrame, path: Path) -> None:
+    counts = overlap.set_index(
+        ["detector_exceeds_threshold", "cohesion_confirmation"]
+    )["row_count"]
+    screenable_rows = int(overlap["screenable_rows"].iloc[0])
+
+    def cell(count: int) -> str:
+        rate = 100 * count / screenable_rows if screenable_rows else math.nan
+        return f"{count:,} ({_format_number(rate, 2)}\\%)"
+
+    neither = int(counts.loc[(False, False)])
+    confirmation_only = int(counts.loc[(False, True)])
+    detector_only = int(counts.loc[(True, False)])
+    both = int(counts.loc[(True, True)])
+    association = overlap.iloc[0]
+    association_p = (
+        "$p<0.001$"
+        if np.isfinite(association.spearman_p) and association.spearman_p < 0.001
+        else f"$p={_format_number(association.spearman_p, 3)}$"
+    )
+    rows = [
+        [
+            "No",
+            cell(neither),
+            cell(confirmation_only),
+            cell(neither + confirmation_only),
+        ],
+        ["Yes", cell(detector_only), cell(both), cell(detector_only + both)],
+        [
+            "Total",
+            cell(neither + detector_only),
+            cell(confirmation_only + both),
+            cell(screenable_rows),
+        ],
+    ]
+    _write_complete_table(
+        path,
+        caption="Overlap between detector-threshold exceedance and the cohesion restriction.",
+        label="tab:anomaly-overlap",
+        alignment="lrrr",
+        headers=(
+            "Detector exceeds threshold",
+            "No restriction",
+            "Restriction",
+            "Total",
+        ),
+        rows=rows,
+        note=(
+            f"Cells are counts (percent of {screenable_rows:,} screenable author--subject rows). "
+            f"Spearman's $\\rho$ between detector score and cohesion exceedance count was "
+            f"{_format_number(association.spearman_rho, 3)} "
+            f"($n={int(association.spearman_n):,}$; {association_p}). "
+            "The four cohesion measures are detector inputs, so this is an "
+            "overlapping interpretable restriction rather than independent corroboration."
+        ),
+    )
+
+
+def write_anomaly_feature_ablation_table(ablation: pd.DataFrame, path: Path) -> None:
+    rows = []
+    for row in ablation.itertuples(index=False):
+        rows.append(
+            [
+                _latex_escape(row.omitted_feature_label),
+                f"{row.flagged_rows:,}",
+                f"{row.case_flagged_rows:,} ({100 * row.case_flagged_share:.2f}\\%)",
+                (
+                    f"{row.control_flagged_rows:,} "
+                    f"({100 * row.control_flagged_share:.2f}\\%)"
+                ),
+                _format_number(row.case_to_control_enrichment, 2),
+                _format_number(row.reference_jaccard, 3),
+            ]
+        )
+    quantile = float(ablation["quantile"].iloc[0])
+    seed = int(ablation["seed"].iloc[0])
+    _write_complete_table(
+        path,
+        caption=(
+            "Leave-one-feature-out anomaly-screen sensitivity at the canonical "
+            "threshold and seed."
+        ),
+        label="tab:anomaly-feature-ablation",
+        alignment="lrrrrr",
+        headers=(
+            "Detector feature omitted",
+            "Flags",
+            "Case flags",
+            "Control flags",
+            "Enrichment",
+            "Jaccard vs. canonical",
+        ),
+        rows=rows,
+        note=(
+            f"Each fit uses the {100 * quantile:.1f}\\% Control percentile and seed {seed}. "
+            "The canonical detector-complete population and cohesion restriction are "
+            "held fixed; Case and Control percentages retain eligible-row denominators."
+        ),
     )
 
 
@@ -1719,6 +1964,8 @@ def write_result_macros(
     secondary: pd.DataFrame,
     sensitivity_inference: pd.DataFrame,
     enrichment: pd.DataFrame,
+    overlap: pd.DataFrame,
+    feature_ablation: pd.DataFrame,
     mixing: MixingResults,
     components: ComponentResults,
 ) -> None:
@@ -1728,6 +1975,24 @@ def write_result_macros(
         "AnalysisVersion": ANALYSIS_VERSION,
         "MatchedPairCount": f"{len(pairs):,}",
         "ExactHFivePairCount": f"{len(exact_h5_pairs(pairs)):,}",
+        "MaximumAbsoluteHFiveDifference": _macro_number(
+            (pd.to_numeric(pairs["case_h5"], errors="coerce")
+             - pd.to_numeric(pairs["control_h5"], errors="coerce"))
+            .abs()
+            .max(),
+            0,
+        ),
+        "HFiveCaliperViolationCount": str(
+            int(
+                (
+                    pd.to_numeric(pairs["case_h5"], errors="coerce")
+                    - pd.to_numeric(pairs["control_h5"], errors="coerce")
+                )
+                .abs()
+                .gt(MATCHING_H5_CALIPER)
+                .sum()
+            )
+        ),
     }
     for family_name, result in (("Primary", primary), ("Secondary", secondary)):
         for row in result.itertuples(index=False):
@@ -1823,6 +2088,32 @@ def write_result_macros(
     tier_summary = enrichment.set_index("tier_type")
     case = tier_summary.loc["Case"]
     control = tier_summary.loc["Control"]
+    overlap_counts = overlap.set_index(
+        ["detector_exceeds_threshold", "cohesion_confirmation"]
+    )["row_count"]
+    neither = int(overlap_counts.loc[(False, False)])
+    cohesion_only = int(overlap_counts.loc[(False, True)])
+    detector_only = int(overlap_counts.loc[(True, False)])
+    detector_and_cohesion = int(overlap_counts.loc[(True, True)])
+    screenable_rows = int(overlap["screenable_rows"].iloc[0])
+    association = overlap.iloc[0]
+    if detector_and_cohesion != int(case.total_flagged_rows):
+        raise AssertionError("overlap and enrichment flag counts disagree")
+    detector_count = detector_only + detector_and_cohesion
+    cohesion_count = cohesion_only + detector_and_cohesion
+    ablation_jaccard_min = float(feature_ablation["reference_jaccard"].min())
+    ablation_jaccard_max = float(feature_ablation["reference_jaccard"].max())
+    ablation_enrichment_min = float(
+        feature_ablation["case_to_control_enrichment"].min()
+    )
+    ablation_enrichment_max = float(
+        feature_ablation["case_to_control_enrichment"].max()
+    )
+    association_p_text = (
+        "$p<0.001$"
+        if np.isfinite(association.spearman_p) and association.spearman_p < 0.001
+        else f"$p={_macro_number(association.spearman_p, 3)}$"
+    )
     commands.update(
         {
             "EligibleCaseCount": f"{int(case.eligible_rows):,}",
@@ -1839,6 +2130,64 @@ def write_result_macros(
             "FlaggedControlPercent": _macro_number(100 * control.flagged_share, 2),
             "CaseControlEnrichment": _macro_number(case.case_to_control_enrichment, 2),
             "AnomalyFisherP": _macro_number(case.fisher_exact_p, 4),
+            "AnomalyScreenableCount": f"{screenable_rows:,}",
+            "DetectorThresholdCount": f"{detector_count:,}",
+            "DetectorThresholdPercent": _macro_number(
+                100 * detector_count / screenable_rows, 2
+            ),
+            "CohesionConfirmationCount": f"{cohesion_count:,}",
+            "CohesionConfirmationPercent": _macro_number(
+                100 * cohesion_count / screenable_rows, 2
+            ),
+            "DetectorConfirmationOverlapCount": f"{detector_and_cohesion:,}",
+            "DetectorConfirmationOverlapPercent": _macro_number(
+                100 * detector_and_cohesion / screenable_rows, 2
+            ),
+            "DetectorOnlyCount": f"{detector_only:,}",
+            "CohesionOnlyCount": f"{cohesion_only:,}",
+            "DetectorCohesionSpearmanN": f"{int(association.spearman_n):,}",
+            "DetectorCohesionSpearmanRho": _macro_number(
+                association.spearman_rho, 3
+            ),
+            "DetectorCohesionSpearmanP": _macro_number(
+                association.spearman_p, 4
+            ),
+            "AnomalyFeatureAblationFlaggedMinimum": str(
+                int(feature_ablation["flagged_rows"].min())
+            ),
+            "AnomalyFeatureAblationFlaggedMaximum": str(
+                int(feature_ablation["flagged_rows"].max())
+            ),
+            "AnomalyFeatureAblationJaccardMinimum": _macro_number(
+                ablation_jaccard_min, 3
+            ),
+            "AnomalyFeatureAblationJaccardMaximum": _macro_number(
+                ablation_jaccard_max, 3
+            ),
+            "AnomalyFeatureAblationEnrichmentMinimum": _macro_number(
+                ablation_enrichment_min, 2
+            ),
+            "AnomalyFeatureAblationEnrichmentMaximum": _macro_number(
+                ablation_enrichment_max, 2
+            ),
+            "AnomalyOverlapFindingText": (
+                f"Among {screenable_rows:,} screenable author--subject rows, "
+                f"{detector_count:,} exceeded the detector threshold, "
+                f"{cohesion_count:,} met the cohesion restriction, and "
+                f"{detector_and_cohesion:,} met both; {detector_only:,} were "
+                f"detector-only and {cohesion_only:,} restriction-only. Detector score "
+                f"and cohesion exceedance count had Spearman "
+                f"$\\rho={_macro_number(association.spearman_rho, 3)}$ "
+                f"({association_p_text})."
+            ),
+            "AnomalyFeatureAblationFindingText": (
+                f"Across {len(feature_ablation)} leave-one-feature-out detector fits, "
+                f"final-flag Jaccard similarity with the canonical flags ranged from "
+                f"{_macro_number(ablation_jaccard_min, 3)} to "
+                f"{_macro_number(ablation_jaccard_max, 3)}, and Case/Control enrichment "
+                f"ranged from {_macro_number(ablation_enrichment_min, 2)} to "
+                f"{_macro_number(ablation_enrichment_max, 2)}."
+            ),
             "AnomalyFindingText": (
                 f"The screen flagged {100 * case.flagged_share:.2f}\\% of eligible Case rows "
                 f"and {100 * control.flagged_share:.2f}\\% of Controls "
@@ -1894,6 +2243,8 @@ def write_artifacts(
     screened: pd.DataFrame,
     enrichment: pd.DataFrame,
     sensitivity: pd.DataFrame,
+    overlap: pd.DataFrame,
+    feature_ablation: pd.DataFrame,
     components: ComponentResults,
     mixing: MixingResults,
 ) -> None:
@@ -1928,6 +2279,10 @@ def write_artifacts(
     sensitivity.to_csv(tables_directory / "anomaly_sensitivity_full.csv", index=False)
     sensitivity_summary = summarise_anomaly_sensitivity(sensitivity)
     sensitivity_summary.to_csv(tables_directory / "anomaly_sensitivity.csv", index=False)
+    overlap.to_csv(tables_directory / "anomaly_overlap.csv", index=False)
+    feature_ablation.to_csv(
+        tables_directory / "anomaly_feature_ablation.csv", index=False
+    )
     components.summary.to_csv(tables_directory / "outlier_components.csv", index=False)
     components.nodes.to_csv(tables_directory / "outlier_component_nodes.csv", index=False)
     components.dyads.to_csv(tables_directory / "outlier_component_dyads.csv", index=False)
@@ -1964,6 +2319,10 @@ def write_artifacts(
     write_anomaly_sensitivity_table(
         sensitivity_summary, tables_directory / "anomaly_sensitivity.tex"
     )
+    write_anomaly_overlap_table(overlap, tables_directory / "anomaly_overlap.tex")
+    write_anomaly_feature_ablation_table(
+        feature_ablation, tables_directory / "anomaly_feature_ablation.tex"
+    )
     write_tier_mixing_table(mixing, tables_directory / "tier_mixing.tex")
     write_component_table(components, tables_directory / "outlier_components.tex")
 
@@ -1979,6 +2338,8 @@ def write_artifacts(
         secondary=secondary,
         sensitivity_inference=exact,
         enrichment=enrichment,
+        overlap=overlap,
+        feature_ablation=feature_ablation,
         mixing=mixing,
         components=components,
     )
@@ -1988,9 +2349,28 @@ def write_artifacts(
         "database": str(database.resolve()),
         "seed": seed,
         "matched_pairs": len(data.pairs),
+        "matching_h5_caliper": MATCHING_H5_CALIPER,
+        "maximum_absolute_h5_difference": float(
+            balance.loc[balance["subject"].eq("Overall"), "max_absolute_h5_difference"].iloc[0]
+        ),
+        "h5_caliper_violations": int(
+            (
+                pd.to_numeric(data.pairs["case_h5"], errors="coerce")
+                - pd.to_numeric(data.pairs["control_h5"], errors="coerce")
+            )
+            .abs()
+            .gt(MATCHING_H5_CALIPER)
+            .sum()
+        ),
         "author_subject_tier_rows": len(screened),
         "canonical_flag_count": len(canonical_keys),
         "canonical_flag_set_sha256": flag_set_hash(canonical_keys),
+        "detector_cohesion_spearman_n": int(overlap["spearman_n"].iloc[0]),
+        "detector_cohesion_spearman_rho": float(overlap["spearman_rho"].iloc[0]),
+        "feature_ablation_runs": len(feature_ablation),
+        "feature_ablation_reference": (
+            "canonical final_flag at requested seed and 0.99 quantile"
+        ),
         "component_minimum_nodes": 5,
         "component_figure_generated": component_figure,
         "component_and_figure_flag_source": "author_features_final.csv:final_flag",
@@ -2069,6 +2449,12 @@ def run_analysis(
         seeds=tuple(range(seed, seed + 10)),
         reference_keys=canonical_keys,
     )
+    overlap = detector_confirmation_overlap(screened)
+    feature_ablation = run_anomaly_feature_ablation(
+        data.features,
+        seed=seed,
+        reference_keys=canonical_keys,
+    )
     components = build_outlier_components(data.edges, canonical_keys, min_nodes=5)
     mixing = weighted_tier_mixing(
         data.edges, data.membership, data.pairs, n_swaps=tier_swaps, seed=seed
@@ -2085,6 +2471,8 @@ def run_analysis(
         screened=screened,
         enrichment=enrichment,
         sensitivity=sensitivity,
+        overlap=overlap,
+        feature_ablation=feature_ablation,
         components=components,
         mixing=mixing,
     )

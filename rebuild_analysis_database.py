@@ -19,6 +19,7 @@ from typing import Sequence
 
 
 EXPECTED_PAIRS = 9_431
+H5_CALIPER = 3
 SQL_ORDER = (
     "works_enhanced.sql",
     "works_doi_map.sql",
@@ -46,16 +47,49 @@ def sqlite_uri(path: Path, *, immutable: bool = False) -> str:
 def validate_retained_cohort(connection: sqlite3.Connection) -> None:
     row = connection.execute(
         """
+        WITH joined AS (
+          SELECT p.case_orcid, p.control_orcid, p.subject,
+                 case_h5.h5_index AS case_h5,
+                 control_h5.h5_index AS control_h5
+          FROM rolap.author_matched_pairs p
+          LEFT JOIN rolap.author_subject_h5_index case_h5
+            ON case_h5.orcid = p.case_orcid
+           AND case_h5.subject = p.subject
+          LEFT JOIN rolap.author_subject_h5_index control_h5
+            ON control_h5.orcid = p.control_orcid
+           AND control_h5.subject = p.subject
+        )
         SELECT
           COUNT(*) AS n,
           COUNT(DISTINCT case_orcid || char(31) || CAST(subject AS TEXT)) AS cases,
           COUNT(DISTINCT control_orcid || char(31) || CAST(subject AS TEXT)) AS controls,
-          SUM(CASE WHEN case_orcid IS NULL OR control_orcid IS NULL OR subject IS NULL
-                   THEN 1 ELSE 0 END) AS null_keys
-        FROM rolap.author_matched_pairs
-        """
+          COALESCE(SUM(
+            CASE WHEN case_orcid IS NULL OR TRIM(case_orcid) = ''
+                       OR control_orcid IS NULL OR TRIM(control_orcid) = ''
+                       OR subject IS NULL
+                 THEN 1 ELSE 0 END
+          ), 0) AS invalid_keys,
+          COALESCE(SUM(
+            CASE WHEN case_h5 IS NULL OR control_h5 IS NULL THEN 1 ELSE 0 END
+          ), 0) AS missing_h5,
+          COALESCE(SUM(
+            CASE WHEN case_h5 IS NOT NULL AND control_h5 IS NOT NULL
+                       AND ABS(case_h5 - control_h5) > ?
+                 THEN 1 ELSE 0 END
+          ), 0) AS caliper_violations,
+          (
+            SELECT COUNT(*)
+            FROM (
+              SELECT case_orcid AS orcid, subject FROM joined
+              INTERSECT
+              SELECT control_orcid AS orcid, subject FROM joined
+            )
+          ) AS cross_role_reuse
+        FROM joined
+        """,
+        (H5_CALIPER,),
     ).fetchone()
-    expected = (EXPECTED_PAIRS, EXPECTED_PAIRS, EXPECTED_PAIRS, 0)
+    expected = (EXPECTED_PAIRS, EXPECTED_PAIRS, EXPECTED_PAIRS, 0, 0, 0, 0)
     if row != expected:
         raise RuntimeError(
             "retained cohort failed validation: "

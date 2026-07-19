@@ -61,12 +61,16 @@
 % contain no numerical result and are replaced by generated macros when the
 % canonical analysis has completed.
 \providecommand{\MatchedPairCount}{\num{9431}}
+\providecommand{\MaximumAbsoluteHFiveDifference}{pending}
+\providecommand{\HFiveCaliperViolationCount}{pending}
 \providecommand{\PrimaryFindingText}{Primary estimates are pending the canonical full-data rebuild.}
 \providecommand{\PrimaryDetailedFindingText}{Primary estimates are pending the canonical full-data rebuild.}
 \providecommand{\SecondaryDetailedFindingText}{Secondary estimates are pending the canonical full-data rebuild.}
 \providecommand{\SensitivityFindingText}{Sensitivity estimates are pending the canonical full-data rebuild.}
 \providecommand{\AnomalyFindingText}{Anomaly-enrichment estimates are pending the canonical full-data rebuild.}
 \providecommand{\AnomalyDetailedFindingText}{Anomaly-enrichment estimates are pending the canonical full-data rebuild.}
+\providecommand{\AnomalyOverlapFindingText}{Detector--restriction overlap estimates are pending the canonical full-data rebuild.}
+\providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
 \providecommand{\MixingFindingText}{Tier-mixing estimates are pending the canonical full-data rebuild.}
 \providecommand{\ComponentFindingText}{Component summaries are pending the canonical full-data rebuild.}
 
@@ -152,11 +156,17 @@ The retained primary cohort contains \MatchedPairCount\ matched Case--Control pa
 \section{Matching}
 \label{sec:matching}
 
-For each subject, Case authors were matched without replacement to Control authors on subject-specific $h_5$, using the existing candidate-caliper and nearest-match procedure.  The matching table supplies the Case ORCID, Control ORCID, subject, and both $h_5$ values.  Feature rows are linked back to this table twice, on $(\mathrm{case\_orcid},s)$ and $(\mathrm{control\_orcid},s)$; ORCID-only joins are not used.
+For each subject, a Case--Control candidate is eligible only when $|h_{5,\mathrm{Case}}-h_{5,\mathrm{Control}}|\leq3$.  Eligible candidates are traversed in the deterministic total order subject, ascending absolute $h_5$ distance, Case ORCID, and Control ORCID.  The first candidate whose two author--subject keys are both unused is retained, giving greedy matching without replacement within subject.  Before an existing cohort can be reused, both $h_5$ records must be present, every pair must satisfy the inclusive hard caliper, and no author--subject key may be reused.
+
+An immutable, read-only audit reconstructs the greedy match directly from the author profiles and $h_5$ values, then compares row order, membership, and pair-set hashes with the retained table.  This recomputation reproduced the retained cohort exactly, so correcting the candidate rule did not change pair membership.  Its complete output is written to \texttt{\GeneratedRoot/matching\_audit.txt}.
+
+The matching table supplies the Case ORCID, Control ORCID, subject, and both $h_5$ values.  Feature rows are linked back to this table twice, on $(\mathrm{case\_orcid},s)$ and $(\mathrm{control\_orcid},s)$; ORCID-only joins are not used.
 
 We report the distribution of $h_5$ and the within-pair difference before outcome testing.  Because residual differences can remain under caliper matching, the four primary comparisons are repeated on the subset with exact $h_5$ equality.
 
 \inputgeneratedtable{matching_balance}{tab:matching-balance}{Matching balance and cohort counts by subject.  Counts and balance statistics are generated from the canonical analysis.}
+
+The generated cohort audit found a maximum observed absolute $h_5$ difference of \MaximumAbsoluteHFiveDifference\ and \HFiveCaliperViolationCount\ pairs beyond the three-point caliper.
 
 \section{Network Construction and Definitions}
 \label{sec:network-construction}
@@ -295,11 +305,11 @@ As a randomization check, each observed within-pair difference is independently 
 
 The anomaly analysis answers a different question from paired inference: whether profiles that are unusual relative to the Control distribution occur more often among Cases.  It is not trained to predict tier and is not evidence of intent.
 
-An author--subject is eligible only when it has at least one identified non-self outgoing citation.  The detector uses five features: self-citation rate, prior-coauthor citation rate, reciprocity, local clustering, and outgoing HHI.  Scoring additionally requires all five inputs to be available; citation eligibility and detector completeness are reported separately.  Unavailable feature values are not recoded as structural zeros.  Within each subject, features are centered at the median and scaled by the interquartile range among eligible detector-complete Controls, and the same Control transformation is applied to Cases.
+An author--subject is eligible only when it has at least one identified non-self outgoing citation.  The detector uses five features chosen to cover distinct structural aspects: self-citation rate for self-reference, prior-coauthor citation rate for prior-collaborator citation, reciprocity for mutual exchange, local clustering for neighborhood closure, and outgoing HHI for recipient concentration.  These inputs are unweighted.  The revised procedure uses neither a four-sigma cutoff nor the former Cohesion Composite Score.  Scoring additionally requires all five inputs to be available; citation eligibility and detector completeness are reported separately.  Unavailable feature values are not recoded as structural zeros.  Within each subject, features are centered at the median and scaled by the interquartile range among eligible detector-complete Controls, and the same Control transformation is applied to Cases.
 
-One Isolation Forest is fitted per subject on eligible detector-complete Controls only, with \texttt{n\_estimators=200}, \texttt{max\_samples=auto}, \texttt{contamination=auto}, and seed~42 \parencite{Liu2008}.  A row passes the score criterion when its anomaly score is above the 99th percentile of scores among those Controls in that subject.  It passes the cohesion confirmation when at least two of prior-coauthor citation rate, reciprocity, clustering, and outgoing HHI exceed their respective 99th percentiles in the same Control reference set.  The final flag is the intersection of these criteria and is the only flag used in enrichment, component, and figure generation.
+One Isolation Forest is fitted per subject on eligible detector-complete Controls only, with \texttt{n\_estimators=200}, \texttt{max\_samples=auto}, \texttt{contamination=auto}, and seed~42 \parencite{Liu2008}.  A row passes the score criterion when its anomaly score is above the 99th percentile of scores among those Controls in that subject.  It passes the cohesion restriction when at least two of prior-coauthor citation rate, reciprocity, clustering, and outgoing HHI exceed their respective 99th percentiles in the same Control reference set.  Because all four of these measures also enter the detector, this is a deliberately overlapping, interpretable restriction rather than independent corroboration.  The final flag is the intersection of the two criteria and is the only flag used in enrichment, component, and figure generation.
 
-Sensitivity analyses cross the 97.5th, 99th, and 99.5th Control-percentile cutoffs with ten fixed random seeds.  We report the proportion flagged in each tier, the Case share among flagged profiles, and Case-versus-Control enrichment.  These quantities describe an operational screen; they are not measures of classification accuracy because tier is not a ground-truth anomaly label.
+Sensitivity analyses cross the 97.5th, 99th, and 99.5th Control-percentile cutoffs with ten fixed random seeds.  We also report the detector-by-restriction $2\times2$ table and Spearman rank association between detector score and cohesion exceedance count among detector-complete rows.  A leave-one-feature-out analysis repeats the detector at the canonical threshold and seed while holding the canonical complete-row population and the four-measure restriction fixed.  We report the proportion flagged in each tier, the Case share among flagged profiles, Case-versus-Control enrichment, and flag-set Jaccard similarity.  These quantities describe an operational screen; they are not measures of classification accuracy because tier is not a ground-truth anomaly label.
 
 Flagged nodes are placed in subject-specific matched-author induced graphs using cumulative fractional dyad weights.  Weakly connected components are summarized with node count, edge weight, weighted net flow, and highest-betweenness node.  Node roles are described neutrally as \emph{net giver}, \emph{net receiver}, or \emph{highest-betweenness node}.  A component figure is generated only when at least one component contains five or more nodes; no illustrative or synthetic network is substituted.
 
@@ -347,7 +357,13 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
 
 \inputgeneratedtable{anomaly_enrichment}{tab:anomaly-enrichment}{Control-referenced anomaly flags and Case enrichment under the prespecified 99th-percentile rule.}
 
+\AnomalyOverlapFindingText
+
+\inputgeneratedtable{anomaly_overlap}{tab:anomaly-overlap}{Overlap between detector-threshold exceedance and the cohesion restriction.}
+
 \inputgeneratedtable{anomaly_sensitivity}{tab:anomaly-sensitivity}{Anomaly-screen sensitivity across percentile thresholds and fixed seeds.}
+
+\AnomalyFeatureAblationFindingText\ Full leave-one-feature-out results appear in Table~\ref{tab:anomaly-feature-ablation}.
 
 \IfFileExists{\GeneratedRoot/figures/anomaly_enrichment.pdf}{%
   \begin{figure}[H]
@@ -405,7 +421,7 @@ The unit of analysis also differs from earlier venue-level research.  Kojaku et 
 
 Several non-adversarial mechanisms could produce differences in cohesion or any observed enrichment.  Narrow specialties may have small reference communities.  Geographic and language proximity may shape both collaboration and citation, especially where research questions are locally grounded.  Stable teams naturally generate prior-coauthor references and closed neighborhoods.  Differences in journal indexing, reference deposit practices, and ORCID adoption can also change the observable graph even when underlying behavior is similar.  These explanations are alternatives to, and may coexist with, any strategic response to evaluation incentives.
 
-The Control-referenced procedure should consequently be understood as triage.  It identifies profiles that are unusual under a declared reference distribution and adds a transparent cohesion requirement.  It does not estimate the probability of manipulation, determine whether a citation was intellectually warranted, or establish intent.  Component structure and net-flow labels are summaries of observed edges only.  Any research-integrity use would require independent validation from full texts, editorial records, author disambiguation, and domain experts.
+The Control-referenced procedure should consequently be understood as triage.  It identifies profiles that are unusual under a declared reference distribution and adds a transparent cohesion restriction.  The two criteria deliberately share inputs, so their intersection is a guardrail rather than two independent lines of evidence.  It does not estimate the probability of manipulation, determine whether a citation was intellectually warranted, or establish intent.  Component structure and net-flow labels are summaries of observed edges only.  Any research-integrity use would require independent validation from full texts, editorial records, author disambiguation, and domain experts.
 
 Tier mixing is likewise descriptive.  A deviation from within-pair label swaps indicates that observed tier labels align with citation flows more than expected under that restricted null.  It does not demonstrate that tiers form separate intellectual systems, nor that venue tier caused the observed links.
 
@@ -418,7 +434,7 @@ The five broad subject categories cannot capture fine topical proximity.  The jo
 
 Graph metrics depend on population boundaries.  Ego-layer measures include identified recipients outside the matched cohort, whereas reciprocity, clustering, balance, components, and mixing are restricted to matched nodes.  Results from the latter should not be interpreted as full-network properties.  The five-year window also left-censors collaborations and citations; the prior-coauthor rule can misclassify collaborations first observed before 2020 but missing from the snapshot.
 
-The anomaly thresholds and Isolation Forest define an operational screen, not a validated diagnostic.  Percentile and seed sensitivity quantify some model dependence but do not supply ground-truth labels.  Finally, structural metadata cannot reveal the textual function, scientific relevance, or motivation of a citation \parencite{Liu2024}.
+The anomaly thresholds and Isolation Forest define an operational screen, not a validated diagnostic.  Percentile, seed, and leave-one-feature-out sensitivity quantify some model dependence but do not supply ground-truth labels or make the overlapping restriction independent.  Finally, structural metadata cannot reveal the textual function, scientific relevance, or motivation of a citation \parencite{Liu2024}.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -449,16 +465,18 @@ The original data release is archived on Zenodo \parencite{dataset_zenodo}.  The
 \section{Matching and Sensitivity Specifications}
 \label{app:matching}
 
-Cases and Controls require at least three eligible works and a 70\% portfolio share in the relevant journal stratum.  The existing greedy match is performed without replacement within subject.  Candidate productivity is bucketed as $b=\lfloor h_5/3\rfloor$; candidates with $|b_{\mathrm{Case}}-b_{\mathrm{Control}}|\leq1$ are eligible, and the available Control minimizing absolute $h_5$ distance is selected.  Exact-$h_5$ pairs form a sensitivity subset rather than a replacement cohort.
+Cases and Controls require at least three eligible works and a 70\% portfolio share in the relevant journal stratum.  Candidate eligibility uses the inclusive hard caliper $|h_{5,\mathrm{Case}}-h_{5,\mathrm{Control}}|\leq3$.  Greedy selection proceeds without replacement within subject in the total order subject, ascending absolute $h_5$ distance, Case ORCID, and Control ORCID.  The retained cohort must pass the same subject-keyed $h_5$ join and caliper checks before reuse.  Exact-$h_5$ pairs form a sensitivity subset rather than a replacement cohort.
 
 The paired bootstrap resamples pair identifiers with replacement.  The sign-flip test acts on complete-pair differences for one metric at a time.  Multiple-testing adjustment is not pooled across primary and secondary families.  The same-year coauthor sensitivity changes only $c_{ij}<t$ to $c_{ij}\leq t$; all other definitions and pair membership remain fixed.
 
 \section{Anomaly-Screen Specification}
 \label{app:screen}
 
-Controls define subject-specific robust centers, scales, detector fits, score cutoffs, and univariate cohesion cutoffs.  Cases do not affect those reference quantities.  The canonical feature output retains the detector score, cohesion-confirmation indicator, citation eligibility, and final flag for each $(\mathrm{ORCID},s,\mathrm{tier})$ row.  The downstream component and mixing routines consume that final flag rather than recomputing or substituting a label.
+Controls define subject-specific robust centers, scales, detector fits, score cutoffs, and univariate cohesion cutoffs.  Cases do not affect those reference quantities.  The canonical feature output retains the detector score, cohesion-restriction indicator, citation eligibility, and final flag for each $(\mathrm{ORCID},s,\mathrm{tier})$ row.  The downstream component and mixing routines consume that final flag rather than recomputing or substituting a label.
 
-The primary screen uses seed~42 and the 99th Control percentiles.  The threshold analysis repeats the complete fit at the 97.5th, 99th, and 99.5th percentiles for ten fixed seeds.  A row with an unavailable required detector input is not zero-imputed; it receives no detector score, cannot be flagged, and is identified by a separate detector-completeness field.
+The primary screen uses seed~42 and the 99th Control percentiles.  The threshold analysis repeats the complete fit at the 97.5th, 99th, and 99.5th percentiles for ten fixed seeds.  A row with an unavailable required detector input is not zero-imputed; it receives no detector score, cannot be flagged, and is identified by a separate detector-completeness field.  The overlap table is restricted to rows on which both criteria are defined.
+
+\inputgeneratedtable{anomaly_feature_ablation}{tab:anomaly-feature-ablation}{Leave-one-feature-out anomaly-screen sensitivity at the canonical threshold and seed.}
 
 \section{Reproducibility Checks}
 \label{app:checks}
@@ -466,6 +484,7 @@ The primary screen uses seed~42 and the 99th Control percentiles.  The threshold
 The rebuild checks the following manuscript-facing invariants:
 \begin{itemize}
   \item $(\mathrm{ORCID},s,\mathrm{tier})$ is unique in the feature output;
+  \item retained pairs have complete subject-keyed $h_5$ records, satisfy the inclusive three-point caliper, and do not reuse an author--subject key;
   \item every analytic edge has non-null endpoints and is unique on $(s,i,j,t)$;
   \item each per-metric complete-pair count is no greater than \MatchedPairCount;
   \item every observed surge share lies in $[0,1]$;
@@ -474,7 +493,7 @@ The rebuild checks the following manuscript-facing invariants:
   \item reported numerical values enter through generated LaTeX artifacts rather than hand-copied prose.
 \end{itemize}
 
-SQL fixtures separately test fractional weight, null endpoints, work-reference deduplication, subject retention, and prior-coauthor timing.  Python unit tests cover the metric formulas, paired inference, subject-keyed joins, weighted mixing, and flag reuse.
+SQL fixtures separately test fractional weight, null endpoints, work-reference deduplication, subject retention, and prior-coauthor timing.  Python unit tests cover matching eligibility and deterministic order, retained-cohort validation, metric formulas, paired inference, subject-keyed joins, detector overlap, feature ablation, weighted mixing, and flag reuse.
 
 \section{Journal Subject Classification}
 \label{app:classification}
