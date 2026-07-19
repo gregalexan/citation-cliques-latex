@@ -1,0 +1,14 @@
+{
+  "analysis_version": "revision-v1",
+  "author_subject_tier_rows": 18862,
+  "canonical_flag_count": 53,
+  "canonical_flag_set_sha256": "b250d15626d4036997c89fe532eedb08606fb3e3da16fe0e88fd3f48f700b7d4",
+  "component_and_figure_flag_source": "author_features_final.csv:final_flag",
+  "component_figure_generated": false,
+  "component_minimum_nodes": 5,
+  "database": "/tmp/citation_revision_build/rolap.db",
+  "matched_pairs": 9431,
+  "seed": 42,
+  "synthetic_or_alternate_flags_used": false,
+  "tier_label_swaps": 10000
+}

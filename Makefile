@@ -1,43 +1,80 @@
-#
-# Calculate impact factor of authors but only take account works published by popular journals with impact factor >=25
-# from the last 2 years.
-# (e.g., Nature, Science, PNAS, etc.)
-# based on each work subject of the author.
-#
+# Canonical offline workflow for the matched citation-cohesion study.
 
-export MAINDB?=$(shell pwd)/impact
-export DEPENDENCIES=populate journal-names
+export MAINDB ?= $(CURDIR)/impact
+# SQL files use `rolap` as their attached SQLite schema.  Keep this identifier
+# separate from the analysis CLI, which accepts an arbitrary database path.
+override export ROLAPDB := rolap
+export DEPENDENCIES :=
+
+RESULTS_DIR ?= results/revision-v1
+COHORT_DB ?= rolap.db
+ANALYSIS_DB ?= build/revision-v1/rolap.db
+SEED ?= 42
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
+LATEX ?= pdflatex
+BIBER ?= biber
+LATEX_FLAGS ?= -interaction=nonstopmode -halt-on-error
+SQL_TESTS := $(wildcard tests/*.rdbu)
+export UNIT ?= $(SQL_TESTS)
 
 include ../common/Makefile
 
-# Populate database with required details for past five years
-populate: $(CROSSREF_DIR)
-	# Populate database with DOIs of works and their references
-	$(TIME) $(A3K) --debug progress populate "$(MAINDB).db" crossref "$(CROSSREF_DIR)" \
-	  --columns works.id works.doi works.published_year works.page \
-	    work_references.doi work_references.work_id work_references.year \
-		works.issn_print works.issn_electronic \
-	    work_authors.work_id work_authors.orcid \
-	  --row-selection 'works.published_year BETWEEN 2020 AND 2024'
-	touch $@
+.PHONY: check-inputs pipeline analysis sql-test python-test verify manuscript \
+	reviewer-response reproduce
 
+check-inputs:
+	@test -r "$(MAINDB).db" || { echo "Missing raw snapshot: $(MAINDB).db" >&2; exit 2; }
+	@test -r "$(COHORT_DB)" || { echo "Missing retained cohort database: $(COHORT_DB)" >&2; exit 2; }
 
-tables/author_matched_pairs: tables/author_matched_candidates match_authors.py
-	@echo "--- PYTHON MATCHING ---"
-	# The script creates 'author_matched_pairs' in the DB
-	uv run match_authors.py "$(ROLAPDB).db"
-	
-	# We create the timestamp file so Make knows this step succeeded
+# Matching is deterministic and materialized by Python after SQL candidate
+# generation.  The analysis key in this table is (ORCID, subject).
+tables/author_matched_pairs: tables/author_matched_candidates match_authors.py | check-inputs
+	@echo "[Create deterministic author matches]"
+	$(PYTHON) match_authors.py "$(ROLAPDB).db"
 	mkdir -p tables
 	touch $@
 
-# -----------------------------------------------------------------------------
-# 3. Final Target
-# -----------------------------------------------------------------------------
-pipeline: tables/citation_anomalies
-	@echo "--- PIPELINE COMPLETE ---"
+# Rebuild the citation-facing analysis tables in a genuinely fresh database.
+# The journal classification and 9,431-pair cohort are copied as fixed inputs;
+# the citation construction and every downstream table are reconstructed.
+pipeline: check-inputs rebuild_analysis_database.py
+	@echo "[Build fresh subject-keyed analysis database]"
+	$(PYTHON) rebuild_analysis_database.py \
+		--raw-database "$(MAINDB).db" \
+		--cohort-database "$(COHORT_DB)" \
+		--output-database "$(ANALYSIS_DB)" \
+		--force
 
-# 4. Analysis Script
 analysis: pipeline
-	@echo "--- RUNNING ANALYSIS SCRIPT ---"
-	uv run analyze_results.py
+	@echo "[Generate versioned analysis artifacts]"
+	$(PYTHON) citation_analysis.py \
+		--database "$(ANALYSIS_DB)" \
+		--output-dir "$(RESULTS_DIR)" \
+		--seed "$(SEED)"
+
+sql-test:
+	@echo "[Run SQL fixtures]"
+	$(MAKE) --no-print-directory UNIT="$(SQL_TESTS)" test
+
+python-test:
+	@echo "[Run Python tests]"
+	$(PYTHON) -m unittest discover -s tests -p 'test_*.py' -v
+
+verify: sql-test python-test
+
+manuscript: analysis
+	@echo "[Compile manuscript from generated macros]"
+	$(LATEX) $(LATEX_FLAGS) main.tex
+	$(BIBER) main
+	$(LATEX) $(LATEX_FLAGS) main.tex
+	$(LATEX) $(LATEX_FLAGS) main.tex
+	@! grep -Eq "undefined references|Citation .* undefined|Reference .* undefined" main.log
+
+reviewer-response: manuscript
+	$(LATEX) $(LATEX_FLAGS) response_to_reviewer.tex
+	$(LATEX) $(LATEX_FLAGS) response_to_reviewer.tex
+
+# One supported, offline entry point.  No identity lookup or network request is
+# performed by any prerequisite of this target.
+reproduce: verify pipeline analysis manuscript reviewer-response
+	@echo "[Reproduction complete: $(RESULTS_DIR)]"

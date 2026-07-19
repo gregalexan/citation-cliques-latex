@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\centering
+\caption{Exact-$h_5$ and coauthor-timing sensitivity analyses.}
+\label{tab:exact-h5}
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Metric & $n$ & Case med. & Control med. & $\Delta$ med. & Paired boot. 95\% CI & $r_{rb}$ & $p_{BH}$ & $p_{flip}$ \\
+\midrule
+Coauthor-citation rate & 4,221 & 0.030 & 0.026 & 0.000 & [0.000, 0.000] & 0.273 & $<0.001$ & $<0.001$ \\
+Reciprocity & 297 & 0.000 & 0.000 & 0.000 & [0.000, 0.000] & 0.511 & $<0.001$ & $<0.001$ \\
+Local clustering & 5,736 & 0.000 & 0.000 & 0.000 & [0.000, 0.000] & 0.556 & $<0.001$ & $<0.001$ \\
+Outgoing HHI & 4,221 & 0.071 & 0.030 & 0.034 & [0.031, 0.037] & 0.569 & $<0.001$ & $<0.001$ \\
+Coauthor-citation rate (same-year included) & 6,848 & 0.066 & 0.081 & 0.000 & [-0.003, 0.000] & 0.102 & $<0.001$ & $<0.001$ \\
+\bottomrule
+\end{tabular}
+}
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Complete-pair deletion is metric-specific. The first four rows use the exact-$h_5$ cohort and BH correction across those primary outcomes; the same-year coauthor row uses the full cohort as a separate one-outcome sensitivity family.
+\end{minipage}
+\end{table*}

@@ -1,0 +1,31 @@
+BEGIN SETUP
+works:
+id	doi	published_year	issn_print	issn_electronic
+1	d1	2020	i1	null
+2	d2	2021	null	i2
+3	d3	2022	''	i3
+4	d4	2019	i4	null
+
+issn_subjects:
+issn	subject
+i1	Bio
+i2	Chem
+i3	Math
+
+eigenfactor_scores:
+issn	subject	eigenfactor_score
+i1	Bio	0.2
+i2	Chem	0.5
+i3	Math	0.7
+END
+
+INCLUDE CREATE works_enhanced.sql
+INCLUDE CREATE works_enhanced.sql
+
+BEGIN RESULT
+rolap.works_enhanced:
+work_id	doi	published_year	issn	subject	eigenfactor_score
+1	d1	2020	i1	Bio	0.2
+2	d2	2021	i2	Chem	0.5
+3	d3	2022	i3	Math	0.7
+END

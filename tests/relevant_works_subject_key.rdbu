@@ -1,0 +1,31 @@
+# SQLite imports matched-pair subjects as text, while Crossref subject columns
+# are integer-affined.  The subject-keyed join must still retain the work.
+BEGIN SETUP
+rolap.matched_authors:
+orcid	subject	tier_type
+dummy	S	Control
+a	1	Case
+
+work_authors:
+work_id	orcid
+1	a
+
+rolap.works_enhanced:
+work_id	subject	published_year
+1	1	2022
+END
+
+INCLUDE CREATE relevant_works.sql
+INCLUDE CREATE relevant_works.sql
+
+BEGIN CREATE
+CREATE TABLE relevant_subject_result AS
+SELECT work_id, orcid, CAST(subject AS INTEGER) AS subject
+FROM rolap.relevant_works;
+END
+
+BEGIN RESULT
+relevant_subject_result:
+work_id	orcid	subject
+1	a	1
+END

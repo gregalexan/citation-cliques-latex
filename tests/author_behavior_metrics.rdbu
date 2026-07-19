@@ -1,0 +1,39 @@
+BEGIN SETUP
+rolap.matched_authors:
+orcid	subject	tier_type
+o1	Biology	Case
+o2	Biology	Control
+o3	Biology	Control
+
+rolap.citation_network_final:
+subject	citing_orcid	cited_orcid	citation_year	raw_count	citation_weight	is_self_citation	is_coauthor_citation	is_coauthor_citation_same_year
+Biology	o1	o1	2020	1	2.0	1	0	0
+Biology	o1	p1	2020	1	1.0	0	1	1
+Biology	o1	p2	2020	1	1.0	0	0	1
+Biology	o3	o3	2020	1	5.0	1	0	0
+END
+
+INCLUDE CREATE author_behavior_metrics.sql
+INCLUDE CREATE author_behavior_metrics.sql
+
+BEGIN CREATE
+CREATE TABLE behavior_result AS
+SELECT
+    orcid,
+    subject,
+    total_outgoing_citations,
+    nonself_outgoing_citations,
+    self_citation_rate,
+    coauthor_citation_rate,
+    coauthor_citation_rate_same_year
+FROM rolap.author_behavior_metrics
+ORDER BY orcid;
+END
+
+BEGIN RESULT
+behavior_result:
+orcid	subject	total_outgoing_citations	nonself_outgoing_citations	self_citation_rate	coauthor_citation_rate	coauthor_citation_rate_same_year
+o1	Biology	4.0	2.0	0.5	0.5	1.0
+o2	Biology	0.0	0.0	null	null	null
+o3	Biology	5.0	0.0	1.0	null	null
+END

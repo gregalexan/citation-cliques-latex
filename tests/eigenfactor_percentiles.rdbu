@@ -1,0 +1,113 @@
+BEGIN SETUP
+# Create 100 works in rolap.works_enhanced for subject S so n_works >= 50
+rolap.works_enhanced:
+work_id	doi	published_year	issn	subject	eigenfactor_score
+1	d1	2019	issn1	S	1
+2	d2	2019	issn1	S	2
+3	d3	2019	issn1	S	3
+4	d4	2019	issn1	S	4
+5	d5	2019	issn1	S	5
+6	d6	2019	issn1	S	6
+7	d7	2019	issn1	S	7
+8	d8	2019	issn1	S	8
+9	d9	2019	issn1	S	9
+10	d10	2019	issn1	S	10
+11	d11	2019	issn1	S	11
+12	d12	2019	issn1	S	12
+13	d13	2019	issn1	S	13
+14	d14	2019	issn1	S	14
+15	d15	2019	issn1	S	15
+16	d16	2019	issn1	S	16
+17	d17	2019	issn1	S	17
+18	d18	2019	issn1	S	18
+19	d19	2019	issn1	S	19
+20	d20	2019	issn1	S	20
+21	d21	2019	issn1	S	21
+22	d22	2019	issn1	S	22
+23	d23	2019	issn1	S	23
+24	d24	2019	issn1	S	24
+25	d25	2019	issn1	S	25
+26	d26	2019	issn1	S	26
+27	d27	2019	issn1	S	27
+28	d28	2019	issn1	S	28
+29	d29	2019	issn1	S	29
+30	d30	2019	issn1	S	30
+31	d31	2019	issn1	S	31
+32	d32	2019	issn1	S	32
+33	d33	2019	issn1	S	33
+34	d34	2019	issn1	S	34
+35	d35	2019	issn1	S	35
+36	d36	2019	issn1	S	36
+37	d37	2019	issn1	S	37
+38	d38	2019	issn1	S	38
+39	d39	2019	issn1	S	39
+40	d40	2019	issn1	S	40
+41	d41	2019	issn1	S	41
+42	d42	2019	issn1	S	42
+43	d43	2019	issn1	S	43
+44	d44	2019	issn1	S	44
+45	d45	2019	issn1	S	45
+46	d46	2019	issn1	S	46
+47	d47	2019	issn1	S	47
+48	d48	2019	issn1	S	48
+49	d49	2019	issn1	S	49
+50	d50	2019	issn1	S	50
+51	d51	2019	issn1	S	51
+52	d52	2019	issn1	S	52
+53	d53	2019	issn1	S	53
+54	d54	2019	issn1	S	54
+55	d55	2019	issn1	S	55
+56	d56	2019	issn1	S	56
+57	d57	2019	issn1	S	57
+58	d58	2019	issn1	S	58
+59	d59	2019	issn1	S	59
+60	d60	2019	issn1	S	60
+61	d61	2019	issn1	S	61
+62	d62	2019	issn1	S	62
+63	d63	2019	issn1	S	63
+64	d64	2019	issn1	S	64
+65	d65	2019	issn1	S	65
+66	d66	2019	issn1	S	66
+67	d67	2019	issn1	S	67
+68	d68	2019	issn1	S	68
+69	d69	2019	issn1	S	69
+70	d70	2019	issn1	S	70
+71	d71	2019	issn1	S	71
+72	d72	2019	issn1	S	72
+73	d73	2019	issn1	S	73
+74	d74	2019	issn1	S	74
+75	d75	2019	issn1	S	75
+76	d76	2019	issn1	S	76
+77	d77	2019	issn1	S	77
+78	d78	2019	issn1	S	78
+79	d79	2019	issn1	S	79
+80	d80	2019	issn1	S	80
+81	d81	2019	issn1	S	81
+82	d82	2019	issn1	S	82
+83	d83	2019	issn1	S	83
+84	d84	2019	issn1	S	84
+85	d85	2019	issn1	S	85
+86	d86	2019	issn1	S	86
+87	d87	2019	issn1	S	87
+88	d88	2019	issn1	S	88
+89	d89	2019	issn1	S	89
+90	d90	2019	issn1	S	90
+91	d91	2019	issn1	S	91
+92	d92	2019	issn1	S	92
+93	d93	2019	issn1	S	93
+94	d94	2019	issn1	S	94
+95	d95	2019	issn1	S	95
+96	d96	2019	issn1	S	96
+97	d97	2019	issn1	S	97
+98	d98	2019	issn1	S	98
+99	d99	2019	issn1	S	99
+100	d100	2019	issn1	S	100
+END
+
+INCLUDE CREATE eigenfactor_percentiles.sql
+
+BEGIN RESULT
+eigenfactor_percentiles:
+subject	p25	p75
+S	25	75
+END
