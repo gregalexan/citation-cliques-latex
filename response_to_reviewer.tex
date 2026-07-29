@@ -3,7 +3,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.9in]{geometry}
 \usepackage{microtype}
 \usepackage{siunitx}
 \usepackage{xurl}
@@ -12,17 +12,22 @@
 \externaldocument[ms-]{main}[main.pdf]
 \newcommand{\GeneratedRoot}{results/revision-v1}
 \IfFileExists{\GeneratedRoot/results_macros.tex}{\input{\GeneratedRoot/results_macros.tex}}{}
-\providecommand{\AnomalyOverlapFindingText}{Detector--restriction overlap estimates are pending the canonical full-data rebuild.}
-\providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
+\providecommand{\MatchedPairCount}{pending}
 \providecommand{\MaximumAbsoluteHFiveDifference}{pending}
 \providecommand{\HFiveCaliperViolationCount}{pending}
+\providecommand{\SecondaryAnnualDyadicSurgeSharePairCount}{pending}
+\providecommand{\AnomalyOverlapFindingText}{Detector--restriction overlap estimates are pending the canonical full-data rebuild.}
+\providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
+\providecommand{\ComponentFindingText}{Component results are pending the canonical full-data rebuild.}
+\providecommand{\CaseControlEnrichment}{pending}
+\providecommand{\WithinTierMixingPercent}{pending}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.7em}
+\setlength{\parskip}{0.55em}
 \newcommand{\commenttext}[1]{\begin{quote}\itshape #1\end{quote}}
 \newcommand{\response}{\textbf{Response.} }
 \newcommand{\location}[2]{\textbf{Location.} #1; revised manuscript lines #2.}
 
-\title{Response to Reviewer\\
+\title{Response to Reviewer 1\\
 \large Citation-Network Cohesion Across Low- and High-Impact Journals:\\
 A Matched Author Analysis}
 \author{Panagiotis-Alexios Spanakis, Grigorios Alexandrou, and Diomidis Spinellis}
@@ -31,142 +36,102 @@ A Matched Author Analysis}
 \begin{document}
 \maketitle
 
-We thank the reviewer for identifying problems that required a major analytical and editorial revision.  We rebuilt the affected analysis before revising the prose.  In particular, we corrected citation construction, made subject part of every author and edge key, replaced the temporal surge definition, rebuilt matched inference and the anomaly screen, and removed exploratory analyses that were not reproducible under the corrected design.  The revised manuscript reports regenerated outputs even when they weaken or contradict an earlier claim.  The italicized comment lines below are concise paraphrases of the supplied criticism categories and should be replaced by verbatim reviewer text if the journal requires it.  Page and line references correspond to the final compiled revision.
+We thank Reviewer~1 for the detailed assessment and for identifying the need for a clearer and more rigorously justified contribution.  We rebuilt the affected analysis before revising the prose.  The reviewer comments are reproduced below in their original order, followed by point-by-point responses.  Page and line references correspond to the final compiled revision.
 
-\section*{Comment 1: Title, scope, and causal language}
+\section*{Comment 1: Overall assessment}
 
-\commenttext{The title and framing overstate what an observational citation-network analysis can establish and use language that implies intent or misconduct.}
+\commenttext{This paper investigates whether authors publishing in low-impact journals exhibit denser and more reciprocated citation patterns compared to their counterparts in high-impact venues. The topic is of undoubted interest, but in its current form, it prioritises technical virtuosity over substantive contribution. For a journal like QSS, which values methodological rigour alongside clarity, a major revision is essential. The authors must reframe their work for a broader audience, clarify their analytical pipeline, and strengthen the connection between their findings and the scholarly literature. However, given the number and severity of the issues identified below, I regret to recommend rejection in its current form.}
 
-\response We agree.  We retitled the paper to emphasize a matched association across journal-impact strata.  Throughout the manuscript, low- and high-impact are operational subject-specific Eigenfactor strata, and Case and Control are design labels rather than assessments of scientific merit.  We removed causal statements and accusatory group or role terminology.  The revised text explicitly states that network patterns do not establish coordination, manipulation, or misconduct.
+\response We agree that the earlier draft required a substantive rather than cosmetic revision.  The paper is now framed as an associational matched comparison, not an assessment of scientific merit or evidence of intent.  The analytical sequence is shown in a reader-facing design figure and presented as Data and Cohort, Matching, Network Construction and Definitions, Paired Inference, Anomaly Screen, Results, Discussion, Limitations, and Conclusion.  The feature set and claims were reduced, affected results were regenerated from one canonical workflow, and the Discussion now interprets the findings in relation to the author- and journal-level literature.  The revision reports weaker, null, or contrary results rather than retaining claims from the earlier analysis.
 
-\location{Title; pp.~\pageref{ms-sec:introduction} and~\pageref{ms-sec:discussion}}{20--49 and 259--304}
+\location{Title, Abstract, Figure~\ref{ms-fig:study-design}, Discussion, and Conclusion; pp.~1--16 and 22--25}{1--50, 74--280, and 320--417}
 
-\section*{Comment 2: Essential methods appear after results}
+\section*{Comment 2: Clarity and Presentation---terminology}
 
-\commenttext{The manuscript presents findings and conclusions before giving the definitions and analytical decisions needed to evaluate them.}
+\commenttext{The primary obstacle is the paper's prose. Specialised terminology is deployed without adequate explanation, and crucial concepts are often introduced before being defined. This disrupts the narrative flow and assumes a level of technical familiarity that may not align with the journal's readership. I suggest to the authors an effort to translate the methodological procedures into clear language.}
 
-\response We reorganized the paper as Data and Cohort, Matching, Network Construction and Definitions, Paired Inference, Anomaly Screen, Results, Discussion, Limitations, and Conclusion.  The Introduction and Related Work now state the gap and research questions without previewing numerical findings.  A self-contained metric table and the study populations appear before any result.
+\response We rewrote the Methods so that the unit of analysis, data identifiers, matching variable, graph populations, and notation are defined before the analyses that use them.  The revision expands DOI, ISSN, and HHI at first use; defines $h_5$ operationally; distinguishes the outgoing ego, matched-author, and work-reference populations; and gives both formal and plain-language definitions of the directed graph and its binary projection.  It also explains Isolation Forest as repeated random partitioning, defines the direction of its study score, explains weighted betweenness and assortativity, and states how positive effect sizes should be read.  Technical detail remains available for reproducibility, but every method now has an accompanying verbal interpretation.
 
-\location{pp.~\pageref{ms-sec:data-cohort}--\pageref{ms-sec:anomaly-screen}; Results begins on p.~\pageref{ms-sec:results}}{70--218; Results begins at line~219}
+\location{Data and Cohort through Anomaly Screen; pp.~4--16; Table~\ref{ms-tab:metric-definitions}}{74--279}
 
-\section*{Comment 3: Cohort keys and subject leakage}
+\section*{Comment 3: Clarity and Presentation---metric definitions and burst intensity}
 
-\commenttext{It is unclear whether authors, works, and citation edges remain in the matched subject, and ORCID alone is not an adequate analysis key for authors active in multiple subjects.}
+\commenttext{The presentation of metrics in Table 5 exemplifies this problem. Several measures lack clear, self-contained definitions, and the bibliographic references provided are not illuminating: they point to general theoretical frameworks without specifying how these translate into the precise operationalisations actually adopted in the study. The Normalised burst intensity, for instance, is defined as $\max_j w_{ij}/(\mathrm{in\_strength}+1)$ and described as the largest single-peer citation weight normalised by total incoming volume, yet the notation ($w_{ij}$, \texttt{in\_strength}) and the connection to Kleinberg's burst-detection methods remain under-explained. What is missing is an explicit link between the inspiring principle and its concrete implementation, which for a journal like QSS should be made transparent.}
 
-\response We now use $(\mathrm{ORCID},\mathrm{subject})$ as the analysis key throughout and require a unique author--subject--tier row.  Outcome rows are joined to the matching table through the Case or Control ORCID together with subject.  Only citing works belonging to the matched subject contribute to the corresponding author--subject measures, and subject is part of the analytic edge key.
+\response The former Table~5 has been replaced by Table~\ref{ms-tab:metric-definitions}.  It now states each formula, denominator, analytic population, and interpretation.  Its notes define every symbol used in the table, explain the HHI scale, distinguish structural zeros from unavailable denominators, and specify missing-value handling.  The surrounding Methods also gives the exact reference-deduplication and fractional-weight construction that supplies those formulas.
 
-\location{pp.~\pageref{ms-sec:data-cohort}, \pageref{ms-sec:matching}, and~\pageref{ms-sec:network-construction}}{70--112 and 115--127}
+The former normalised burst-intensity variable has been removed.  It is replaced by the study-defined maximum annual dyadic surge share, whose complete formula compares consecutive dyad--years and divides the largest positive increment by the author's total identified outgoing weight.  Missing dyad--years are zero only inside this calculation, authors without identified outgoing weight remain missing, and the result is bounded by $[0,1]$.  The manuscript explicitly states that this is a five-year scalar summary, not a trajectory model or an implementation of Kleinberg's state-transition burst method; the Kleinberg attribution has therefore been removed.
 
-\section*{Comment 4: Fractional citation construction is not reproducible}
+\location{Network Construction and Definitions and Limitations; pp.~7--11 and 25; Table~\ref{ms-tab:metric-definitions}}{145--190 and 398--401}
 
-\commenttext{The edge-weight description does not resolve duplicate references, missing ORCIDs, team-size denominators, or multiplication caused by matched coauthors.}
+\section*{Comment 4: Clarity and Presentation---organization, K-means, and literature}
 
-\response We corrected the construction and now specify its order.  Each citing-work/cited-work reference is deduplicated before author expansion.  Team sizes count every author row, including rows without ORCIDs, whereas an analytic edge is emitted only when both endpoints are identified.  Edges are aggregated uniquely by subject, citing ORCID, cited ORCID, and year.  SQL fixtures cover the $1/(2\times3)=1/6$ example, null endpoints, duplicate expansion, subject retention, and coauthor timing.
+\commenttext{Furthermore, the paper conflates methods, analysis, and results, often presenting findings before the underlying techniques have been introduced. The three central groups from the k-means clustering, for instance, appear without any description of the clustering procedure. Restructuring the narrative to follow a logical sequence would greatly improve comprehension. Importantly, the discussion fails to connect the empirical results back to the literature review, making the paper feel like an isolated technical exercise rather than a contribution to the ongoing scholarly conversation.}
 
-\location{p.~\pageref{ms-sec:network-construction}; reproducibility checks on p.~\pageref{ms-app:checks}}{115--127 and 439--453}
+\response All essential definitions and analytical decisions now precede Results, which begins only after the Data, Matching, Network, Paired Inference, and Anomaly Screen sections.  Figure~\ref{ms-fig:study-design} summarizes that sequence.  K-means and the former three-cluster result have been removed from the revised canonical analysis and manuscript rather than retrospectively rationalized.
 
-\section*{Comment 5: Graph populations and denominators are conflated}
+The Discussion now connects the regenerated findings, not only the study design, to prior work.  It distinguishes outgoing HHI from Evdaimon et al.'s incoming-citer concentration indicator, uses the tie-heavy zero-median findings to limit interpretation of cohesion differences, contrasts lower journal endogamy and higher surge share with Heneberg's journal-level kinetics, and explains why the enrichment, mixing, and absent qualifying component do not reproduce the excessive-edge group detection studied by Kojaku et al.  It also discusses non-adversarial alternatives and states why these studies are conceptually informative but not numerically comparable.
 
-\commenttext{Metrics computed from an author's complete outgoing neighborhood are described together with metrics restricted to study authors, obscuring their populations and denominators.}
+\location{Methods through Results, and Discussion; pp.~4--16 and 22--24}{74--280 and 320--377}
 
-\response We now distinguish an outgoing ego layer from the subject-specific matched-author induced graph.  Self-citation, prior-coauthor citation, outgoing HHI, and surge share use the ego layer.  Reciprocity, clustering, internal balance, components, and tier mixing use the induced graph.  Journal endogamy is computed on deduplicated resolved work references before author expansion.  The metric table gives formulas, populations, denominators, zero-denominator behavior, and missing-value rules.
+\section*{Comment 5: Methodological Rigour and Transparency---matching}
 
-\location{p.~\pageref{ms-sec:network-construction}, Table~\ref{ms-tab:metric-definitions}}{129--155}
+\commenttext{The technical execution, while ambitious, contains critical problems. The matching methodology suffers from a logical inconsistency: the bucketing formula $b=\lfloor h_5/3\rfloor$ permits a five-point $h_5$-index difference, contradicting the intended three-point limit. Additionally, no sorting order is specified for the greedy one-pass algorithm. These fundamental issues must be resolved to ensure methodological transparency and credibility.}
 
-\section*{Comment 6: Feature proliferation and unclear interpretability}
+\response We replaced the bucket rule with the explicit inclusive eligibility condition $|h_{5,\mathrm{Case}}-h_{5,\mathrm{Control}}|\leq3$.  The revised Methods defines $h_5$ and specifies the complete greedy order: subject, ascending absolute $h_5$ difference, Case ORCID, and Control ORCID.  Selection is without replacement within subject.  We also disclose a retained upstream restriction that the earlier draft omitted: the $h_5$ table materializes only positive values, so otherwise tier-eligible zero-$h_5$ profiles do not enter candidate generation.
 
-\commenttext{The large feature set mixes redundant network statistics, centralities, and an ad hoc composite, making confirmatory claims difficult to interpret.}
+An immutable read-only audit recomputed all candidates and the greedy traversal from the source author profiles and materialized positive $h_5$ values.  Within that implemented pool it reproduced the retained \MatchedPairCount-pair order, membership, and pair-set hash exactly.  It does not claim to reproduce a rematch that admits $h_5=0$.  The maximum observed absolute difference is \MaximumAbsoluteHFiveDifference, with \HFiveCaliperViolationCount\ caliper violations and no reused author--subject keys.  Matching balance is reported by subject, and the four primary comparisons are repeated for exact-$h_5$ pairs.
 
-\response We reduced the declared set to eight measures: prior-coauthor citation rate, self-citation rate, reciprocity, local clustering, outgoing HHI, journal endogamy, within-sample citation balance, and maximum annual dyadic surge share.  We removed triangle counts and their normalization, entropy, incoming HHI, eigenvector centrality, $k$-core, and the multiplicative clique-strength feature.  The five screen inputs now have an explicit structural rationale: self-reference, prior-collaborator citation, mutual exchange, neighborhood closure, and recipient concentration.  Four outcomes are designated primary and four secondary before results are presented.
+\location{Matching and sensitivity results; pp.~6--7 and 18--19; Tables~\ref{ms-tab:matching-balance} and~\ref{ms-tab:exact-h5}}{115--142 and 295--302}
 
-\location{Table~\ref{ms-tab:metric-definitions}; p.~\pageref{ms-sec:paired-inference}}{140--175}
+\section*{Comment 6: Methodological Rigour and Transparency---outlier framework}
 
-\section*{Comment 7: Burst definition and attribution are incorrect}
+\commenttext{The outlier-detection framework also requires substantial justification. The rationale for feature selection, hand-tuned weighting, and the four-sigma cutoff is not adequately explained. The use of feature weights in an Isolation Forest model is mathematically redundant, as the algorithm is not designed for such inputs, and the four-sigma threshold implies a normality assumption that is inappropriate for skewed bibliometric data. The authors should provide a clearer justification for these decisions, report sensitivity analyses to test the stability of their findings, and clarify whether the Isolation Forest and Cohesion Composite Score capture redundant information.}
 
-\commenttext{The reported burst variable is not adequately defined and should not be attributed to Kleinberg's burst model if it does not implement that model.}
+\response The revised specification uses an explicit structural rule rather than an optimized feature search.  It retains five author-edge measures corresponding to self-reference, prior-collaborator citation, mutual exchange, neighborhood closure, and recipient concentration.  Journal endogamy is excluded because it is a work-reference measure, balance because it is a signed internal-flow position unavailable without internal incident weight, and surge share because it is temporal.  We present this as a transparent revision choice, not as an originally prespecified or independently validated optimum.
 
-\response We replaced the prior variable with the study-defined maximum annual dyadic surge share.  The revised Methods gives the complete formula, sets missing dyad--years to zero, leaves authors with no identified outgoing weight missing, and enforces the $[0,1]$ invariant.  We removed the Kleinberg attribution and explicitly note that this measure is not a state-transition burst detector.
+No additional feature weights are applied.  The four-sigma rule and former Cohesion Composite Score have been removed from the revised canonical analysis and manuscript.  Controls define subject-specific median/IQR scaling, model fits, and score cutoffs; a nonfinite or zero Control IQR is replaced by 1 solely to avoid division by zero.  The declared 99th Control percentile is a stringent empirical-tail operating point that makes no Gaussian assumption and is not claimed to be uniquely optimal.  The library's \texttt{contamination=auto} decision cutoff is not used; the reported criterion is computed directly from negated \texttt{score\_samples}.
 
-\location{Table~\ref{ms-tab:metric-definitions}; p.~\pageref{ms-app:checks}}{140--155 and 439--453}
+Sensitivity analyses evaluate 97.5\%, 99\%, and 99.5\% Control percentiles across ten fixed seeds and report leave-one-feature-out fits.  Because all four cohesion-restriction measures also enter the detector, the manuscript explicitly treats their intersection as an overlapping guardrail rather than independent corroboration.  The complete overlap table and rank association quantify that dependence.  \AnomalyOverlapFindingText\ \AnomalyFeatureAblationFindingText
 
-\section*{Comment 8: Missing data and paired inference are mishandled}
+\location{Anomaly Screen and anomaly results; pp.~14--16, 19--20, and 30; Tables~\ref{ms-tab:anomaly-enrichment}, \ref{ms-tab:anomaly-overlap}, \ref{ms-tab:anomaly-sensitivity}, and~\ref{ms-tab:anomaly-feature-ablation}}{218--279 and 304--312}
 
-\commenttext{Unavailable feature values appear to be turned into zeros, pair counts are unclear, and the permutation procedure does not respect the matched design.}
+\section*{Comment 7: Inconsistencies and Omissions}
 
-\response We preserve unavailable values and define structural zeros separately.  Complete-pair deletion is performed independently for each outcome, so every table reports its own pair count.  We replaced the pooled-label permutation with sign flips of within-pair differences.  The revision reports paired Wilcoxon tests, matched rank-biserial effects, paired-bootstrap confidence intervals, and Benjamini--Hochberg correction separately within the primary and secondary outcome families.
+\commenttext{Several inconsistencies and omissions further weaken the analysis. The manuscript does not specify the underlying statistical test applied to the matched pairs, a critical omission given the non-normal nature of the data. The claim of a widening gap in ``citation trajectories'' is purely descriptive and no time series data are reported to support this assertion. On page 9, the authors stated that ``normalised burst intensity'' was dropped, leaving 13 features for the analysis. However, on page 13, they report that ``12 out of 14 tested behavioral metrics remain significant''. The authors should clarify whether the missing feature was reintegrated for the univariate statistical tests (by dropping the incomplete pairs) or if this is a typographical error.}
 
-\location{pp.~\pageref{ms-sec:network-construction}--\pageref{ms-sec:paired-inference}; Tables~\ref{ms-tab:paired-primary} and~\ref{ms-tab:paired-secondary}}{149--175 and 225--232}
+\response The revised Methods specifies a two-sided paired Wilcoxon signed-rank test for every outcome because several paired-difference distributions are bounded and tie-heavy.  Zero differences are omitted from the signed ranks, unavailable pairs are deleted separately for each outcome, and Wilcoxon $p$-values are Benjamini--Hochberg adjusted within the four-outcome primary and secondary families.  Each table reports its own complete-pair count, median paired difference, matched rank-biserial effect, paired-bootstrap interval, and sign-flip randomization check.
 
-\section*{Comment 9: Matching eligibility, balance, and robustness are insufficiently reported}
+The retained materials do not establish whether the earlier 13-versus-14 discrepancy arose because normalised burst intensity was reintegrated for per-metric tests or because one count was typographical.  We therefore withdraw both legacy statements rather than assigning them a retrospective explanation.  The rebuilt analysis reports eight outcomes in two declared families, separately from five screen inputs.  The former burst variable is replaced by maximum annual dyadic surge share, with \SecondaryAnnualDyadicSurgeSharePairCount\ complete pairs in its secondary comparison.
 
-\commenttext{The bucket rule can admit pairs outside the intended $h_5$ caliper, the greedy tie order is underspecified, and balance and residual within-pair differences are not shown.}
+We removed the unsupported widening-gap claim.  The year field supports coauthor timing and the scalar surge-share construction, but the revision estimates neither tier-specific trajectories nor a tier-by-year interaction.  The Limitations now states this explicitly.
 
-\response We replaced adjacent $\lfloor h_5/3\rfloor$ buckets with the explicit inclusive rule $|h_{5,\mathrm{Case}}-h_{5,\mathrm{Control}}|\leq3$.  Greedy matching is without replacement within subject under the total order subject, ascending absolute $h_5$ difference, Case ORCID, and Control ORCID.  Reuse of a retained cohort now requires complete subject-keyed $h_5$ joins, no author--subject reuse, and no caliper violation.  An immutable, read-only deterministic recomputation reproduced the retained row order, membership, and pair-set hash exactly; its full report is generated as \texttt{results/revision-v1/matching\_audit.txt}.  The generated cohort audit reports a maximum observed absolute difference of \MaximumAbsoluteHFiveDifference\ and \HFiveCaliperViolationCount\ violations, so the corrected eligibility rule did not change pair membership.  The revised manuscript reports pair counts and $h_5$ balance by subject, and repeats the four primary outcomes on exact-$h_5$ pairs.  A separate sensitivity admits same-year coauthors while holding all other definitions fixed.
+\location{Paired Inference, matched results, and Limitations; pp.~13, 16--19, and 25; Tables~\ref{ms-tab:paired-primary}, \ref{ms-tab:paired-secondary}, and~\ref{ms-tab:exact-h5}}{193--215, 285--302, and 398--401}
 
-\location{p.~\pageref{ms-sec:matching}, Table~\ref{ms-tab:matching-balance}; Table~\ref{ms-tab:exact-h5}}{90--112 and 235--241}
+\section*{Comment 8: Network Characterisation}
 
-\section*{Comment 10: Exploratory classifiers, weighting, and thresholds are unstable or circular}
+\commenttext{The central qualitative claim of a ``hub-and-spoke'' topology is presented without any formal network definition, graph-theoretic metrics, or quantitative thresholds. The role of Louvain community detection is also unclear. From Table 5 it is unclear if the adjustements for directed networks are adopted in the computation of newtork indicators auch as eigenfactor. Moreover, it is unclear on which graphs some indicators are calculated (in table 5 the manuscript refers to ``undirected projection'' and ``undirected citation'' graphs without specifications. To move from observation to verifiable evidence, the authors must provide the analytical basis for their network characterisation.}
 
-\commenttext{The clustering, discriminant projection, feature-importance ranking, and hand-weighted score are not sufficiently stable or independent to support the manuscript's claims.}
+\response The unsupported hub-and-spoke characterization, qualitative topology labels, Louvain community detection, and modularity result have been removed from the revised canonical analysis and manuscript.  No community or topology result is now inferred.
 
-\response We removed K-means, linear discriminant analysis, Random-Forest importance, and the heuristic weighted score in full.  The revised detector inputs are unweighted, its cutoff is an empirical subject-specific Control percentile rather than a four-sigma rule, and the former Cohesion Composite Score is absent.  The earlier three-cluster result was based on an older feature matrix and is not carried forward.  None of these analyses is used to select features, set thresholds, or support the revised conclusions.  We now report leave-one-feature-out detector fits at the canonical threshold and seed.  \AnomalyFeatureAblationFindingText
+The revision separates the journal and author networks.  Eigenfactor is a fixed journal-level exposure used before author matching, not an author centrality.  The Methods now specifies citing-to-cited orientation, journal self-citation removal, outgoing-column normalization, 0.85 damping, article-count redistribution of dangling mass and teleportation, and within-subject normalization.  The current workflow consumes the fixed database scores; because the intermediate journal-edge and article-count exports are unavailable, the manuscript explicitly states that the revision cannot independently reproduce or verify the upstream scores or extraction window end to end.
 
-\location{Figure~\ref{ms-fig:study-design}; p.~\pageref{ms-sec:anomaly-screen}; Table~\ref{ms-tab:anomaly-feature-ablation}}{156--218 and 427--437}
+For the author analysis, the Methods formally defines the loopless directed weighted graph $G_s$ and its binary undirected projection $U_s$.  It identifies the population, direction, weight, denominator, and missingness rule for every measure.  Direction is discarded only for $U_s$ clustering and weak-component membership; reciprocity, balance, component flow, directed $1/w_{ij}$ betweenness, and tier mixing retain fractional weights and direction.  The label-swap $p$-value tests the within-tier fractional-weight share, while weighted assortativity is reported separately as a descriptive statistic.  Five nodes is only a reporting gate, not a topology threshold.  \ComponentFindingText\ Accordingly, no component topology or substitute illustration is reported.
 
-\section*{Comment 11: The anomaly procedure is inconsistent and its criteria overlap}
+\location{Data and Cohort, Network Construction, Anomaly Screen, and network results; pp.~4--5, 7--11, 15--16, and 20--21; Tables~\ref{ms-tab:metric-definitions}, \ref{ms-tab:outlier-components}, and~\ref{ms-tab:tier-mixing}}{83--104, 145--190, 261--279, and 314--319}
 
-\commenttext{The detector and cohesion rule share inputs but are presented as separate evidence; figures and components appear to use different anomaly definitions; and precision or purity treats tier as a ground-truth anomaly label.}
+\section*{Comment 9: Conclusion}
 
-\response We rebuilt one subject-specific screen and reuse its final flag everywhere.  Eligible rows require an identified non-self outgoing citation.  Five unweighted features are robust-scaled against Controls; an Isolation Forest is trained on Controls only in each subject.  A final flag requires a score above the subject's Control percentile and at least two of four cohesion measures above their Control percentiles.  We now state explicitly that all four restriction measures also enter the detector, so their intersection is an interpretable guardrail rather than independent corroboration.  We report the complete detector-by-restriction table and their rank association only among rows where both criteria are computable.  \AnomalyOverlapFindingText\ The primary threshold is 99\%, with 97.5\%, 99\%, and 99.5\% evaluated across ten fixed seeds.  We report Case share and Case-versus-Control enrichment and do not describe these as accuracy measures.
+\commenttext{In summary, this manuscript contains interesting ideas, but the priority for revision must be clarity, rigorous methodological justification, and a stronger connection to the literature. The current draft reads as a proof of technical capability. I suggest that the authors transform it into an accessible contribution to quantitative science studies.}
 
-\location{p.~\pageref{ms-sec:anomaly-screen}; Tables~\ref{ms-tab:anomaly-enrichment}, \ref{ms-tab:anomaly-overlap}, \ref{ms-tab:anomaly-sensitivity}, and~\ref{ms-tab:anomaly-feature-ablation}}{178--218, 243--251, and 427--437}
+\response We agree with this priority.  The revised paper leads with the substantive matched comparison, defines its technical terms and populations before use, limits the analysis to auditable operationalizations, reports uncertainty and sensitivity rather than a proliferation of exploratory outputs, and interprets the actual regenerated findings against the relevant literature.  Its conclusion is deliberately associational: the screen can prioritize descriptive follow-up but cannot establish coordination, intent, or misconduct.
 
-\section*{Comment 12: Component interpretation exceeds the evidence}
+\location{Abstract, Discussion, Limitations, and Conclusion; pp.~1--2 and 22--25}{1--18 and 320--417}
 
-\commenttext{The network component analysis uses charged role labels, asserts coordinated temporal behavior, and may display an illustrative network not produced by the final detector.}
+\section*{Additional corrections incorporated in the revision}
 
-\response Components are now built only from the same final author--subject flag used in the enrichment table.  We aggregate cumulative fractional dyad weights and report weighted net flow, using only the labels net giver, net receiver, and highest-betweenness node.  A figure is omitted unless the corrected output contains a component with at least five nodes; synthetic or alternate-flag networks are prohibited.  Component structure is described without inferring coordination or motive.
+Beyond the issues named above, the rebuild makes subject part of every author and edge key; deduplicates work references before author expansion; counts complete author teams in fractional denominators while requiring identified graph endpoints; separates ego, induced-graph, and work-reference populations; preserves unavailable values; and uses the same final flag for enrichment, components, and figures.  All manuscript values, tables, and figures are consumed from the single canonical artifact root \texttt{results/revision-v1/}; historical output directories are non-authoritative.
 
-\location{pp.~\pageref{ms-sec:anomaly-screen} and~\pageref{ms-sec:component-results}}{209--214 and 253--255}
-
-\section*{Comment 13: Tier mixing and modularity claims are unsupported}
-
-\commenttext{The manuscript's segregation narrative relies on an unsupported modularity value and overinterprets a tier mixing matrix.}
-
-\response We removed the modularity value and the claim that the tiers constitute separate citation worlds.  Mixing is recomputed from fractional citation weights and compared with \num{10000} within-pair tier-label swaps.  The Discussion limits interpretation to alignment between observed tier labels and citation flow under this restricted null.
-
-\location{pp.~\pageref{ms-sec:mixing-results} and~\pageref{ms-sec:discussion}; Table~\ref{ms-tab:tier-mixing}}{215--218, 256--258, and 301--304}
-
-\section*{Comment 14: Individual-author rankings are inappropriate}
-
-\commenttext{Publishing ranked ORCID profiles and journal portfolios is not justified by a structural anomaly screen and risks implying wrongdoing by identifiable individuals.}
-
-\response We removed network/API identity resolution, individual ORCID rankings, the publication audit, and the heuristic author score.  The revised manuscript reports only aggregate author--subject statistics and qualifying component structure.  It states repeatedly that screening cannot establish intent or misconduct.
-
-\location{pp.~\pageref{ms-sec:anomaly-results}--\pageref{ms-sec:limitations}}{243--255 and 285--326}
-
-\section*{Comment 15: A substantive Discussion and alternatives are needed}
-
-\commenttext{The prior manuscript moves directly from results to strong conclusions and does not adequately engage related work or alternative explanations.}
-
-\response We added a standalone Discussion.  It positions network closure as complementary to author-concentration indicators, contrasts the author-level matched design with journal-level anomalous-group and citation-stacking research, and discusses topical proximity, geography, language, collaboration structure, ORCID coverage, and Crossref completeness as alternatives.  It separates potential screening utility from any evidentiary claim about behavior.
-
-\location{p.~\pageref{ms-sec:discussion}; limitations on p.~\pageref{ms-sec:limitations}}{259--326}
-
-\section*{Comment 16: Reproducibility and manuscript values are disconnected}
-
-\commenttext{It is not possible to determine which output directory or script generated the reported values and figures, and copied values can become stale.}
-
-\response The revised offline workflow has one canonical artifact root, \texttt{results/revision-v1/}.  The analysis writes versioned LaTeX macros, tables, and figures there, and the manuscript consumes those files directly.  Historical result directories are not searched.  If a canonical artifact is absent, the draft shows a pending marker rather than substituting an older number.  The external Zenodo record is not silently overwritten; a new archival version remains a separate publication step.
-
-\location{p.~\pageref{ms-sec:results} and Data and Code Availability on p.~\pageref{ms-sec:data-availability}}{219--258 and 350--355}
-
-\section*{Comment 17: Journal format and abstract}
-
-\commenttext{The revision should follow the journal's conventional organization, provide essential methods before results, and keep the abstract within the stated word limit.}
-
-\response The manuscript now uses a conventional Results--Discussion separation and places all essential design and metric definitions before Results.  The final rendered abstract remains below the journal's 200-word limit, including the generated finding sentences.  Line numbering is retained for review, and the data/code statement identifies the reproducible workflow and archival status.
-
-\location{Abstract and manuscript organization throughout}{1--18 and 70--338}
+\location{Author--subject cohort through Paired Inference, Anomaly Screen, Results, and Data and Code Availability; pp.~5--16 and 26}{105--215, 250--251, 280--284, and 428--434}
 
 \end{document}

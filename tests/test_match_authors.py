@@ -28,20 +28,24 @@ class CandidateEligibilityTests(unittest.TestCase):
                 );
                 INSERT INTO rolap.author_profiles VALUES
                   ('case', 'S', 'Bottom Tier'),
+                  ('case-zero', 'S', 'Bottom Tier'),
                   ('control-0', 'S', 'Top Tier'),
                   ('control-1', 'S', 'Top Tier'),
                   ('control-2', 'S', 'Top Tier'),
                   ('control-3', 'S', 'Top Tier'),
                   ('control-4', 'S', 'Top Tier'),
-                  ('control-5', 'S', 'Top Tier');
+                  ('control-5', 'S', 'Top Tier'),
+                  ('control-zero', 'S', 'Top Tier');
                 INSERT INTO rolap.author_subject_h5_index VALUES
                   ('case', 'S', 10),
+                  ('case-zero', 'S', 0),
                   ('control-0', 'S', 10),
                   ('control-1', 'S', 11),
                   ('control-2', 'S', 12),
                   ('control-3', 'S', 13),
                   ('control-4', 'S', 14),
-                  ('control-5', 'S', 15);
+                  ('control-5', 'S', 15),
+                  ('control-zero', 'S', 0);
                 """
             )
             sql = (ROOT / "author_matched_candidates.sql").read_text(encoding="utf-8")
@@ -166,6 +170,15 @@ class RetainedCohortTests(unittest.TestCase):
         )
         self.addCleanup(connection.close)
         with patch.object(match_authors, "EXPECTED_PRIMARY_PAIRS", 2):
+            self.assertFalse(match_authors.retained_cohort_is_valid(connection))
+
+    def test_retained_cohort_rejects_nonpositive_h5(self) -> None:
+        connection = self._connection(
+            [("case", "control", "S")],
+            [("case", "S", 0), ("control", "S", 0)],
+        )
+        self.addCleanup(connection.close)
+        with patch.object(match_authors, "EXPECTED_PRIMARY_PAIRS", 1):
             self.assertFalse(match_authors.retained_cohort_is_valid(connection))
 
 

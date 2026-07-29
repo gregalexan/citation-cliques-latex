@@ -729,7 +729,7 @@ def run_paired_inference(
     bootstrap_resamples: int = 2_000,
     sign_flips: int = 10_000,
 ) -> pd.DataFrame:
-    """Run the prespecified paired tests and BH correction for one family."""
+    """Run the declared paired tests and BH correction for one family."""
 
     rows: list[dict[str, object]] = []
     for index, metric in enumerate(metrics):
@@ -769,12 +769,12 @@ def run_paired_inference(
 
 
 def exact_h5_pairs(pairs: pd.DataFrame) -> pd.DataFrame:
-    """Select pairs with observed, exactly equal h5 indices."""
+    """Select pairs with positive, exactly equal h5 indices."""
 
     _require_columns(pairs, ("case_h5", "control_h5"), "pairs")
     case_h5 = pd.to_numeric(pairs["case_h5"], errors="coerce")
     control_h5 = pd.to_numeric(pairs["control_h5"], errors="coerce")
-    return pairs[case_h5.notna() & control_h5.notna() & case_h5.eq(control_h5)].copy()
+    return pairs[case_h5.gt(0) & control_h5.gt(0) & case_h5.eq(control_h5)].copy()
 
 
 def matching_balance(pairs: pd.DataFrame) -> pd.DataFrame:
@@ -785,6 +785,8 @@ def matching_balance(pairs: pd.DataFrame) -> pd.DataFrame:
     work["control_h5"] = pd.to_numeric(work["control_h5"], errors="coerce")
     if work[["case_h5", "control_h5"]].isna().any().any():
         raise AssertionError("a retained pair is missing a subject-keyed h5 value")
+    if work[["case_h5", "control_h5"]].le(0).any().any():
+        raise AssertionError("a retained pair has a nonpositive h5 value")
     work["h5_difference"] = work["case_h5"] - work["control_h5"]
     work["exact_h5"] = work["h5_difference"].eq(0) & work["h5_difference"].notna()
     if work["h5_difference"].abs().gt(MATCHING_H5_CALIPER).any():

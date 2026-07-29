@@ -35,7 +35,8 @@ def retained_cohort_is_valid(con):
                         OR p.control_orcid IS NULL OR TRIM(p.control_orcid) = ''
                         OR p.subject IS NULL THEN 1 ELSE 0 END) AS invalid_keys,
           SUM(CASE WHEN case_h5.h5_index IS NULL OR control_h5.h5_index IS NULL
-                   THEN 1 ELSE 0 END) AS missing_h5,
+                             OR case_h5.h5_index <= 0 OR control_h5.h5_index <= 0
+                   THEN 1 ELSE 0 END) AS invalid_h5,
           SUM(CASE WHEN ABS(case_h5.h5_index - control_h5.h5_index) > ?
                    THEN 1 ELSE 0 END) AS caliper_violations,
           (
@@ -85,7 +86,7 @@ def _hard_caliper_recomputation(con):
         WHERE ap.author_tier IN ('Bottom Tier', 'Top Tier')
           AND ap.orcid IS NOT NULL
           AND TRIM(ap.orcid) <> ''
-          AND h.h5_index IS NOT NULL
+          AND h.h5_index > 0
         ORDER BY ap.subject ASC, ap.author_tier ASC, ap.orcid ASC
         """
     ).fetchall()

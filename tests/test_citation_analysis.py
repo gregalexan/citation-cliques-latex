@@ -145,6 +145,9 @@ class PairedInferenceTests(unittest.TestCase):
         pairs.loc[0, "control_h5"] = np.nan
         with self.assertRaisesRegex(AssertionError, "missing.*h5"):
             analysis.matching_balance(pairs)
+        pairs.loc[0, ["case_h5", "control_h5"]] = 0
+        with self.assertRaisesRegex(AssertionError, "nonpositive h5"):
+            analysis.matching_balance(pairs)
 
 
 class ScreenAndReuseTests(unittest.TestCase):
@@ -366,8 +369,8 @@ class ArtifactWriterTests(unittest.TestCase):
                 "subject": ["s"] * pair_count,
                 "case_orcid": [f"A{i}" for i in range(pair_count)],
                 "control_orcid": [f"B{i}" for i in range(pair_count)],
-                "case_h5": np.arange(pair_count),
-                "control_h5": np.arange(pair_count),
+                "case_h5": np.arange(1, pair_count + 1),
+                "control_h5": np.arange(1, pair_count + 1),
             }
         )
         membership = pd.concat(

@@ -9,7 +9,7 @@ WITH enriched AS (
     WHERE ap.author_tier IN ('Bottom Tier', 'Top Tier')
       AND ap.orcid IS NOT NULL
       AND TRIM(ap.orcid) <> ''
-      AND h.h5_index IS NOT NULL
+      AND h.h5_index > 0
 ),
 controls AS (SELECT * FROM enriched WHERE author_tier = 'Top Tier'),
 cases AS (SELECT * FROM enriched WHERE author_tier = 'Bottom Tier')

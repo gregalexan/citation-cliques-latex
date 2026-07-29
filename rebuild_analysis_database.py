@@ -70,8 +70,10 @@ def validate_retained_cohort(connection: sqlite3.Connection) -> None:
                  THEN 1 ELSE 0 END
           ), 0) AS invalid_keys,
           COALESCE(SUM(
-            CASE WHEN case_h5 IS NULL OR control_h5 IS NULL THEN 1 ELSE 0 END
-          ), 0) AS missing_h5,
+            CASE WHEN case_h5 IS NULL OR control_h5 IS NULL
+                           OR case_h5 <= 0 OR control_h5 <= 0
+                 THEN 1 ELSE 0 END
+          ), 0) AS invalid_h5,
           COALESCE(SUM(
             CASE WHEN case_h5 IS NOT NULL AND control_h5 IS NOT NULL
                        AND ABS(case_h5 - control_h5) > ?
