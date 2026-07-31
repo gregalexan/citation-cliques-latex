@@ -1,23 +1,18 @@
 # Canonical offline workflow for the matched citation-cohesion study.
 
 export MAINDB ?= $(CURDIR)/impact
-# SQL files use `rolap` as their attached SQLite schema.  Keep this identifier
-# separate from the analysis CLI, which accepts an arbitrary database path.
-override export ROLAPDB := rolap
-export DEPENDENCIES :=
 
 RESULTS_DIR ?= results/revision-v1
 COHORT_DB ?= rolap.db
 ANALYSIS_DB ?= build/revision-v1/rolap.db
 SEED ?= 42
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
+RDBUNIT ?= rdbunit
+SQLITE3 ?= sqlite3
 LATEX ?= pdflatex
 BIBER ?= biber
 LATEX_FLAGS ?= -interaction=nonstopmode -halt-on-error
 SQL_TESTS := $(wildcard tests/*.rdbu)
-export UNIT ?= $(SQL_TESTS)
-
-include ../common/Makefile
 
 .PHONY: check-inputs match-audit pipeline analysis sql-test python-test verify \
 	manuscript reviewer-response reproduce
@@ -30,14 +25,6 @@ match-audit: check-inputs match_authors.py author_matched_candidates.sql
 	@echo "[Audit deterministic hard-caliper matching without modifying the cohort]"
 	$(PYTHON) match_authors.py --audit \
 		--audit-output "$(RESULTS_DIR)/matching_audit.txt" "$(COHORT_DB)"
-
-# Matching is deterministic and materialized by Python after SQL candidate
-# generation.  The analysis key in this table is (ORCID, subject).
-tables/author_matched_pairs: tables/author_matched_candidates match_authors.py | check-inputs
-	@echo "[Create deterministic author matches]"
-	$(PYTHON) match_authors.py "$(ROLAPDB).db"
-	mkdir -p tables
-	touch $@
 
 # Rebuild the citation-facing analysis tables in a genuinely fresh database.
 # The journal classification and 9,431-pair cohort are copied as fixed inputs;
@@ -59,7 +46,18 @@ analysis: pipeline
 
 sql-test:
 	@echo "[Run SQL fixtures]"
-	$(MAKE) --no-print-directory UNIT="$(SQL_TESTS)" test
+	@set -eu; tmp=$$(mktemp -d); trap 'rm -r "$$tmp"' EXIT; \
+	for test in $(SQL_TESTS); do \
+		echo "[Test $$test]"; \
+		$(RDBUNIT) --database=sqlite "$$test" >"$$tmp/test.sql"; \
+		$(SQLITE3) <"$$tmp/test.sql" >"$$tmp/test.out"; \
+		sed '/^$$/d' "$$tmp/test.out"; \
+		if grep -Ev -e '^ *ok [0-9]+' -e '^ *[0-9]+\.\.[0-9]+.?$$' \
+			-e '^ *$$' "$$tmp/test.out" >/dev/null; then \
+			echo "The test $$test failed or produced extraneous output" >&2; \
+			exit 1; \
+		fi; \
+	done
 
 python-test:
 	@echo "[Run Python tests]"

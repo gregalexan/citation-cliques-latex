@@ -12,8 +12,8 @@ the manuscript from generated LaTeX macros.
 
 ## Canonical workflow
 
-Prerequisites are SQLite, Python 3.11 or later, the packages declared in
-`pyproject.toml`, and a LaTeX installation with `biber`.  The raw Crossref
+Prerequisites are SQLite, `rdbunit`, Python 3.11 or later, the packages declared
+in `pyproject.toml`, and a LaTeX installation with `biber`.  The raw Crossref
 snapshot is `impact.db`; the existing `rolap.db` supplies only the retained
 cohort and its matching covariate.  Corrected tables are rebuilt from scratch
 in `build/revision-v1/rolap.db`.
@@ -376,5 +376,6 @@ plausible alternative explanations for observed cohesion.  The screen is
 useful for prioritizing records for contextual review; it is not a finding of
 intent or misconduct.
 
-Updating an external Zenodo record or submitting a revised manuscript is not
-part of this local workflow.
+Version 2.0.0 of the revised software and aggregate replication materials is
+archived at <https://doi.org/10.5281/zenodo.21720390>.  The large `impact.db`
+and `rolap.db` inputs are not included in that archive.
