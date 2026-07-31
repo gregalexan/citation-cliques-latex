@@ -1,0 +1,26 @@
+BEGIN SETUP
+rolap.author_matched_pairs:
+case_orcid	control_orcid	subject
+c1	h1	S
+c1	h1	S
+c1	h2	T
+END
+
+INCLUDE CREATE matched_authors.sql
+INCLUDE CREATE matched_authors.sql
+
+BEGIN CREATE
+CREATE TABLE matched_result AS
+SELECT orcid, subject, tier_type
+FROM rolap.matched_authors
+ORDER BY subject, tier_type, orcid;
+END
+
+BEGIN RESULT
+matched_result:
+orcid	subject	tier_type
+c1	S	Case
+h1	S	Control
+c1	T	Case
+h2	T	Control
+END

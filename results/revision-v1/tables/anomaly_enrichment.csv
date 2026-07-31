@@ -1,0 +1,3 @@
+tier_type,eligible_rows,screenable_rows,unavailable_flag_rows,flagged_rows,flagged_share,case_to_control_enrichment,total_flagged_rows,case_share_among_flagged,fisher_exact_p
+Case,6960,1897,5063,49,0.007040229885057471,16.141487068965517,53,0.9245283018867925,3.872042419803562e-14
+Control,9171,1973,7198,4,0.0004361574528404754,16.141487068965517,53,0.9245283018867925,3.872042419803562e-14

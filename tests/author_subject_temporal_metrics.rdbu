@@ -1,0 +1,54 @@
+BEGIN SETUP
+rolap.matched_authors:
+orcid	subject	tier_type
+i	S	Case
+z	S	Control
+q	T	Case
+
+rolap.citation_network_final:
+subject	citing_orcid	cited_orcid	citation_year	raw_count	citation_weight	is_self_citation	is_coauthor_citation	is_coauthor_citation_same_year
+S	i	j	2020	1	2.0	0	0	0
+S	i	j	2021	1	5.0	0	0	0
+S	i	j	2023	1	4.0	0	0	0
+S	i	k	2022	1	3.0	0	0	0
+T	q	r	2024	1	1.0	0	0	0
+END
+
+INCLUDE CREATE author_subject_temporal_metrics.sql
+INCLUDE CREATE author_subject_temporal_metrics.sql
+
+# For i->j the filled sequence is (2, 5, 0, 4, 0), whose largest increase
+# is 4.  The other dyad contributes 3, giving a total denominator of 14.
+BEGIN CREATE
+CREATE TABLE temporal_result AS
+SELECT
+    orcid,
+    subject,
+    identified_outgoing_weight,
+    nonself_identified_outgoing_weight,
+    ROUND(annual_dyadic_surge_share, 6) AS annual_dyadic_surge_share
+FROM rolap.author_subject_temporal_metrics
+ORDER BY subject, orcid;
+END
+
+BEGIN RESULT
+temporal_result:
+orcid	subject	identified_outgoing_weight	nonself_identified_outgoing_weight	annual_dyadic_surge_share
+i	S	14.0	14.0	0.285714
+z	S	0.0	0.0	null
+q	T	1.0	1.0	1.0
+END
+
+BEGIN CREATE
+CREATE TABLE range_result AS
+SELECT COUNT(*) AS out_of_range_surges
+FROM rolap.author_subject_temporal_metrics
+WHERE annual_dyadic_surge_share < 0.0
+   OR annual_dyadic_surge_share > 1.0;
+END
+
+BEGIN RESULT
+range_result:
+out_of_range_surges
+0
+END

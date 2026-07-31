@@ -5,9 +5,15 @@ rolap
 simple-rolap
 tables
 .venv
+__pycache__/
+.pytest_cache/
+build/
 
 # Databases
 *.db
+*.db-journal
+*.db-shm
+*.db-wal
 
 # LaTeX build artifacts
 *.aux
@@ -15,13 +21,28 @@ tables
 *.out
 *.bbl
 *.blg
+*.bcf
 *.fls
 *.fdb_latexmk
+*.run.xml
 *.synctex.gz
 
 # Generated images
 *.png
 *.pdf
+
+# Canonical, versioned analysis artifacts are intentionally retainable.
+!results/revision-v1/figures/*.png
+!results/revision-v1/figures/*.pdf
+!results/revision-v1/tables/
+!results/revision-v1/tables/*.csv
+!results/revision-v1/tables/*.tex
+
+# Recreated full-row outputs are intentionally not versioned.  The concise
+# manuscript macros, summary tables, figures, and run metadata remain eligible.
+results/*/author_features_final.csv
+results/*/flagged_author_subjects.csv
+results/*/tables/tier_mixing_permutations.csv
 
 # Editor/tool artifacts
 tags

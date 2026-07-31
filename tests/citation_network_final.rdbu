@@ -1,0 +1,196 @@
+# End-to-end SQL fixture for subject-keyed fractional edge construction.
+
+BEGIN SETUP
+rolap.author_matched_pairs:
+case_orcid	control_orcid	subject
+a1	c1	S
+a2	c2	S
+t1	tc	T
+
+rolap.works_enhanced:
+work_id	doi	published_year	issn	subject	eigenfactor_score
+1	d1	2022	i1	S	0.1
+2	d2	2020	i2	S	0.2
+3	d3	2022	i3	T	0.3
+4	d4	2022	i4	T	0.4
+5	d5	2021	i5	S	0.1
+6	d6	2022	i6	S	0.1
+
+works:
+id	doi	published_year	issn_print	issn_electronic
+1	d1	2022	i1	null
+2	d2	2020	i2	null
+3	d3	2022	i3	null
+4	d4	2022	i4	null
+5	d5	2021	i5	null
+6	d6	2022	i6	null
+
+# Work 1 has two matched authors.  Work 2 has three author rows, one of
+# which has no ORCID.  The NULL row must count in the 2 x 3 denominator.
+work_authors:
+work_id	orcid
+1	a1
+1	a2
+2	b1
+2	b2
+2	null
+3	a1
+4	t1
+5	a1
+5	b1
+6	a1
+6	b2
+
+# The duplicate work-1 reference and its two matched coauthors must still
+# resolve to one work pair before author expansion.  Work 3 is authored by a1
+# outside a1's matched subject and must be excluded.  Work 4 remains in T.
+work_references:
+work_id	doi
+1	https://doi.org/d2
+1	D2
+3	d2
+4	d2
+END
+
+INCLUDE CREATE matched_authors.sql
+INCLUDE CREATE relevant_works.sql
+INCLUDE CREATE works_doi_map.sql
+INCLUDE CREATE resolved_refs.sql
+INCLUDE CREATE citing_authors_counts.sql
+INCLUDE CREATE cited_authors_counts.sql
+INCLUDE CREATE micro_edges.sql
+INCLUDE CREATE coauthor_links.sql
+INCLUDE CREATE citation_network_final.sql
+
+# The canonical SQL scripts are rebuild-safe on an existing scratch schema.
+INCLUDE CREATE matched_authors.sql
+INCLUDE CREATE relevant_works.sql
+INCLUDE CREATE works_doi_map.sql
+INCLUDE CREATE resolved_refs.sql
+INCLUDE CREATE citing_authors_counts.sql
+INCLUDE CREATE cited_authors_counts.sql
+INCLUDE CREATE micro_edges.sql
+INCLUDE CREATE coauthor_links.sql
+INCLUDE CREATE citation_network_final.sql
+
+BEGIN CREATE
+CREATE TABLE relevant_result AS
+SELECT subject, orcid, work_id
+FROM rolap.relevant_works
+WHERE work_id IN (1, 3, 4)
+ORDER BY subject, orcid, work_id;
+END
+
+BEGIN RESULT
+relevant_result:
+subject	orcid	work_id
+S	a1	1
+S	a2	1
+T	t1	4
+END
+
+BEGIN CREATE
+CREATE TABLE resolved_result AS
+SELECT citing_work_id, cited_work_id
+FROM rolap.resolved_refs
+ORDER BY citing_work_id, cited_work_id;
+END
+
+BEGIN RESULT
+resolved_result:
+citing_work_id	cited_work_id
+1	2
+4	2
+END
+
+BEGIN CREATE
+CREATE TABLE denominator_result AS
+SELECT
+    (SELECT n_citing_authors FROM rolap.citing_authors_counts WHERE work_id = 1)
+        AS n_citing_authors,
+    (SELECT n_cited_authors FROM rolap.cited_authors_counts WHERE cited_work_id = 2)
+        AS n_cited_authors;
+END
+
+BEGIN RESULT
+denominator_result:
+n_citing_authors	n_cited_authors
+2	3
+END
+
+BEGIN CREATE
+CREATE TABLE micro_edge_result AS
+SELECT subject, citing_orcid, cited_orcid, ROUND(w, 6) AS weight
+FROM rolap.micro_edges
+ORDER BY subject, citing_orcid, cited_orcid;
+END
+
+BEGIN RESULT
+micro_edge_result:
+subject	citing_orcid	cited_orcid	weight
+S	a1	b1	0.166667
+S	a1	b2	0.166667
+S	a2	b1	0.166667
+S	a2	b2	0.166667
+T	t1	b1	0.333333
+T	t1	b2	0.333333
+END
+
+BEGIN CREATE
+CREATE TABLE null_endpoint_result AS
+SELECT COUNT(*) AS null_endpoint_rows
+FROM rolap.micro_edges
+WHERE citing_orcid IS NULL OR cited_orcid IS NULL;
+END
+
+BEGIN RESULT
+null_endpoint_result:
+null_endpoint_rows
+0
+END
+
+# b1 collaborated with a1 in 2021, so it is a strict-prior coauthor in 2022.
+# b2 first collaborated in 2022, so it appears only in the <= sensitivity flag.
+BEGIN CREATE
+CREATE TABLE final_edge_result AS
+SELECT
+    subject,
+    citing_orcid,
+    cited_orcid,
+    citation_year,
+    raw_count,
+    ROUND(citation_weight, 6) AS citation_weight,
+    is_self_citation,
+    is_coauthor_citation,
+    is_coauthor_citation_same_year
+FROM rolap.citation_network_final
+ORDER BY subject, citing_orcid, cited_orcid;
+END
+
+BEGIN RESULT
+final_edge_result:
+subject	citing_orcid	cited_orcid	citation_year	raw_count	citation_weight	is_self_citation	is_coauthor_citation	is_coauthor_citation_same_year
+S	a1	b1	2022	1	0.166667	0	1	1
+S	a1	b2	2022	1	0.166667	0	0	1
+S	a2	b1	2022	1	0.166667	0	0	0
+S	a2	b2	2022	1	0.166667	0	0	0
+T	t1	b1	2022	1	0.333333	0	0	0
+T	t1	b2	2022	1	0.333333	0	0	0
+END
+
+BEGIN CREATE
+CREATE TABLE duplicate_key_result AS
+SELECT COUNT(*) AS duplicate_edge_keys
+FROM (
+    SELECT subject, citing_orcid, cited_orcid, citation_year
+    FROM rolap.citation_network_final
+    GROUP BY subject, citing_orcid, cited_orcid, citation_year
+    HAVING COUNT(*) > 1
+);
+END
+
+BEGIN RESULT
+duplicate_key_result:
+duplicate_edge_keys
+0
+END

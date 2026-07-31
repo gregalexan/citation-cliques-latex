@@ -1,0 +1,39 @@
+BEGIN SETUP
+rolap.relevant_works:
+work_id	orcid	subject	published_year
+1	a	S	2022
+2	a	S	2022
+3	a	T	2022
+
+rolap.resolved_refs:
+citing_work_id	cited_work_id
+1	4
+2	5
+3	6
+
+works:
+id	issn_print	issn_electronic
+1	1234-5678	null
+2	1234-5678	null
+3	null	8765-4321
+4	12345678	null
+5	9999-9999	null
+6	87654321	null
+END
+
+INCLUDE CREATE author_venue_metrics.sql
+INCLUDE CREATE author_venue_metrics.sql
+
+BEGIN CREATE
+CREATE TABLE venue_result AS
+SELECT orcid, subject, total_refs, same_journal_refs, journal_endogamy_rate
+FROM rolap.author_venue_metrics
+ORDER BY subject;
+END
+
+BEGIN RESULT
+venue_result:
+orcid	subject	total_refs	same_journal_refs	journal_endogamy_rate
+a	S	2	1	0.5
+a	T	1	1	1.0
+END
