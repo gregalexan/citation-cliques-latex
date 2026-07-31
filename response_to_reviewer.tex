@@ -27,22 +27,25 @@
 \newcommand{\response}{\textbf{Response.} }
 \newcommand{\location}[2]{\textbf{Location.} #1; revised manuscript lines #2.}
 
-\title{Response to Reviewer 1\\
-\large Citation-Network Cohesion Across Low- and High-Impact Journals:\\
+\title{Response to the Editor and Reviewer 1\\
+\large Manuscript QSS-2026-0077 (Major Revision)\\
+Citation-Network Cohesion Across Low- and High-Impact Journals:\\
 A Matched Author Analysis}
 \author{Panagiotis-Alexios Spanakis, Grigorios Alexandrou, and Diomidis Spinellis}
-\date{}
+\date{31 July 2026}
 
 \begin{document}
 \maketitle
 
-We thank Reviewer~1 for the detailed assessment and for identifying the need for a clearer and more rigorously justified contribution.  We rebuilt the affected analysis before revising the prose.  The reviewer comments are reproduced below in their original order, followed by point-by-point responses.  Page and line references correspond to the final compiled revision.
+Dear Dr.~Larivi\`ere,
+
+Thank you for inviting a major revision of manuscript QSS-2026-0077.  We also thank Reviewer~1 for the detailed assessment and for identifying the need for a clearer and more rigorously justified contribution.  We rebuilt the affected analysis before revising the prose.  The reviewer comments are reproduced below in their original order, followed by point-by-point responses.  Page and line references correspond to the final compiled revision.
 
 \section*{Comment 1: Overall assessment}
 
 \commenttext{This paper investigates whether authors publishing in low-impact journals exhibit denser and more reciprocated citation patterns compared to their counterparts in high-impact venues. The topic is of undoubted interest, but in its current form, it prioritises technical virtuosity over substantive contribution. For a journal like QSS, which values methodological rigour alongside clarity, a major revision is essential. The authors must reframe their work for a broader audience, clarify their analytical pipeline, and strengthen the connection between their findings and the scholarly literature. However, given the number and severity of the issues identified below, I regret to recommend rejection in its current form.}
 
-\response We agree that the earlier draft required a substantive rather than cosmetic revision.  The paper is now framed as an associational matched comparison, not an assessment of scientific merit or evidence of intent.  The analytical sequence is shown in a reader-facing design figure and presented as Data and Cohort, Matching, Network Construction and Definitions, Paired Inference, Anomaly Screen, Results, Discussion, Limitations, and Conclusion.  The feature set and claims were reduced, affected results were regenerated from one canonical workflow, and the Discussion now interprets the findings in relation to the author- and journal-level literature.  The revision reports weaker, null, or contrary results rather than retaining claims from the earlier analysis.
+\response We agree that the earlier draft required a substantive rather than cosmetic revision.  We retitled the manuscript from \emph{Citation Cliques in Low Impact Journals} to \emph{Citation-Network Cohesion Across Low- and High-Impact Journals: A Matched Author Analysis} to reflect its associational matched design and remove the unsupported implication of established citation cliques.  The paper is now framed as an associational matched comparison, not an assessment of scientific merit or evidence of intent.  The analytical sequence is shown in a reader-facing design figure and presented as Data and Cohort, Matching, Network Construction and Definitions, Paired Inference, Anomaly Screen, Results, Discussion, Limitations, and Conclusion.  The feature set and claims were reduced, affected results were regenerated from one canonical workflow, and the Discussion now interprets the findings in relation to the author- and journal-level literature.  The revision reports weaker, null, or contrary results rather than retaining claims from the earlier analysis.
 
 \location{Title, Abstract, Figure~\ref{ms-fig:study-design}, Discussion, and Conclusion; pp.~1--16 and 22--25}{1--50, 74--280, and 320--417}
 
@@ -60,15 +63,15 @@ We thank Reviewer~1 for the detailed assessment and for identifying the need for
 
 \response The former Table~5 has been replaced by Table~\ref{ms-tab:metric-definitions}.  It now states each formula, denominator, analytic population, and interpretation.  Its notes define every symbol used in the table, explain the HHI scale, distinguish structural zeros from unavailable denominators, and specify missing-value handling.  The surrounding Methods also gives the exact reference-deduplication and fractional-weight construction that supplies those formulas.
 
-The former normalised burst-intensity variable has been removed.  It is replaced by the study-defined maximum annual dyadic surge share, whose complete formula compares consecutive dyad--years and divides the largest positive increment by the author's total identified outgoing weight.  Missing dyad--years are zero only inside this calculation, authors without identified outgoing weight remain missing, and the result is bounded by $[0,1]$.  The manuscript explicitly states that this is a five-year scalar summary, not a trajectory model or an implementation of Kleinberg's state-transition burst method; the Kleinberg attribution has therefore been removed.
+The former normalised burst-intensity variable has been removed.  It is replaced by the study-defined maximum annual dyadic surge share, whose complete formula compares consecutive dyad--years and divides the largest positive increment by the author's total identified outgoing weight.  Absent dyad--years are treated as zero for this calculation, authors without identified outgoing weight remain missing, and the result is bounded by $[0,1]$.  The manuscript explicitly states that this is a five-year scalar summary, not a trajectory model or an implementation of Kleinberg's state-transition burst method; the Kleinberg attribution has therefore been removed.  References now indicate conceptual provenance; each study-specific operationalization is stated in full rather than delegated to those sources.
 
-\location{Network Construction and Definitions and Limitations; pp.~7--11 and 25; Table~\ref{ms-tab:metric-definitions}}{145--190 and 398--401}
+\location{Network Construction and Definitions, Paired Inference, and Limitations; pp.~7--13 and 25; Table~\ref{ms-tab:metric-definitions}}{145--196 and 398--401}
 
 \section*{Comment 4: Clarity and Presentation---organization, K-means, and literature}
 
 \commenttext{Furthermore, the paper conflates methods, analysis, and results, often presenting findings before the underlying techniques have been introduced. The three central groups from the k-means clustering, for instance, appear without any description of the clustering procedure. Restructuring the narrative to follow a logical sequence would greatly improve comprehension. Importantly, the discussion fails to connect the empirical results back to the literature review, making the paper feel like an isolated technical exercise rather than a contribution to the ongoing scholarly conversation.}
 
-\response All essential definitions and analytical decisions now precede Results, which begins only after the Data, Matching, Network, Paired Inference, and Anomaly Screen sections.  Figure~\ref{ms-fig:study-design} summarizes that sequence.  K-means and the former three-cluster result have been removed from the revised canonical analysis and manuscript rather than retrospectively rationalized.
+\response All essential definitions and analytical decisions now precede Results, which begins only after the Data, Matching, Network, Paired Inference, and Anomaly Screen sections.  Figure~\ref{ms-fig:study-design} summarizes that sequence.  K-means and the former three-cluster result have been removed because they are no longer part of the revised study.
 
 The Discussion now connects the regenerated findings, not only the study design, to prior work.  It distinguishes outgoing HHI from Evdaimon et al.'s incoming-citer concentration indicator, uses the tie-heavy zero-median findings to limit interpretation of cohesion differences, contrasts lower journal endogamy and higher surge share with Heneberg's journal-level kinetics, and explains why the enrichment, mixing, and absent qualifying component do not reproduce the excessive-edge group detection studied by Kojaku et al.  It also discusses non-adversarial alternatives and states why these studies are conceptually informative but not numerically comparable.
 
@@ -102,9 +105,9 @@ Sensitivity analyses evaluate 97.5\%, 99\%, and 99.5\% Control percentiles acros
 
 \response The revised Methods specifies a two-sided paired Wilcoxon signed-rank test for every outcome because several paired-difference distributions are bounded and tie-heavy.  Zero differences are omitted from the signed ranks, unavailable pairs are deleted separately for each outcome, and Wilcoxon $p$-values are Benjamini--Hochberg adjusted within the four-outcome primary and secondary families.  Each table reports its own complete-pair count, median paired difference, matched rank-biserial effect, paired-bootstrap interval, and sign-flip randomization check.
 
-The retained materials do not establish whether the earlier 13-versus-14 discrepancy arose because normalised burst intensity was reintegrated for per-metric tests or because one count was typographical.  We therefore withdraw both legacy statements rather than assigning them a retrospective explanation.  The rebuilt analysis reports eight outcomes in two declared families, separately from five screen inputs.  The former burst variable is replaced by maximum annual dyadic surge share, with \SecondaryAnnualDyadicSurgeSharePairCount\ complete pairs in its secondary comparison.
+We could not verify from the retained legacy materials whether the earlier 13-versus-14 discrepancy arose because normalised burst intensity was reintegrated for per-metric tests or because one count was typographical.  We therefore withdraw both legacy statements rather than assigning them a retrospective explanation.  The rebuilt analysis reports eight outcomes in two declared families, separately from five screen inputs.  The former burst variable is replaced by maximum annual dyadic surge share, with \SecondaryAnnualDyadicSurgeSharePairCount\ complete pairs in its secondary comparison.
 
-We removed the unsupported widening-gap claim.  The year field supports coauthor timing and the scalar surge-share construction, but the revision estimates neither tier-specific trajectories nor a tier-by-year interaction.  The Limitations now states this explicitly.
+We removed the earlier widening-gap claim.  The year field supports coauthor timing and the scalar surge-share construction, but the revision estimates neither tier-specific trajectories nor a tier-by-year interaction.  The Limitations now states this explicitly.
 
 \location{Paired Inference, matched results, and Limitations; pp.~13, 16--19, and 25; Tables~\ref{ms-tab:paired-primary}, \ref{ms-tab:paired-secondary}, and~\ref{ms-tab:exact-h5}}{193--215, 285--302, and 398--401}
 
@@ -112,7 +115,7 @@ We removed the unsupported widening-gap claim.  The year field supports coauthor
 
 \commenttext{The central qualitative claim of a ``hub-and-spoke'' topology is presented without any formal network definition, graph-theoretic metrics, or quantitative thresholds. The role of Louvain community detection is also unclear. From Table 5 it is unclear if the adjustements for directed networks are adopted in the computation of newtork indicators auch as eigenfactor. Moreover, it is unclear on which graphs some indicators are calculated (in table 5 the manuscript refers to ``undirected projection'' and ``undirected citation'' graphs without specifications. To move from observation to verifiable evidence, the authors must provide the analytical basis for their network characterisation.}
 
-\response The unsupported hub-and-spoke characterization, qualitative topology labels, Louvain community detection, and modularity result have been removed from the revised canonical analysis and manuscript.  No community or topology result is now inferred.
+\response The former hub-and-spoke characterization, qualitative topology labels, Louvain community detection, and modularity result have been removed from the revised canonical analysis and manuscript.  No community or topology result is now inferred.
 
 The revision separates the journal and author networks.  Eigenfactor is a fixed journal-level exposure used before author matching, not an author centrality.  The Methods now specifies citing-to-cited orientation, journal self-citation removal, outgoing-column normalization, 0.85 damping, article-count redistribution of dangling mass and teleportation, and within-subject normalization.  The current workflow consumes the fixed database scores; because the intermediate journal-edge and article-count exports are unavailable, the manuscript explicitly states that the revision cannot independently reproduce or verify the upstream scores or extraction window end to end.
 

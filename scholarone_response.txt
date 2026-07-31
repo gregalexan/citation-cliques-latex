@@ -1,0 +1,34 @@
+Manuscript QSS-2026-0077 — Major Revision
+
+Original title: Citation Cliques in Low Impact Journals
+Revised title: Citation-Network Cohesion Across Low- and High-Impact Journals: A Matched Author Analysis
+
+Dear Dr. Larivière,
+
+Thank you for inviting a major revision of manuscript QSS-2026-0077. We also thank Reviewer 1 for the detailed and constructive assessment. We have rebuilt the affected analysis and substantially revised the manuscript. The new title reflects the associational matched-author design and removes the earlier implication that the study establishes citation cliques.
+
+The principal revisions are as follows:
+
+1. We reorganized the manuscript so that the data, matching procedure, graph definitions, paired inference, and anomaly screen are introduced before the results. Technical terms, notation, analytic populations, denominators, and missing-value rules are now defined in plain language as well as formally.
+
+2. We replaced the inconsistent h5 bucketing rule with the inclusive hard caliper |h5,Case − h5,Control| ≤ 3 and specified the full deterministic greedy order: subject, absolute h5 difference, Case ORCID, and Control ORCID. A read-only audit exactly reproduced the retained 9,431-pair cohort within the materialized positive-h5 pool and confirmed no caliper violations or reused author–subject keys.
+
+3. We replaced the former metric table with self-contained operational definitions. The former “normalised burst intensity” variable and its Kleinberg attribution were removed. The revised maximum annual dyadic surge share is explicitly defined as a bounded five-year scalar summary, not a trajectory model or an implementation of Kleinberg’s burst-detection method.
+
+4. We removed K-means clustering and the former three-cluster result. We also removed feature weights, the four-sigma cutoff, and the Cohesion Composite Score. The revised anomaly screen uses five declared structural features, Control-referenced median/IQR scaling, Control percentile cutoffs, and sensitivity analyses across thresholds, seeds, and leave-one-feature-out fits. The overlap between the Isolation Forest score and the cohesion restriction is quantified and described as an overlapping guardrail, not independent confirmation.
+
+5. We now specify two-sided paired Wilcoxon signed-rank tests, outcome-specific complete-pair deletion, within-family Benjamini–Hochberg correction, matched rank-biserial effects, paired-bootstrap intervals, and sign-flip checks. The rebuilt analysis reports eight outcomes in two declared families. We removed both the earlier “citation trajectories” claim and the inconsistent 13-versus-14 / 12-out-of-14 feature claims.
+
+6. We removed the unsupported hub-and-spoke characterization, Louvain analysis, modularity result, and qualitative topology labels. The revised manuscript formally distinguishes the journal Eigenfactor network from the directed weighted author graph and its binary undirected projection, and it states exactly when direction and weights are retained or discarded. No component topology is claimed when the declared reporting gate is not met.
+
+7. We rewrote the Discussion to compare the regenerated findings with the relevant author- and journal-level literature, explain why the measures are not numerically interchangeable with prior studies, and discuss non-adversarial explanations. The conclusion now states explicitly that the study is associational and that the screen cannot establish coordination, intent, or misconduct.
+
+8. All reported values, tables, and figures now come from one canonical analysis output. The revised software, aggregate replication materials, and retained-cohort database are archived as Zenodo version 3.0.0 at https://doi.org/10.5281/zenodo.21720914.
+
+We provide a clean revised manuscript, a marked manuscript with additions shown in blue, and a detailed point-by-point response. Page and line references in the detailed response refer to the clean revised manuscript.
+
+Sincerely,
+
+Panagiotis-Alexios Spanakis
+Grigorios Alexandrou
+Diomidis Spinellis
