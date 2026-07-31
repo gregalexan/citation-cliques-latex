@@ -14,9 +14,14 @@ the manuscript from generated LaTeX macros.
 
 Prerequisites are SQLite, `rdbunit`, Python 3.11 or later, the packages declared
 in `pyproject.toml`, and a LaTeX installation with `biber`.  The raw Crossref
-snapshot is `impact.db`; the existing `rolap.db` supplies only the retained
-cohort and its matching covariate.  Corrected tables are rebuilt from scratch
-in `build/revision-v1/rolap.db`.
+snapshot is `impact.db`.  The released `rolap.db` preserves the retained
+cohort, its matching covariate, and legacy derived tables; the canonical builder
+reads only `author_matched_pairs` and `author_subject_h5_index` from it.
+Corrected tables are rebuilt from scratch in `build/revision-v1/rolap.db`.
+The released database contains ORCID-linked author records and descriptive
+legacy metrics, none of which constitutes a finding of misconduct.
+Software is licensed under the [MIT License](LICENSE); the database and its
+source-data conditions are documented in [DATA_LICENSE.md](DATA_LICENSE.md).
 
 ```sh
 make reproduce
@@ -376,6 +381,7 @@ plausible alternative explanations for observed cohesion.  The screen is
 useful for prioritizing records for contextual review; it is not a finding of
 intent or misconduct.
 
-Version 2.0.0 of the revised software and aggregate replication materials is
-archived at <https://doi.org/10.5281/zenodo.21720390>.  The large `impact.db`
-and `rolap.db` inputs are not included in that archive.
+Version 3.0.0 of the revised software, aggregate replication materials, and
+retained-cohort database is archived at
+<https://doi.org/10.5281/zenodo.21720914>.  The approximately 128 GB
+`impact.db` raw snapshot is not included in that archive.

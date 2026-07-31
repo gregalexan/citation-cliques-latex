@@ -491,7 +491,7 @@ This research did not receive a specific grant from any funding agency in the pu
 \section{Data and Code Availability}
 \label{sec:data-availability}
 
-The revised software and aggregate replication materials are archived as Zenodo version~2.0.0 \parencite{dataset_zenodo}.  The archive contains the subject-keyed offline workflow, SQL and Python tests, manuscript sources, and the exact aggregate macros, tables, and figures consumed from \texttt{\GeneratedRoot}.  It does not include the approximately 128~GB raw Crossref snapshot or 15~GB retained-cohort database required for a complete rerun; the workflow documents those fixed local inputs and the unavailable upstream journal-edge and article-count exports.  Historical local output directories are non-authoritative and are not manuscript inputs.
+The revised software, aggregate replication materials, and retained-cohort database are archived as Zenodo version~3.0.0 \parencite{dataset_zenodo}.  The archive contains the subject-keyed offline workflow, SQL and Python tests, manuscript sources, the exact aggregate macros, tables, and figures consumed from \texttt{\GeneratedRoot}, and the ORCID-linked retained cohort and matching covariate.  The canonical builder reads only \texttt{author\_matched\_pairs} and \texttt{author\_subject\_h5\_index} from the released database; its other legacy derived tables are non-authoritative and their descriptive metrics are not findings of misconduct.  The approximately 128~GB raw Crossref snapshot and unavailable upstream journal-edge and article-count exports are not included.  Historical local output directories are non-authoritative and are not manuscript inputs.
 
 \printbibliography
 
