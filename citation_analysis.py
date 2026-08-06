@@ -581,6 +581,14 @@ def run_clique_analysis(
             [item["observed_reciprocal_clique_count"] for item in null_rows],
             float(row["observed_reciprocal_clique_count"]),
         )
+        row["null_p_mean_density"] = _empirical_upper_p(
+            [item["observed_mean_density"] for item in null_rows],
+            float(row["observed_mean_density"]),
+        )
+        row["null_p_mean_reciprocity"] = _empirical_upper_p(
+            [item["observed_mean_reciprocity"] for item in null_rows],
+            float(row["observed_mean_reciprocity"]),
+        )
         row["valid_null_replicates"] = len(null_rows)
         label_share_null = _clique_label_swap_shares(
             observed_rows,
@@ -2282,7 +2290,9 @@ def write_clique_summary_table(cliques: CliqueResults, path: Path) -> None:
             _format_number(row.null_mean_reciprocal_clique_count, 2),
             _format_p(row.null_p_reciprocal_clique_count),
             _format_number(row.observed_mean_density, 3),
+            _format_p(row.null_p_mean_density),
             _format_number(row.observed_mean_reciprocity, 3),
+            _format_p(row.null_p_mean_reciprocity),
             _format_number(100 * row.observed_case_membership_share, 1) + r"\%",
             _format_p(row.label_swap_p_case_membership_share),
         ]
@@ -2291,7 +2301,7 @@ def write_clique_summary_table(cliques: CliqueResults, path: Path) -> None:
         path,
         caption="Formal reciprocal-clique analysis in the matched-author graph.",
         label="tab:clique-summary",
-        alignment="lrrrrrrrr",
+        alignment="lrrrrrrrrrr",
         headers=(
             "Primary rule",
             "Structural cliques",
@@ -2299,7 +2309,9 @@ def write_clique_summary_table(cliques: CliqueResults, path: Path) -> None:
             "Null mean",
             "Null $p$",
             "Mean density",
+            "Density $p$",
             "Mean reciprocity",
+            "Reciprocity $p$",
             "Case share",
             "Label-swap $p$",
         ),
@@ -2324,6 +2336,10 @@ def write_clique_sensitivity_table(cliques: CliqueResults, path: Path) -> None:
                 f"{int(row.observed_reciprocal_clique_count):,}",
                 _format_number(row.null_mean_reciprocal_clique_count, 2),
                 _format_p(row.null_p_reciprocal_clique_count),
+                _format_number(row.observed_mean_density, 3),
+                _format_p(row.null_p_mean_density),
+                _format_number(row.observed_mean_reciprocity, 3),
+                _format_p(row.null_p_mean_reciprocity),
                 _format_number(100 * row.observed_case_membership_share, 1) + r"\%",
                 _format_p(row.label_swap_p_case_membership_share),
             ]
@@ -2332,7 +2348,7 @@ def write_clique_sensitivity_table(cliques: CliqueResults, path: Path) -> None:
         path,
         caption="Clique minimum-size and reciprocity-threshold sensitivity.",
         label="tab:clique-sensitivity",
-        alignment="lrrrrrrr",
+        alignment="lrrrrrrrrrrr",
         headers=(
             "$k$ minimum",
             "Reciprocity threshold",
@@ -2340,6 +2356,10 @@ def write_clique_sensitivity_table(cliques: CliqueResults, path: Path) -> None:
             "Reciprocal cliques",
             "Null mean",
             "Null $p$",
+            "Mean density",
+            "Density $p$",
+            "Mean reciprocity",
+            "Reciprocity $p$",
             "Case share",
             "Label-swap $p$",
         ),
@@ -2771,6 +2791,8 @@ def write_result_macros(
                 "CliqueReciprocalCount": "0",
                 "CliqueNullMeanCount": "NA",
                 "CliqueNullP": "NA",
+                "CliqueDensityNullP": "NA",
+                "CliqueReciprocityNullP": "NA",
                 "CliqueMeanDensity": "NA",
                 "CliqueMeanReciprocity": "NA",
                 "CliqueCaseSharePercent": "NA",
@@ -2792,6 +2814,10 @@ def write_result_macros(
                     clique.null_mean_reciprocal_clique_count, 2
                 ),
                 "CliqueNullP": _macro_number(clique.null_p_reciprocal_clique_count, 4),
+                "CliqueDensityNullP": _macro_number(clique.null_p_mean_density, 4),
+                "CliqueReciprocityNullP": _macro_number(
+                    clique.null_p_mean_reciprocity, 4
+                ),
                 "CliqueMeanDensity": _macro_number(clique.observed_mean_density, 3),
                 "CliqueMeanReciprocity": _macro_number(
                     clique.observed_mean_reciprocity, 3
@@ -2814,7 +2840,10 @@ def write_result_macros(
                     f"(empirical $p={_macro_number(clique.null_p_reciprocal_clique_count, 4)}$). "
                     f"Their mean directed density was "
                     f"{_macro_number(clique.observed_mean_density, 3)} and mean weighted "
-                    f"reciprocity was {_macro_number(clique.observed_mean_reciprocity, 3)}."
+                    f"reciprocity was {_macro_number(clique.observed_mean_reciprocity, 3)}. "
+                    f"Canonical flags comprised "
+                    f"{_macro_number(100 * clique.observed_flagged_membership_share, 1)}\\% "
+                    f"of clique memberships."
                 ),
             }
         )
