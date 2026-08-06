@@ -70,6 +70,59 @@ class MetricDefinitionTests(unittest.TestCase):
         self.assertEqual(result["C"], 1.0)
         self.assertEqual(result["D"], 0.0)
 
+    def test_clique_metrics_use_directed_density_and_weighted_reciprocity(self) -> None:
+        dyads = pd.DataFrame(
+            {
+                "subject": ["s"] * 9,
+                "citing_orcid": ["A", "B", "A", "C", "A", "D", "B", "B", "C"],
+                "cited_orcid": ["B", "A", "C", "A", "D", "A", "C", "D", "D"],
+                "citation_weight": [2, 2, 3, 3, 2, 2, 1, 1, 1],
+            }
+        )
+        result = analysis.clique_group_metrics(
+            ("A", "B", "C", "D"),
+            dyads,
+            {"A": "Case", "B": "Control", "C": "Case", "D": "Control"},
+        )
+        self.assertAlmostEqual(result["directed_density"], 9 / 12)
+        self.assertAlmostEqual(result["weighted_reciprocity"], 7 / 10)
+        self.assertEqual(result["case_memberships"], 2)
+
+    def test_clique_enumeration_returns_maximal_groups_at_threshold(self) -> None:
+        dyads = pd.DataFrame(
+            {
+                "subject": ["s"] * 7,
+                "citing_orcid": ["A", "A", "A", "B", "B", "C", "D"],
+                "cited_orcid": ["B", "C", "D", "C", "D", "D", "A"],
+                "citation_weight": [1.0] * 7,
+            }
+        )
+        groups = analysis.enumerate_subject_cliques(
+            dyads, ["A", "B", "C", "D"], min_size=3
+        )
+        self.assertEqual(groups, [("A", "B", "C", "D")])
+
+    def test_rewire_preserves_directed_degrees_and_weights(self) -> None:
+        dyads = pd.DataFrame(
+            {
+                "subject": ["s"] * 6,
+                "citing_orcid": ["A", "A", "B", "B", "C", "D"],
+                "cited_orcid": ["B", "C", "C", "D", "D", "A"],
+                "citation_weight": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            }
+        )
+        rewired = analysis.rewire_subject_dyads(dyads, seed=7, swaps=1)
+        before = dyads.groupby("citing_orcid").size().sort_index()
+        after = rewired.groupby("citing_orcid").size().sort_index()
+        self.assertEqual(before.to_dict(), after.to_dict())
+        self.assertEqual(
+            dyads.groupby("cited_orcid").size().sort_index().to_dict(),
+            rewired.groupby("cited_orcid").size().sort_index().to_dict(),
+        )
+        self.assertEqual(
+            sorted(dyads["citation_weight"]), sorted(rewired["citation_weight"])
+        )
+
     def test_annual_dyadic_surge_with_zero_filled_years(self) -> None:
         edges = pd.DataFrame(
             {
