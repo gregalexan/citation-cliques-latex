@@ -131,6 +131,7 @@ class _CliqueNullSubject:
     targets: np.ndarray
     weights: np.ndarray
     node_count: int
+    swap_count: int
     candidate_offsets: np.ndarray
     candidate_forward_codes: np.ndarray
     candidate_reverse_codes: np.ndarray
@@ -409,11 +410,18 @@ def _prepare_clique_null_context(
     subjects: list[_CliqueNullSubject] = []
     for subject, members in membership.groupby("subject", sort=True):
         subject_name = str(subject)
-        subject_dyads = cumulative[
+        subject_all_dyads = cumulative[
             cumulative["subject"].astype(str) == subject_name
         ]
+        subject_dyads = subject_all_dyads[
+            subject_all_dyads["citing_orcid"] != subject_all_dyads["cited_orcid"]
+        ]
         member_names = {str(value) for value in members["orcid"].drop_duplicates()}
-        if len(member_names) < 4 or len(subject_dyads) < 3:
+        if (
+            len(member_names) < 4
+            or len(subject_all_dyads) < 3
+            or len(subject_dyads) < 3
+        ):
             continue
         edge_names = set(subject_dyads["citing_orcid"].astype(str)) | set(
             subject_dyads["cited_orcid"].astype(str)
@@ -450,6 +458,7 @@ def _prepare_clique_null_context(
                 targets=targets,
                 weights=weights,
                 node_count=len(node_names),
+                swap_count=len(subject_all_dyads),
                 candidate_offsets=np.asarray(offsets, dtype=np.int64),
                 candidate_forward_codes=np.asarray(forward_codes, dtype=np.int64),
                 candidate_reverse_codes=np.asarray(reverse_codes, dtype=np.int64),
@@ -590,7 +599,7 @@ def _run_clique_null_replicate(
             sources, targets, weights = _rewire_clique_subject(
                 subject,
                 seed=seed + 1009 * (replicate + 1) + subject_index,
-                swaps=max(1, min(len(subject.weights), 10)),
+                swaps=max(1, min(subject.swap_count, 10)),
             )
         except (ValueError, nx.NetworkXException):
             return _CliqueNullReplicateResult(False, tuple())
