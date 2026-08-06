@@ -2,9 +2,8 @@
 \centering
 \caption{Matching balance overall and by subject.}
 \label{tab:matching-balance}
-\small
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lrrrrrr}
+\tableformat
+\begin{tabularx}{\textwidth}{@{}P{0.13\textwidth}*{6}{Z}@{}}
 \toprule
 Subject & Pairs & $h_5$ observed & Exact $h_5$ & Median $\Delta h_5$ & Median $|\Delta h_5|$ & Maximum $|\Delta h_5|$ \\
 \midrule
@@ -15,8 +14,7 @@ Overall & 9,431 & 9,431 & 5,736 & 0.00 & 0.00 & 2 \\
 4 & 2,262 & 2,262 & 1,958 & 0.00 & 0.00 & 1 \\
 5 & 518 & 518 & 518 & 0.00 & 0.00 & 0 \\
 \bottomrule
-\end{tabular}
-}
+\end{tabularx}
 \par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize $\Delta h_5$ is Case minus Control. Every pair must satisfy $|\Delta h_5|\leq3$. Exact-$h_5$ pairs form a sensitivity cohort; they do not replace the primary matched cohort.
 \end{minipage}
 \end{table*}

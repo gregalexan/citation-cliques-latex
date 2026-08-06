@@ -630,8 +630,9 @@ def paired_bootstrap_ci(
     n_resamples: int = 2_000,
     seed: int = DEFAULT_SEED,
     confidence: float = 0.95,
+    statistic: str = "median",
 ) -> tuple[float, float]:
-    """Percentile paired-bootstrap CI for the median within-pair difference."""
+    """Percentile paired-bootstrap CI for a within-pair difference summary."""
 
     values = np.asarray(list(differences), dtype=float)
     values = values[np.isfinite(values)]
@@ -639,13 +640,20 @@ def paired_bootstrap_ci(
         return math.nan, math.nan
     if n_resamples <= 0:
         raise ValueError("n_resamples must be positive")
+    if statistic not in {"mean", "median"}:
+        raise ValueError("statistic must be 'mean' or 'median'")
     rng = np.random.default_rng(seed)
     statistics = np.empty(n_resamples, dtype=float)
     chunk = 256
     for start in range(0, n_resamples, chunk):
         stop = min(start + chunk, n_resamples)
         sample_index = rng.integers(0, len(values), size=(stop - start, len(values)))
-        statistics[start:stop] = np.median(values[sample_index], axis=1)
+        sample = values[sample_index]
+        statistics[start:stop] = (
+            np.mean(sample, axis=1)
+            if statistic == "mean"
+            else np.median(sample, axis=1)
+        )
     alpha = (1.0 - confidence) / 2.0
     low, high = np.quantile(statistics, [alpha, 1.0 - alpha])
     return float(low), float(high)
@@ -740,6 +748,12 @@ def run_paired_inference(
             n_resamples=bootstrap_resamples,
             seed=seed + 10_007 * index,
         )
+        mean_ci_low, mean_ci_high = paired_bootstrap_ci(
+            differences,
+            n_resamples=bootstrap_resamples,
+            seed=seed + 30_013 * index,
+            statistic="mean",
+        )
         rows.append(
             {
                 "family": family,
@@ -751,8 +765,11 @@ def run_paired_inference(
                     float(paired["control_value"].median()) if len(paired) else math.nan
                 ),
                 "median_difference": float(np.median(differences)) if len(paired) else math.nan,
+                "mean_difference": float(np.mean(differences)) if len(paired) else math.nan,
                 "bootstrap_ci_low": ci_low,
                 "bootstrap_ci_high": ci_high,
+                "mean_bootstrap_ci_low": mean_ci_low,
+                "mean_bootstrap_ci_high": mean_ci_high,
                 "rank_biserial": matched_rank_biserial(differences),
                 "wilcoxon_p": _wilcoxon_pvalue(differences),
                 "sign_flip_p": sign_flip_pvalue(
@@ -1561,6 +1578,8 @@ def write_paired_table(
                 _format_number(row.control_median),
                 _format_number(row.median_difference),
                 f"[{_format_number(row.bootstrap_ci_low)}, {_format_number(row.bootstrap_ci_high)}]",
+                _format_number(row.mean_difference),
+                f"[{_format_number(row.mean_bootstrap_ci_low)}, {_format_number(row.mean_bootstrap_ci_high)}]",
                 _format_number(row.rank_biserial),
                 _format_p(row.bh_adjusted_p),
                 _format_p(row.sign_flip_p),
@@ -1570,7 +1589,7 @@ def write_paired_table(
         path,
         caption=caption,
         label=label,
-        alignment="lrrrrrrrr",
+        alignment="lrrrrrrrrrr",
         headers=(
             "Metric",
             "$n$",
@@ -1578,6 +1597,8 @@ def write_paired_table(
             "Control med.",
             r"$\Delta$ med.",
             r"Paired boot. 95\% CI",
+            r"Mean $\Delta$",
+            r"Mean boot. 95\% CI",
             "$r_{rb}$",
             "$p_{BH}$",
             "$p_{flip}$",
@@ -1586,6 +1607,8 @@ def write_paired_table(
         note=note
         or (
             "Complete-pair deletion is performed separately for each metric. "
+            "Median differences can be zero because of tie-heavy zero-inflated outcomes; "
+            "mean differences summarize the directional shift. "
             r"Positive differences and rank-biserial effects indicate Case $>$ Control. "
             "BH correction is within the displayed outcome family."
         ),
@@ -2005,48 +2028,62 @@ def write_result_macros(
                     prefix + "CaseMedian": _macro_number(row.case_median),
                     prefix + "ControlMedian": _macro_number(row.control_median),
                     prefix + "MedianDifference": _macro_number(row.median_difference),
+                    prefix + "MeanDifference": _macro_number(row.mean_difference),
                     prefix + "BootstrapCILow": _macro_number(row.bootstrap_ci_low),
                     prefix + "BootstrapCIHigh": _macro_number(row.bootstrap_ci_high),
+                    prefix + "MeanBootstrapCILow": _macro_number(row.mean_bootstrap_ci_low),
+                    prefix + "MeanBootstrapCIHigh": _macro_number(row.mean_bootstrap_ci_high),
                     prefix + "RankBiserial": _macro_number(row.rank_biserial),
                     prefix + "BHAdjustedP": _macro_number(row.bh_adjusted_p, 4),
                     prefix + "SignFlipP": _macro_number(row.sign_flip_p, 4),
                 }
             )
     significant_primary = int(primary["bh_significant_05"].sum())
-    nonzero_primary_medians = int(
-        (~np.isclose(primary["median_difference"].to_numpy(dtype=float), 0.0)).sum()
-    )
     min_pairs = int(primary["n_pairs"].min()) if len(primary) else 0
     max_pairs = int(primary["n_pairs"].max()) if len(primary) else 0
     commands["PrimarySignificantCount"] = str(significant_primary)
     commands["PrimaryMinimumPairCount"] = f"{min_pairs:,}"
     commands["PrimaryMaximumPairCount"] = f"{max_pairs:,}"
+    positive_mean_count = int((primary["mean_difference"] > 0).sum())
+    zero_median_count = int(np.isclose(primary["median_difference"], 0.0).sum())
     # Kept deliberately concise so the assembled abstract remains below 200 words.
     commands["PrimaryFindingText"] = (
-        f"All {significant_primary} primary signed-rank comparisons met the 5\\% BH "
-        f"threshold; only {nonzero_primary_medians} had a nonzero median paired difference."
+        f"All {significant_primary} primary comparisons met the 5\\% BH threshold, "
+        f"with positive mean paired differences for all {positive_mean_count}; "
+        f"zero inflation made {zero_median_count} median differences zero."
     )
 
     primary_by_metric = primary.set_index("metric")
     hhi = primary_by_metric.loc["outgoing_hhi"]
-    tie_metrics = [
+    mean_summary = [
         primary_by_metric.loc[metric]
         for metric in (
             "coauthor_citation_rate",
             "reciprocity",
             "local_clustering",
+            "outgoing_hhi",
         )
     ]
     commands["PrimaryDetailedFindingText"] = (
         "All four primary signed-rank comparisons remained different after BH correction. "
-        f"Outgoing HHI was higher for Cases (median paired difference "
+        "Mean paired differences favored Cases for coauthor-citation rate, reciprocity, "
+        "local clustering, and outgoing HHI ("
+        + "; ".join(
+            f"{row.metric_label} {_macro_number(row.mean_difference)}, 95\\% bootstrap CI "
+            f"[{_macro_number(row.mean_bootstrap_ci_low)}, {_macro_number(row.mean_bootstrap_ci_high)}]"
+            for row in mean_summary
+        )
+        + "). "
+        "Because the outcomes are zero-inflated, the first three had zero median paired "
+        "differences; their matched rank-biserial effects were positive "
+        f"({_macro_number(primary_by_metric.loc['coauthor_citation_rate'].rank_biserial)}, "
+        f"{_macro_number(primary_by_metric.loc['reciprocity'].rank_biserial)}, "
+        f"{_macro_number(primary_by_metric.loc['local_clustering'].rank_biserial)}). "
+        "Outgoing HHI also had a positive median paired difference "
         f"{_macro_number(hhi.median_difference)}, 95\\% bootstrap CI "
         f"[{_macro_number(hhi.bootstrap_ci_low)}, "
         f"{_macro_number(hhi.bootstrap_ci_high)}]; "
-        f"$r_{{\\mathrm{{rb}}}}={_macro_number(hhi.rank_biserial)}$). "
-        "Coauthor-citation rate, reciprocity, and clustering had zero median paired "
-        "differences because of ties, although their matched rank-biserial effects were "
-        f"positive ({', '.join(_macro_number(row.rank_biserial) for row in tie_metrics)})."
+        f"$r_{{\\mathrm{{rb}}}}={_macro_number(hhi.rank_biserial)}$."
     )
 
     secondary_by_metric = secondary.set_index("metric")
@@ -2314,7 +2351,9 @@ def write_artifacts(
         note=(
             "Complete-pair deletion is metric-specific. The first four rows use the exact-$h_5$ "
             "cohort and BH correction across those primary outcomes; the same-year coauthor row "
-            "uses the full cohort as a separate one-outcome sensitivity family."
+            "uses the full cohort as a separate one-outcome sensitivity family. "
+            "Median differences can be zero because of tie-heavy zero-inflated outcomes; "
+            "mean differences summarize the directional shift."
         ),
     )
     write_anomaly_enrichment_table(enrichment, tables_directory / "anomaly_enrichment.tex")

@@ -2,9 +2,8 @@
 \centering
 \caption{Anomaly-screen threshold and seed sensitivity.}
 \label{tab:anomaly-sensitivity}
-\small
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lrrrrr}
+\tableformat
+\begin{tabularx}{\textwidth}{@{}P{0.20\textwidth}*{5}{Z}@{}}
 \toprule
 Control percentile & Flagged, median [range] & Case share & Control share & Enrichment & Jaccard vs. canonical \\
 \midrule
@@ -12,8 +11,7 @@ Control percentile & Flagged, median [range] & Case share & Control share & Enri
 99.0\% & 54 [52--55] & 0.71\% & 0.04\% & 16.31 & 0.98 \\
 99.5\% & 42 [41--44] & 0.55\% & 0.04\% & 12.68 & 0.77 \\
 \bottomrule
-\end{tabular}
-}
+\end{tabularx}
 \par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Each row summarises ten fixed seeds; the canonical screen uses the 99th percentile and seed 42.
 \end{minipage}
 \end{table*}

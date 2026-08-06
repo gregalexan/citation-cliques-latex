@@ -411,6 +411,11 @@ class ArtifactWriterTests(unittest.TestCase):
             bootstrap_resamples=50,
             sign_flips=100,
         )
+        self.assertTrue(
+            {"mean_difference", "mean_bootstrap_ci_low", "mean_bootstrap_ci_high"}
+            .issubset(primary.columns)
+        )
+        self.assertTrue((primary["mean_difference"] > 0).all())
         exact = primary.assign(family="exact_h5_primary")
         screened = features.copy()
         screened["detector_score"] = 0.0
@@ -532,6 +537,12 @@ class ArtifactWriterTests(unittest.TestCase):
             self.assertIn(
                 r"\newcommand{\AnomalyFeatureAblationFindingText}", macros
             )
+            paired_primary = (output / "tables/paired_primary.tex").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(r"Mean $\Delta$", paired_primary)
+            self.assertIn(r"Mean boot. 95\% CI", paired_primary)
+            self.assertIn("zero-inflated", paired_primary)
 
 
 class ScratchDatabaseTests(unittest.TestCase):

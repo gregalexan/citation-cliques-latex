@@ -38,8 +38,13 @@
 }
 \captionsetup{font=small,justification=raggedright,singlelinecheck=false}
 \newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{Z}{>{\centering\arraybackslash}X}
 \newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
 \renewcommand{\arraystretch}{1.15}
+% Keep every manuscript table at one readable font size and one text-width
+% footprint; scaling each table to the page independently makes sparse tables
+% appear much larger than wide tables.
+\newcommand{\tableformat}{\footnotesize\setlength{\tabcolsep}{1pt}}
 
 \usepackage{authblk}
 \usepackage{csquotes}
@@ -126,6 +131,8 @@ The study asks three questions:
   \item Are author--subject profiles that are unusual relative to Controls enriched among Cases?
   \item What is the descriptive structure of connected components formed by flagged profiles, and how do fractional citation weights mix across the two tiers?
 \end{enumerate}
+
+We expect Case author--subjects to have higher values than Controls on the four primary measures: prior-coauthor citation rate, reciprocity, local clustering, and outgoing HHI.  This is an associational hypothesis, not a causal or integrity claim.  Because the measures are zero-inflated, we report both rank-based effects and mean paired differences; a zero median shift does not rule out a directional difference.
 
 The questions are associational.  Network closure may reflect many mechanisms, including legitimate topical specialization and collaboration.  Accordingly, the anomaly procedure is presented as a screening device, and component labels describe graph position rather than motive or conduct.
 
@@ -230,12 +237,13 @@ The study-specific temporal measure is
        {\sum_j\sum_{t=2020}^{2024}x_{ijt}}.
   \label{eq:surge-share}
 \end{equation}
+This study-specific temporal increment is not a state-transition burst-detection model.
 
 \begin{table}[p]
   \centering
   \caption{Declared author--subject measures.}
   \label{tab:metric-definitions}
-  \footnotesize
+  \tableformat
   \begin{threeparttable}
   \begin{tabularx}{\textwidth}{@{}P{0.19\textwidth}P{0.31\textwidth}Y@{}}
     \toprule
@@ -285,7 +293,7 @@ The study-specific temporal measure is
     \bottomrule
   \end{tabularx}
   \begin{tablenotes}
-    \item \textit{Notes.} $x_{ijt}$ is fractional weight from $i$ to $j$ in year $t$; $w_{ij}=\sum_{t=2020}^{2024}x_{ijt}$; $c_{ij}$ is their first joint-publication year; and $\mathbf{1}(\cdot)$ is the indicator function.  $G_s$ retains positive-weight non-self edges among matched authors, and $U_s$ links a pair when either direction is positive.  HHI equals one when all non-self weight goes to one recipient and decreases as weight is dispersed.  Also, $[z]_+=\max(z,0)$.  A positive observed denominator with no qualifying event gives zero.  A zero denominator gives a missing value, except that clustering is zero for an observed node with fewer than two neighbors.  The surge definition is study-specific and is not an implementation of a state-transition burst-detection model.  All measures are calculated separately for each author--subject.
+    \item \textit{Notes.} $x_{ijt}$ is fractional citation weight from $i$ to $j$ in year $t$; $w_{ij}=\sum_{t=2020}^{2024}x_{ijt}$; $c_{ij}$ is the first joint-publication year; and $\mathbf{1}(\cdot)$ is an indicator.  $G_s$ is the directed, weighted matched-author graph, $U_s$ its binary undirected projection, and $[z]_+=\max(z,0)$.  Measures are calculated separately for each author--subject; missing-value and zero rules are stated below.
   \end{tablenotes}
   \end{threeparttable}
 \end{table}
@@ -326,7 +334,7 @@ For outcome $m$, let $d_{pm}=x^{\mathrm{Case}}_{pm}-x^{\mathrm{Control}}_{pm}$ f
 \begin{equation}
   r_{\mathrm{rb}}=\frac{W^+-W^-}{W^++W^-},
 \end{equation}
-where $W^+$ and $W^-$ are the positive and negative signed-rank sums after omitting zero differences.  Ninety-five percent confidence intervals for the median paired difference are obtained from \num{2000} bootstrap resamples of matched pairs, preserving both members of each pair \parencite{Efron1993}.  Benjamini--Hochberg correction is applied to the Wilcoxon $p$-values separately within the four primary and four secondary families \parencite{Benjamini1995}.
+where $W^+$ and $W^-$ are the positive and negative signed-rank sums after omitting zero differences.  Ninety-five percent confidence intervals for the median paired difference are obtained from \num{2000} bootstrap resamples of matched pairs, preserving both members of each pair \parencite{Efron1993}.  Because the bounded outcomes are heavily zero-inflated, mean paired differences and their paired-bootstrap intervals are also reported as descriptive complements; they do not replace the nonparametric test or its median-based primary summary.  Benjamini--Hochberg correction is applied to the Wilcoxon $p$-values separately within the four primary and four secondary families \parencite{Benjamini1995}.
 The effect $r_{\mathrm{rb}}$ ranges from $-1$ to 1, with positive values indicating higher ranks for Cases.  Benjamini--Hochberg correction limits the expected false-discovery proportion within each declared family.
 
 As a randomization check, each observed within-pair difference is independently multiplied by $+1$ or $-1$ in \num{10000} draws, using the absolute mean paired difference as the two-sided statistic.  This sign-flip null preserves pair magnitudes and replaces the earlier pooled-label permutation.  Primary outcomes are also repeated for exact-$h_5$ pairs and under the same-year coauthor definition.
@@ -336,7 +344,7 @@ As a randomization check, each observed within-pair difference is independently 
 
 The anomaly analysis answers a different question from paired inference: whether profiles that are unusual relative to the Control distribution occur more often among Cases.  It is not trained to predict tier and is not evidence of intent.
 
-An author--subject is eligible only when it has at least one identified non-self outgoing citation.  The rebuilt screen applies an explicit structural rule: it includes the five author-edge measures representing self-reference, prior-collaborator citation, mutual exchange, neighborhood closure, and recipient concentration---self-citation rate, prior-coauthor citation rate, reciprocity, local clustering, and outgoing HHI.  Journal endogamy is excluded because it is defined on work references rather than author edges; within-sample balance is a signed flow position that is unavailable without internal incident weight; and surge share is temporal rather than a static cohesion or concentration measure.  This rule defines the revised screen; it is not presented as independent validation or as a feature set prespecified in the original analysis.  No additional feature weights are applied.  Scoring additionally requires all five inputs to be available; citation eligibility and detector completeness are reported separately.  Unavailable feature values are not recoded as structural zeros.  Within each subject, eligible detector-complete Controls supply the feature medians and interquartile ranges.  A nonfinite or zero Control interquartile range is replaced by 1 to avoid division by zero; the centered feature then remains in its original scale.  The resulting transformation is also applied to Cases.
+An author--subject is eligible only when it has at least one identified non-self outgoing citation.  The rebuilt screen applies an explicit structural rule.  It uses five author-edge measures: self-citation rate, prior-coauthor citation rate, reciprocity, local clustering, and outgoing HHI.  Journal endogamy is excluded because it is defined on work references rather than author edges.  Within-sample balance is a signed flow position that is unavailable without internal incident weight, and surge share is temporal rather than a static cohesion or concentration measure.  This rule defines the revised screen.  It is not presented as independent validation or as a feature set prespecified in the original analysis.  No additional feature weights are applied.  Scoring requires all five inputs to be available; citation eligibility and detector completeness are reported separately.  Unavailable feature values are not recoded as structural zeros.  Within each subject, eligible detector-complete Controls supply the feature medians and interquartile ranges.  A nonfinite or zero Control interquartile range is replaced by 1 to avoid division by zero.  The centered feature then remains in its original scale, and the same transformation is applied to Cases.
 
 Each of 200 Isolation Forest trees recursively chooses a feature and split at random, using at most $\min(256,n_{\mathrm{Control}})$ Controls per tree \parencite{Liu2008}.  Profiles isolated in fewer splits receive lower library scores; we negate \texttt{score\_samples} so that larger study scores mean greater departure from the subject-specific Control distribution rather than a prediction of tier or conduct.  One model is fitted per subject with seed~42.  Although \texttt{contamination=auto} is passed to the library, its built-in decision cutoff is not used for the reported flag.  A row instead passes the score criterion when its study score is above the empirical 99th percentile among Controls in that subject.  This stringent tail operating point makes no Gaussian assumption and is not treated as uniquely optimal; the sensitivity analysis below also evaluates the 97.5th and 99.5th percentiles.  A row passes the cohesion restriction when at least two of prior-coauthor citation rate, reciprocity, clustering, and outgoing HHI exceed their respective percentile cutoffs in the same Control reference set.  Because all four of these measures also enter the detector, this is a deliberately overlapping, interpretable restriction rather than independent corroboration.  The final flag is the intersection of the two criteria and is the only flag used in enrichment, component, and figure generation.
 
@@ -358,19 +366,28 @@ All numerical values in this section are generated by the canonical analysis und
 \subsection{Matched differences in network measures}
 \label{sec:paired-results}
 
-\PrimaryDetailedFindingText
+The primary and secondary matched comparisons are shown in Tables~\ref{tab:paired-primary} and~\ref{tab:paired-secondary}; detailed effect summaries follow the tables.
 
 \inputgeneratedtable{paired_primary}{tab:paired-primary}{Matched comparisons for the four primary outcomes.  Adjusted $p$-values use Benjamini--Hochberg correction within the primary family.}
 
-\SecondaryDetailedFindingText
-
 \inputgeneratedtable{paired_secondary}{tab:paired-secondary}{Matched comparisons for the four secondary outcomes.  Adjusted $p$-values use Benjamini--Hochberg correction within the secondary family.}
+
+\FloatBarrier
+\PrimaryDetailedFindingText
+
+Three primary median differences are zero because the outcomes are zero-inflated: many complete
+pairs have identical observed values.  The nonzero differences nevertheless point in one direction,
+as shown by the positive mean differences and matched rank-biserial effects.  We therefore interpret
+the primary result as a distributional association, not as a claim that every Case author has a larger
+metric than the matched Control.
+
+\SecondaryDetailedFindingText
 
 \IfFileExists{\GeneratedRoot/figures/paired_effects.pdf}{%
   \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{\GeneratedRoot/figures/paired_effects.pdf}
-    \caption{Matched effect estimates by outcome.  Points show median paired differences and bars show paired-bootstrap 95\% confidence intervals.}
+    \caption{Matched effect estimates by outcome.  Points show median paired differences and bars show paired-bootstrap 95\% confidence intervals; mean differences and mean intervals are reported in Tables~\ref{tab:paired-primary} and~\ref{tab:paired-secondary}.}
     \label{fig:paired-effects}
   \end{figure}
 }{ }
@@ -414,8 +431,6 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
 
 \ComponentFindingText
 
-\inputgeneratedtable{outlier_components}{tab:outlier-components}{Descriptive summaries of qualifying flagged components.}
-
 \IfFileExists{\GeneratedRoot/figures/outlier_components.pdf}{%
   \begin{figure}[H]
     \centering
@@ -423,9 +438,7 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
     \caption{Qualifying flagged component or components.  Edge width represents cumulative fractional citation weight; anonymized node styling summarizes descriptive flow and network position.}
     \label{fig:outlier-components}
   \end{figure}
-}{%
-  \noindent\textit{No component figure is included in this build.  The analysis emits one only if a component formed from the final flag contains at least five nodes.}
-}
+}{ }
 
 \subsection{Fractional tier mixing}
 \label{sec:mixing-results}
@@ -450,7 +463,7 @@ This matched design evaluates whether citation structure is associated with an o
 
 The regenerated evidence is summarized as follows.  \PrimaryFindingText\ \AnomalyFindingText\ \ComponentFindingText\ \MixingFindingText\ The detailed estimates, intervals, and sensitivity results in Section~\ref{sec:results} govern interpretation when a short summary masks heterogeneous directions or uncertainty.
 
-The only primary outcome with a nonzero median paired difference was outgoing HHI, indicating greater concentration of Cases' identified non-self outgoing citation weight across recipients.  This is a directional complement to, rather than a replication of, Evdaimon et al.: their concentration indicator counts the incoming citing authors needed to account for 50\% of an author's received citations, whereas outgoing HHI measures how an author distributes references \parencite{Evdaimon2024}.  The zero median paired differences for prior-coauthor citation rate, reciprocity, and local clustering, despite positive rank-biserial effects in their tie-heavy distributions, further show that recipient concentration did not translate into a uniform median shift in collaboration or closure.  That separation is compatible with Evdaimon et al.'s finding that extremes on their concentration- and collaboration-based indicators only partly co-occur, but the different edge direction, sampling frame, and author populations preclude numerical comparison.
+All four primary mean paired differences favored Cases.  The zero median paired differences for prior-coauthor citation rate, reciprocity, and local clustering reflect their zero-inflated, tie-heavy distributions; their positive rank-biserial effects still indicate higher Case values in the paired ordering.  Outgoing HHI additionally had a positive median paired difference, indicating greater concentration of Cases' identified non-self outgoing citation weight across recipients.  This is a directional complement to, rather than a replication of, Evdaimon et al.: their concentration indicator counts the incoming citing authors needed to account for 50\% of an author's received citations, whereas outgoing HHI measures how an author distributes references \parencite{Evdaimon2024}.  That separation is compatible with Evdaimon et al.'s finding that extremes on their concentration- and collaboration-based indicators only partly co-occur, but the different edge direction, sampling frame, and author populations preclude numerical comparison.
 
 Among secondary outcomes, Cases had lower same-journal endogamy but a higher maximum annual dyadic surge share.  The first result does not support a simple account of greater same-journal referencing among Cases, while the second identifies a larger concentration in the greatest positive year-to-year increment to one recipient.  Neither is a replication of Heneberg's journal-level evidence: that study compared the timing of journal self-citations and foreign citations and documented citation stacking around the journal-impact-factor window, whereas the present measures concern work-reference ISSN equality and author dyads over a fixed five-year window \parencite{heneberg2016}.
 
@@ -474,11 +487,11 @@ The anomaly thresholds and Isolation Forest define an operational screen, not a 
 \section{Conclusion}
 \label{sec:conclusion}
 
-Conditional on the fixed upstream venue scores and retained positive-$h_5$ cohort, this study provides an auditable downstream framework for comparing citation-network cohesion across journal-impact strata.  It corrects work-level deduplication and team-size denominators, uses author--subject keys, separates ego and induced graph populations, and limits inference to eight interpretable measures.  \PrimaryFindingText\ \AnomalyFindingText\ \ComponentFindingText\ \MixingFindingText\ These findings should be read as associations under incomplete bibliographic coverage.  The screening results can prioritize descriptive follow-up, but they cannot establish coordination, intent, or misconduct.
+Conditional on the fixed upstream venue scores and retained positive-$h_5$ cohort, this study provides an auditable downstream framework for comparing citation-network cohesion across journal-impact strata.  It corrects work-level deduplication and team-size denominators, uses author--subject keys, separates ego and induced graph populations, and limits inference to eight interpretable measures.  \PrimaryFindingText\ The primary evidence supports a directional mean association, not a uniform median increase across every measure.  \AnomalyFindingText\ \ComponentFindingText\ \MixingFindingText\ These findings should be read as associations under incomplete bibliographic coverage.  The screening results can prioritize descriptive follow-up, but they cannot establish coordination, intent, or misconduct.
 
 \section{Author Contributions}
 
-Conceptualization: P.-A.S., D.S.; Methodology: P.-A.S.; Software: P.-A.S., G.A.; Data curation: P.-A.S., G.A.; Validation: P.-A.S., G.A., D.S.; Formal analysis: P.-A.S., G.A.; Visualization: P.-A.S.; Writing---original draft: G.A.; Writing---review and editing: P.-A.S., G.A., D.S.; Supervision: D.S.; Project administration: D.S.
+Conceptualization: P.-A.S., D.S.; Methodology: P.-A.S.; Software: P.-A.S., G.A.; Data curation: P.-A.S., G.A.; Validation: P.-A.S., G.A., D.S.; Formal analysis: P.-A.S., G.A.; Visualization: P.-A.S.; Writing, original draft: G.A.; Writing, review and editing: P.-A.S., G.A., D.S.; Supervision: D.S.; Project administration: D.S.
 
 \section{Competing Interests}
 

@@ -7,6 +7,17 @@ rebuilds and analyzes a matched author--subject citation cohort. Keep claims
 association-first: the anomaly screen prioritizes records for review and does
 not establish intent, manipulation, or misconduct.
 
+## Style and Simplicity
+
+- Never use the em-dash character (Unicode U+2014) in prose, comments,
+  documentation, or generated manuscript text. Use commas, colons, parentheses,
+  or semicolons instead.
+- Keep implementations and writing as simple as the task allows. Reuse
+  existing helpers and standard-library features before adding abstractions,
+  dependencies, configuration, or speculative flexibility.
+- Prefer the smallest clear change that solves the request. Remove unnecessary
+  code and explanation rather than expanding the design or narrative.
+
 ## Canonical Offline Workflow
 
 - Use `make reproduce` as the supported end-to-end entry point.
