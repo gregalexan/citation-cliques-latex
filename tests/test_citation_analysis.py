@@ -590,6 +590,13 @@ class ArtifactWriterTests(unittest.TestCase):
             permutation_p=0.5,
             null_same_tier_share=np.array([0.5, 2 / 3]),
         )
+        cliques = analysis.run_clique_analysis(
+            empty_edges,
+            membership,
+            flagged_keys=set(),
+            null_replicates=1,
+            label_swaps=1,
+        )
         data = analysis.AnalysisData(
             pairs=pairs,
             membership=membership,
@@ -614,6 +621,7 @@ class ArtifactWriterTests(unittest.TestCase):
                 feature_ablation=feature_ablation,
                 components=components,
                 mixing=mixing,
+                cliques=cliques,
             )
             expected = [
                 "results_macros.tex",
@@ -625,6 +633,10 @@ class ArtifactWriterTests(unittest.TestCase):
                 "tables/anomaly_feature_ablation.csv",
                 "tables/anomaly_feature_ablation.tex",
                 "tables/tier_mixing.tex",
+                "tables/clique_summary.tex",
+                "tables/clique_sensitivity.tex",
+                "tables/clique_summary.csv",
+                "tables/clique_sensitivity.csv",
                 "figures/paired_effects.pdf",
                 "figures/anomaly_enrichment.pdf",
                 "figures/tier_mixing.pdf",
@@ -637,6 +649,7 @@ class ArtifactWriterTests(unittest.TestCase):
             self.assertIn(r"\newcommand{\PrimaryFindingText}", macros)
             self.assertIn(r"\newcommand{\CaseShareAmongFlagsPercent}", macros)
             self.assertIn(r"\newcommand{\AnomalyOverlapFindingText}", macros)
+            self.assertIn(r"\newcommand{\CliqueFindingText}", macros)
             self.assertIn(
                 r"\newcommand{\AnomalyFeatureAblationFindingText}", macros
             )

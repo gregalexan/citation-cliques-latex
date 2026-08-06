@@ -2272,6 +2272,85 @@ def write_component_table(components: ComponentResults, path: Path) -> None:
     )
 
 
+def write_clique_summary_table(cliques: CliqueResults, path: Path) -> None:
+    row = cliques.summary.iloc[0]
+    rows = [
+        [
+            f"$k\\geq{int(row.minimum_clique_size)}, r\\geq{row.reciprocity_threshold:.2f}$",
+            f"{int(row.observed_clique_count):,}",
+            f"{int(row.observed_reciprocal_clique_count):,}",
+            _format_number(row.null_mean_reciprocal_clique_count, 2),
+            _format_p(row.null_p_reciprocal_clique_count),
+            _format_number(row.observed_mean_density, 3),
+            _format_number(row.observed_mean_reciprocity, 3),
+            _format_number(100 * row.observed_case_membership_share, 1) + r"\%",
+            _format_p(row.label_swap_p_case_membership_share),
+        ]
+    ]
+    _write_complete_table(
+        path,
+        caption="Formal reciprocal-clique analysis in the matched-author graph.",
+        label="tab:clique-summary",
+        alignment="lrrrrrrrr",
+        headers=(
+            "Primary rule",
+            "Structural cliques",
+            "Reciprocal cliques",
+            "Null mean",
+            "Null $p$",
+            "Mean density",
+            "Mean reciprocity",
+            "Case share",
+            "Label-swap $p$",
+        ),
+        rows=rows,
+        note=(
+            "A clique is maximal in the positive undirected projection. The primary rule "
+            "requires at least four nodes, directed density at least 0.75, and weighted "
+            "reciprocity at least 0.50. Null means and p-values use subject-stratified "
+            "degree-preserving directed edge swaps."
+        ),
+    )
+
+
+def write_clique_sensitivity_table(cliques: CliqueResults, path: Path) -> None:
+    rows = []
+    for row in cliques.sensitivity.itertuples(index=False):
+        rows.append(
+            [
+                f"{int(row.minimum_clique_size)}",
+                f"{row.reciprocity_threshold:.2f}",
+                f"{int(row.observed_clique_count):,}",
+                f"{int(row.observed_reciprocal_clique_count):,}",
+                _format_number(row.null_mean_reciprocal_clique_count, 2),
+                _format_p(row.null_p_reciprocal_clique_count),
+                _format_number(100 * row.observed_case_membership_share, 1) + r"\%",
+                _format_p(row.label_swap_p_case_membership_share),
+            ]
+        )
+    _write_complete_table(
+        path,
+        caption="Clique minimum-size and reciprocity-threshold sensitivity.",
+        label="tab:clique-sensitivity",
+        alignment="lrrrrrrr",
+        headers=(
+            "$k$ minimum",
+            "Reciprocity threshold",
+            "Structural cliques",
+            "Reciprocal cliques",
+            "Null mean",
+            "Null $p$",
+            "Case share",
+            "Label-swap $p$",
+        ),
+        rows=rows,
+        note=(
+            "The directed density threshold is fixed at 0.75. Thresholds are evaluated "
+            "on the same subject-specific maximal-clique population."
+        ),
+    )
+
+
 def _save_figure(fig: plt.Figure, directory: Path, stem: str) -> None:
     fig.tight_layout()
     fig.savefig(directory / f"{stem}.pdf", bbox_inches="tight")
@@ -2413,6 +2492,7 @@ def write_result_macros(
     feature_ablation: pd.DataFrame,
     mixing: MixingResults,
     components: ComponentResults,
+    cliques: CliqueResults,
 ) -> None:
     """Write all prose-facing quantitative values as generated LaTeX macros."""
 
@@ -2684,6 +2764,60 @@ def write_result_macros(
             ),
         }
     )
+    if cliques.summary.empty:
+        commands.update(
+            {
+                "CliqueStructuralCount": "0",
+                "CliqueReciprocalCount": "0",
+                "CliqueNullMeanCount": "NA",
+                "CliqueNullP": "NA",
+                "CliqueMeanDensity": "NA",
+                "CliqueMeanReciprocity": "NA",
+                "CliqueCaseSharePercent": "NA",
+                "CliqueFlaggedSharePercent": "NA",
+                "CliqueLabelSwapP": "NA",
+                "CliqueValidNullReplicates": "0",
+                "CliqueFindingText": "No primary-rule clique was observed.",
+            }
+        )
+    else:
+        clique = cliques.summary.iloc[0]
+        commands.update(
+            {
+                "CliqueStructuralCount": str(int(clique.observed_clique_count)),
+                "CliqueReciprocalCount": str(
+                    int(clique.observed_reciprocal_clique_count)
+                ),
+                "CliqueNullMeanCount": _macro_number(
+                    clique.null_mean_reciprocal_clique_count, 2
+                ),
+                "CliqueNullP": _macro_number(clique.null_p_reciprocal_clique_count, 4),
+                "CliqueMeanDensity": _macro_number(clique.observed_mean_density, 3),
+                "CliqueMeanReciprocity": _macro_number(
+                    clique.observed_mean_reciprocity, 3
+                ),
+                "CliqueCaseSharePercent": _macro_number(
+                    100 * clique.observed_case_membership_share, 1
+                ),
+                "CliqueFlaggedSharePercent": _macro_number(
+                    100 * clique.observed_flagged_membership_share, 1
+                ),
+                "CliqueLabelSwapP": _macro_number(
+                    clique.label_swap_p_case_membership_share, 4
+                ),
+                "CliqueValidNullReplicates": str(int(clique.valid_null_replicates)),
+                "CliqueFindingText": (
+                    f"The primary rule identified {int(clique.observed_reciprocal_clique_count):,} "
+                    f"reciprocal cliques among {int(clique.observed_clique_count):,} structural "
+                    f"cliques; the rewired null mean was "
+                    f"{_macro_number(clique.null_mean_reciprocal_clique_count, 2)} "
+                    f"(empirical $p={_macro_number(clique.null_p_reciprocal_clique_count, 4)}$). "
+                    f"Their mean directed density was "
+                    f"{_macro_number(clique.observed_mean_density, 3)} and mean weighted "
+                    f"reciprocity was {_macro_number(clique.observed_mean_reciprocity, 3)}."
+                ),
+            }
+        )
     lines = ["% Generated by citation_analysis.py; do not edit manually."]
     lines.extend(f"\\newcommand{{\\{name}}}{{{value}}}" for name, value in commands.items())
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -2706,6 +2840,7 @@ def write_artifacts(
     feature_ablation: pd.DataFrame,
     components: ComponentResults,
     mixing: MixingResults,
+    cliques: CliqueResults,
 ) -> None:
     tables_directory = output_directory / "tables"
     figures_directory = output_directory / "figures"
@@ -2742,6 +2877,8 @@ def write_artifacts(
     feature_ablation.to_csv(
         tables_directory / "anomaly_feature_ablation.csv", index=False
     )
+    cliques.summary.to_csv(tables_directory / "clique_summary.csv", index=False)
+    cliques.sensitivity.to_csv(tables_directory / "clique_sensitivity.csv", index=False)
     components.summary.to_csv(tables_directory / "outlier_components.csv", index=False)
     components.nodes.to_csv(tables_directory / "outlier_component_nodes.csv", index=False)
     components.dyads.to_csv(tables_directory / "outlier_component_dyads.csv", index=False)
@@ -2785,6 +2922,10 @@ def write_artifacts(
         feature_ablation, tables_directory / "anomaly_feature_ablation.tex"
     )
     write_tier_mixing_table(mixing, tables_directory / "tier_mixing.tex")
+    write_clique_summary_table(cliques, tables_directory / "clique_summary.tex")
+    write_clique_sensitivity_table(
+        cliques, tables_directory / "clique_sensitivity.tex"
+    )
     write_component_table(components, tables_directory / "outlier_components.tex")
 
     plot_paired_effects(primary, secondary, figures_directory)
@@ -2803,6 +2944,7 @@ def write_artifacts(
         feature_ablation=feature_ablation,
         mixing=mixing,
         components=components,
+        cliques=cliques,
     )
     canonical_keys = _flag_key_set(screened)
     metadata = {
@@ -2837,6 +2979,11 @@ def write_artifacts(
         "component_and_figure_flag_source": "author_features_final.csv:final_flag",
         "synthetic_or_alternate_flags_used": False,
         "tier_label_swaps": len(mixing.null_same_tier_share),
+        "clique_null_replicates": int(
+            cliques.summary["valid_null_replicates"].iloc[0]
+        )
+        if not cliques.summary.empty
+        else 0,
     }
     (output_directory / "run_metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -2851,6 +2998,8 @@ def run_analysis(
     bootstrap_resamples: int = 2_000,
     sign_flips: int = 10_000,
     tier_swaps: int = 10_000,
+    clique_null_replicates: int = CLIQUE_NULL_REPLICATES,
+    clique_label_swaps: int = CLIQUE_LABEL_SWAPS,
     validate_only: bool = False,
 ) -> None:
     """Execute the canonical offline workflow."""
@@ -2920,6 +3069,14 @@ def run_analysis(
     mixing = weighted_tier_mixing(
         data.edges, data.membership, data.pairs, n_swaps=tier_swaps, seed=seed
     )
+    cliques = run_clique_analysis(
+        data.edges,
+        data.membership,
+        canonical_keys,
+        seed=seed,
+        null_replicates=clique_null_replicates,
+        label_swaps=clique_label_swaps,
+    )
     write_artifacts(
         output_directory=output_directory,
         database=database,
@@ -2936,6 +3093,7 @@ def run_analysis(
         feature_ablation=feature_ablation,
         components=components,
         mixing=mixing,
+        cliques=cliques,
     )
     print(f"Analysis complete: {output_directory.resolve()}")
 
@@ -2963,6 +3121,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--sign-flips", type=int, default=10_000)
     parser.add_argument("--tier-swaps", type=int, default=10_000)
     parser.add_argument(
+        "--clique-null-replicates",
+        type=int,
+        default=CLIQUE_NULL_REPLICATES,
+    )
+    parser.add_argument(
+        "--clique-label-swaps",
+        type=int,
+        default=CLIQUE_LABEL_SWAPS,
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Validate schemas and invariants without writing artifacts.",
@@ -2979,6 +3147,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         bootstrap_resamples=args.bootstrap_resamples,
         sign_flips=args.sign_flips,
         tier_swaps=args.tier_swaps,
+        clique_null_replicates=args.clique_null_replicates,
+        clique_label_swaps=args.clique_label_swaps,
         validate_only=args.validate_only,
     )
 
