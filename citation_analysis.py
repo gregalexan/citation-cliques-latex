@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from itertools import combinations
 import json
 import math
+import random
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -185,6 +187,122 @@ def aggregate_cumulative_dyads(edges: pd.DataFrame) -> pd.DataFrame:
         .sum()
         .reset_index(drop=True)
     )
+
+
+def enumerate_subject_cliques(
+    dyads: pd.DataFrame,
+    nodes: Iterable[str],
+    *,
+    min_size: int = 4,
+) -> list[tuple[str, ...]]:
+    """Return maximal cliques in a subject's positive undirected projection."""
+
+    if min_size < 3:
+        raise ValueError("min_size must be at least 3")
+    cumulative = aggregate_cumulative_dyads(dyads)
+    graph = nx.Graph()
+    graph.add_nodes_from(str(node) for node in nodes)
+    peer = cumulative[cumulative["citing_orcid"] != cumulative["cited_orcid"]]
+    graph.add_edges_from(
+        peer[["citing_orcid", "cited_orcid"]].itertuples(index=False, name=None)
+    )
+    groups = {
+        tuple(sorted(str(node) for node in clique))
+        for clique in nx.find_cliques(graph)
+        if len(clique) >= min_size
+    }
+    return sorted(groups, key=lambda group: (len(group), group))
+
+
+def clique_group_metrics(
+    clique: Sequence[str],
+    dyads: pd.DataFrame,
+    tier_by_orcid: Mapping[str, str],
+) -> dict[str, object]:
+    """Measure directed density and weighted reciprocity for one clique."""
+
+    members = tuple(sorted(str(node) for node in clique))
+    if len(members) < 2:
+        raise ValueError("a clique must contain at least two nodes")
+    member_set = set(members)
+    cumulative = aggregate_cumulative_dyads(dyads)
+    peer = cumulative[
+        cumulative["citing_orcid"].isin(member_set)
+        & cumulative["cited_orcid"].isin(member_set)
+        & (cumulative["citing_orcid"] != cumulative["cited_orcid"])
+    ]
+    weights = {
+        (str(row.citing_orcid), str(row.cited_orcid)): float(row.citation_weight)
+        for row in peer.itertuples(index=False)
+    }
+    possible_arcs = len(members) * (len(members) - 1)
+    pair_maximum = 0.0
+    pair_minimum = 0.0
+    for left, right in combinations(members, 2):
+        forward = weights.get((left, right), 0.0)
+        reverse = weights.get((right, left), 0.0)
+        pair_maximum += max(forward, reverse)
+        pair_minimum += min(forward, reverse)
+    return {
+        "clique_size": len(members),
+        "directed_dyads": len(weights),
+        "directed_density": len(weights) / possible_arcs if possible_arcs else math.nan,
+        "weighted_reciprocity": (
+            pair_minimum / pair_maximum if pair_maximum > 0 else math.nan
+        ),
+        "case_memberships": sum(
+            tier_by_orcid.get(node) == "Case" for node in members
+        ),
+        "control_memberships": sum(
+            tier_by_orcid.get(node) == "Control" for node in members
+        ),
+    }
+
+
+def rewire_subject_dyads(
+    dyads: pd.DataFrame,
+    *,
+    seed: int,
+    swaps: int,
+) -> pd.DataFrame:
+    """Rewire a subject graph while preserving binary degrees and weights."""
+
+    if swaps <= 0:
+        raise ValueError("swaps must be positive")
+    cumulative = aggregate_cumulative_dyads(dyads)
+    cumulative = cumulative[
+        cumulative["citing_orcid"] != cumulative["cited_orcid"]
+    ].copy()
+    if cumulative["subject"].nunique() > 1:
+        raise ValueError("rewiring expects one subject")
+    nodes = set(cumulative["citing_orcid"]) | set(cumulative["cited_orcid"])
+    if len(nodes) < 4 or len(cumulative) < 3:
+        raise ValueError("subject graph is too small to rewire")
+    graph = nx.DiGraph()
+    graph.add_nodes_from(sorted(nodes))
+    graph.add_edges_from(
+        cumulative[["citing_orcid", "cited_orcid"]].itertuples(index=False, name=None)
+    )
+    rng = random.Random(seed)
+    nx.directed_edge_swap(
+        graph,
+        nswap=swaps,
+        max_tries=max(100, swaps * 100),
+        seed=rng,
+    )
+    weights = cumulative["citation_weight"].astype(float).tolist()
+    rng.shuffle(weights)
+    subject = cumulative["subject"].iloc[0]
+    rows = [
+        {
+            "subject": subject,
+            "citing_orcid": citing,
+            "cited_orcid": cited,
+            "citation_weight": weight,
+        }
+        for (citing, cited), weight in zip(sorted(graph.edges()), weights)
+    ]
+    return pd.DataFrame(rows)
 
 
 def reciprocity_from_dyads(
