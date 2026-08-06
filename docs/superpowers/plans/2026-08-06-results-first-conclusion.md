@@ -63,7 +63,7 @@ rtk git grep -n $'\\u2014' -- main.tex
 
 Expected: no output.
 
-- [ ] **Step 4: Commit the prose change**
+- [ ] **Step 4: Commit the prose checkpoint**
 
 ```bash
 rtk git add main.tex
@@ -176,8 +176,8 @@ Expected: only the intended manuscript source and PDF artifacts are modified; un
 - [ ] **Step 5: Commit the deliverables**
 
 ```bash
-rtk git add main.tex main.pdf response_to_reviewer.pdf QSS-2026-0077-R1-marked.pdf
-rtk git commit -m "Publish results-first QSS conclusion"
+rtk git add main.pdf response_to_reviewer.pdf QSS-2026-0077-R1-marked.pdf
+rtk git commit -m "Rebuild submission PDFs after conclusion revision"
 ```
 
-Expected: one commit contains the revised conclusion and rebuilt submission PDFs.
+Expected: the PDF rebuild is committed separately from the already reviewed prose checkpoint.
