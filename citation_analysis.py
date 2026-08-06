@@ -76,6 +76,7 @@ METRIC_LABELS = {
     "annual_dyadic_surge_share": "Maximum annual dyadic surge share",
     "coauthor_citation_rate_same_year": "Coauthor-citation rate (same-year included)",
 }
+PAIRED_EFFECT_XLABEL = "Median paired difference (Case minus Control)"
 TIER_ORDER = ("Case", "Control")
 
 
@@ -1875,7 +1876,7 @@ def plot_paired_effects(primary: pd.DataFrame, secondary: pd.DataFrame, director
         ax.scatter(row.median_difference, index, color=colors[index], s=24, zorder=3)
     ax.axvline(0, color="black", linestyle="--", linewidth=0.7)
     ax.set_yticks(y, data["metric_label"])
-    ax.set_xlabel("Median paired difference (Case minus Control), paired-bootstrap 95% CI")
+    ax.set_xlabel(PAIRED_EFFECT_XLABEL)
     ax.grid(axis="x", alpha=0.25)
     ax.spines[["top", "right"]].set_visible(False)
     _save_figure(fig, directory, "paired_effects")

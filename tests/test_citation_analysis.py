@@ -14,6 +14,10 @@ import rebuild_analysis_database as database_rebuild
 
 
 class MetricDefinitionTests(unittest.TestCase):
+    def test_paired_effect_axis_label_is_compact(self) -> None:
+        self.assertLessEqual(len(analysis.PAIRED_EFFECT_XLABEL), 50)
+        self.assertNotIn("paired-bootstrap", analysis.PAIRED_EFFECT_XLABEL)
+
     def test_weighted_hhi(self) -> None:
         self.assertAlmostEqual(analysis.weighted_hhi([1, 1]), 0.5)
         self.assertAlmostEqual(analysis.weighted_hhi([1, 3]), 0.625)
