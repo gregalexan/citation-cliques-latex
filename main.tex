@@ -234,7 +234,7 @@ where $m_C$ is the number of positive directed dyads among the $k$ members.  Wei
 \end{equation}
 The primary rule requires $d_C\geq0.75$ and $r_C\geq0.50$.  We repeat it for minimum clique sizes $k=3,4,5$ and reciprocity thresholds $0.25,0.50,0.75$; the density threshold remains fixed at 0.75.  The canonical anomaly flag is counted as an overlay on these groups and does not define the clique population.
 
-For a graph-based null, each subject graph is rewired with directed edge swaps that preserve every node's in-degree and out-degree.  The observed cumulative weights are then permuted across the rewired dyads within subject.  We recompute the clique counts and group measures in 499 seeded null replicates.  The empirical upper-tail probability is $(1+n_{\geq})/(1+N)$, where $n_{\geq}$ is the number of null counts at least as large as observed and $N$ is the number of valid replicates.  A second null independently swaps Case and Control labels within matched pairs to test the Case share of clique memberships.  These tests establish whether the defined structural pattern is unusual under the stated nulls; they do not assign a motive to any group.
+For a graph-based null, each subject graph is rewired with directed edge swaps that preserve every node's in-degree and out-degree.  The observed cumulative weights are then permuted across the rewired dyads within subject.  The null is conditional on the observed maximal-clique membership sets: after each rewiring, we rescore those candidate groups with the same density and reciprocity rules rather than allowing a changing number of alternative cliques to dominate the comparison.  We use 499 seeded null replicates.  The empirical upper-tail probability is $(1+n_{\geq})/(1+N)$, where $n_{\geq}$ is the number of conditional-null counts at least as large as observed and $N$ is the number of valid replicates.  A second null independently swaps Case and Control labels within matched pairs to test the Case share of clique memberships.  These tests establish whether the defined structural pattern is unusual under the stated nulls; they do not assign a motive to any group.
 
 The study-specific temporal measure is
 \begin{equation}
@@ -457,7 +457,7 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
 
 \inputgeneratedtable{clique_sensitivity}{tab:clique-sensitivity}{Sensitivity to minimum clique size and the weighted-reciprocity threshold.}
 
-The analysis treats a clique as a structural configuration in the defined citation graph.  The rewiring comparison tests whether the observed count is higher than expected under the preserved degree sequences, while the pair-label comparison tests whether clique memberships are concentrated in Cases.  Neither comparison changes the graph definition or turns a structural association into a claim about motive.
+The analysis treats a clique as a structural configuration in the defined citation graph.  The conditional rewiring comparison tests whether the observed candidate groups retain their density and reciprocity more often than expected under preserved degree sequences, while the pair-label comparison tests whether clique memberships are concentrated in Cases.  Neither comparison changes the graph definition or turns a structural association into a claim about motive.
 
 \section{Discussion}
 \label{sec:discussion}

@@ -109,7 +109,7 @@ rtk git commit -m "test: specify formal clique metrics and null invariants"
 
 Use `aggregate_cumulative_dyads` and NetworkX. Build the positive undirected projection for clique enumeration. Use `nx.find_cliques`, retain maximal cliques with `len(clique) >= min_size`, and return sorted tuples. For group metrics, count positive directed arcs, compute `m / (k * (k - 1))`, and compute weighted reciprocity as the ratio of sums of pairwise minima and maxima across unordered member pairs. Keep an unavailable reciprocal denominator as `math.nan`.
 
-For rewiring, build a simple `nx.DiGraph`, call `nx.directed_edge_swap` with a seeded `random.Random`, and assign a seeded permutation of the original weights to the new directed edges. Return the same four columns as cumulative dyads. Raise `ValueError` for fewer than four nodes, fewer than three edges, or nonpositive swaps; propagate a NetworkX error when the requested swaps cannot be completed.
+For rewiring, use seeded degree-preserving directed edge swaps on a simple edge list and assign a seeded permutation of the original weights to the new directed edges. Return the same four columns as cumulative dyads. Raise `ValueError` for fewer than four nodes, fewer than three edges, or nonpositive swaps; retain a valid partial-swap state when a rigid degree sequence cannot accept every requested swap.
 
 - [ ] **Step 2: Run the focused tests and verify they pass**
 
@@ -146,7 +146,7 @@ Expected: FAIL because `CliqueResults` and `run_clique_analysis` do not yet exis
 
 - [ ] **Step 3: Implement the smallest orchestration**
 
-Aggregate cumulative dyads once. For each subject, enumerate maximal cliques at minimum size 3 and cache their group metrics. Aggregate observed rows for each size and reciprocity threshold, retaining density threshold 0.75. For each null replicate, rewire eligible subject graphs with deterministic per-subject seeds, repeat the same aggregation, and calculate null means and empirical count p-values. Apply independent within-pair tier-label swaps to the observed group memberships for the Case-share p-value. Count canonical flagged members only as a descriptive share. If no qualifying group exists, retain zero counts and missing means rather than inventing a result.
+Aggregate cumulative dyads once. For each subject, enumerate maximal cliques at minimum size 3 and cache their group metrics. Aggregate observed rows for each size and reciprocity threshold, retaining density threshold 0.75. For each null replicate, rewire eligible subject graphs with deterministic per-subject seeds and rescore the observed maximal-clique candidate memberships instead of re-enumerating a new null clique population. Calculate conditional-null means and empirical count p-values. Apply independent within-pair tier-label swaps to the observed group memberships for the Case-share p-value. Count canonical flagged members only as a descriptive share. If no qualifying group exists, retain zero counts and missing means rather than inventing a result.
 
 - [ ] **Step 4: Run the new test and all Python tests**
 

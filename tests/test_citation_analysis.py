@@ -190,6 +190,89 @@ class CliqueAnalysisTests(unittest.TestCase):
             result.sensitivity["null_p_reciprocal_clique_count"].between(0, 1).all()
         )
 
+    def test_null_rows_reuse_observed_candidate_groups(self) -> None:
+        edges, membership = self.clique_fixture()
+        flagged = set()
+        observed = analysis._clique_rows(edges, membership, flagged)
+        rewired = analysis.rewire_subject_dyads(edges, seed=4, swaps=1)
+        null_rows = analysis._clique_rows_for_candidates(
+            rewired, membership, observed, flagged
+        )
+        self.assertEqual(len(null_rows), len(observed))
+        self.assertEqual(
+            [row["members"] for row in null_rows],
+            [row["members"] for row in observed],
+        )
+        cumulative_rows = analysis._clique_rows_for_candidates(
+            analysis.aggregate_cumulative_dyads(edges),
+            membership,
+            observed,
+            flagged,
+            cumulative=True,
+        )
+        self.assertEqual(
+            [row["directed_density"] for row in cumulative_rows],
+            [row["directed_density"] for row in null_rows],
+        )
+        rewired_cumulative = analysis.rewire_subject_dyads(
+            analysis.aggregate_cumulative_dyads(edges), seed=4, swaps=1, cumulative=True
+        )
+        self.assertEqual(
+            set(map(tuple, rewired[["citing_orcid", "cited_orcid"]].to_numpy())),
+            set(map(tuple, rewired_cumulative[["citing_orcid", "cited_orcid"]].to_numpy())),
+        )
+
+    def test_clique_threshold_vectorisation_matches_scalar_summary(self) -> None:
+        edges, membership = self.clique_fixture()
+        rows = analysis._clique_rows(edges, membership, set())
+        configurations = [(3, 0.25), (4, 0.50)]
+        vectorised = analysis._clique_threshold_summaries(rows, configurations)
+        for config in configurations:
+            scalar = analysis._clique_threshold_summary(
+                rows, min_size=config[0], reciprocity_threshold=config[1]
+            )
+            for key, value in scalar.items():
+                if isinstance(value, float) and math.isnan(value):
+                    self.assertTrue(math.isnan(vectorised[config][key]))
+                else:
+                    self.assertEqual(vectorised[config][key], value)
+
+    def test_clique_label_swaps_return_pairwise_randomisation_draws(self) -> None:
+        edges, membership = self.clique_fixture()
+        rows = analysis._clique_rows(edges, membership, set())
+        shares = analysis._clique_label_swap_shares(
+            rows,
+            membership,
+            min_size=4,
+            reciprocity_threshold=0.50,
+            n_swaps=25,
+            seed=11,
+        )
+        self.assertEqual(len(shares), 25)
+        self.assertTrue(np.isfinite(shares).all())
+        self.assertTrue(np.all((shares >= 0) & (shares <= 1)))
+
+    def test_cliques_are_restricted_to_matched_subject_nodes(self) -> None:
+        edges, _ = self.clique_fixture()
+        edges = pd.concat(
+            [
+                edges,
+                pd.DataFrame(
+                    {
+                        "subject": ["s"] * 6,
+                        "citing_orcid": ["A", "X", "B", "X", "C", "X"],
+                        "cited_orcid": ["X", "A", "X", "B", "X", "C"],
+                        "citation_weight": [1.0] * 6,
+                    }
+                ),
+            ],
+            ignore_index=True,
+        )
+        groups = analysis.enumerate_subject_cliques(
+            edges, ["A", "B", "C", "D"], min_size=3
+        )
+        self.assertTrue(all("X" not in group for group in groups))
+
 
 class PairedInferenceTests(unittest.TestCase):
     def setUp(self) -> None:

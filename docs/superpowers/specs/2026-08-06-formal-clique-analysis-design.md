@@ -21,13 +21,13 @@ The primary reciprocal-clique rule is `r_C >= 0.50` and `d_C >= 0.75`. Sensitivi
 
 ## Null model
 
-Within each subject, rewire the simple directed graph using directed edge swaps that preserve every node's in-degree and out-degree. Reassign the observed cumulative weights to the rewired dyads using a fixed seeded permutation, preserving the subject-level weight multiset. Recompute clique count, qualifying reciprocal-clique count, mean density, mean reciprocity, and Case membership share for 499 successful null replicates. The empirical p-value is `(1 + count(null >= observed)) / (1 + n_null)` for count statistics. Subjects without four nodes or three directed dyads do not contribute a null replicate.
+Within each subject, rewire the simple directed graph using directed edge swaps that preserve every node's in-degree and out-degree. Reassign the observed cumulative weights to the rewired dyads using a fixed seeded permutation, preserving the subject-level weight multiset. The graph null is conditional on the observed maximal-clique membership sets: each rewired graph rescores those candidate groups with the same density and reciprocity thresholds rather than re-enumerating a changing null clique population. We compute qualifying candidate-group counts, mean density, mean reciprocity, and Case membership share for 499 successful null replicates. The empirical p-value is `(1 + count(null >= observed)) / (1 + n_null)` for count statistics. Subjects without four nodes or three directed dyads do not contribute a null replicate.
 
 Within-pair Case/Control label swaps provide a separate null for Case membership share. They preserve the graph and matching structure and only test whether clique memberships are concentrated in Cases.
 
 ## Outputs
 
-The analysis writes one summary table for the primary rule, one sensitivity table for size and reciprocity thresholds, and generated macros for the manuscript. The tables report observed values, null means, empirical p-values, valid null counts, and Case membership share. No member identifiers are written into the manuscript tables.
+The analysis writes one summary table for the primary rule, one sensitivity table for size and reciprocity thresholds, and generated macros for the manuscript. The tables report observed values, conditional-null means, empirical p-values, valid null counts, and Case membership share. No member identifiers are written into the manuscript tables.
 
 ## Manuscript changes
 
