@@ -190,6 +190,71 @@ class CliqueAnalysisTests(unittest.TestCase):
             result.sensitivity["null_p_reciprocal_clique_count"].between(0, 1).all()
         )
 
+    def test_clique_null_serial_and_parallel_results_match(self) -> None:
+        edges, membership = self.clique_fixture()
+        serial = analysis.run_clique_analysis(
+            edges,
+            membership,
+            flagged_keys=set(),
+            seed=17,
+            null_replicates=5,
+            label_swaps=5,
+            workers=1,
+        )
+        parallel = analysis.run_clique_analysis(
+            edges,
+            membership,
+            flagged_keys=set(),
+            seed=17,
+            null_replicates=5,
+            label_swaps=5,
+            workers=2,
+        )
+        pd.testing.assert_frame_equal(serial.summary, parallel.summary)
+        pd.testing.assert_frame_equal(serial.sensitivity, parallel.sensitivity)
+
+    def test_compact_clique_null_rewiring_preserves_subject_weights(self) -> None:
+        edges, membership = self.clique_fixture()
+        observed = analysis._clique_rows(edges, membership, set())
+        context = analysis._prepare_clique_null_context(edges, membership, observed)
+        subject = context.subjects[0]
+        sources, targets, weights = analysis._rewire_clique_subject(
+            subject, seed=17, swaps=1
+        )
+        reference = analysis.rewire_subject_dyads(edges, seed=17, swaps=1)
+        node_names = sorted(
+            set(membership["orcid"])
+            | set(edges["citing_orcid"])
+            | set(edges["cited_orcid"])
+        )
+        compact_pairs = {
+            (node_names[source], node_names[target])
+            for source, target in zip(sources.tolist(), targets.tolist())
+        }
+        self.assertEqual(
+            compact_pairs,
+            set(zip(reference["citing_orcid"], reference["cited_orcid"])),
+        )
+        self.assertEqual(sorted(subject.weights.tolist()), sorted(weights.tolist()))
+
+    def test_compact_clique_scores_match_dataframe_scoring(self) -> None:
+        edges, membership = self.clique_fixture()
+        observed = analysis._clique_rows(edges, membership, set())
+        rewired = analysis.rewire_subject_dyads(edges, seed=4, swaps=1)
+        reference = analysis._clique_rows_for_candidates(
+            rewired, membership, observed, set()
+        )[0]
+        context = analysis._prepare_clique_null_context(edges, membership, observed)
+        subject = context.subjects[0]
+        sources, targets, weights = analysis._rewire_clique_subject(
+            subject, seed=4, swaps=1
+        )
+        density, reciprocity = analysis._score_compact_clique_subject(
+            subject, sources, targets, weights
+        )
+        self.assertAlmostEqual(density[0], reference["directed_density"])
+        self.assertAlmostEqual(reciprocity[0], reference["weighted_reciprocity"])
+
     def test_null_rows_reuse_observed_candidate_groups(self) -> None:
         edges, membership = self.clique_fixture()
         flagged = set()
@@ -721,6 +786,7 @@ class ArtifactWriterTests(unittest.TestCase):
                 components=components,
                 mixing=mixing,
                 cliques=cliques,
+                clique_workers=1,
             )
             expected = [
                 "results_macros.tex",

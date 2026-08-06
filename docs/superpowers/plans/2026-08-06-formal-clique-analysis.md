@@ -132,7 +132,7 @@ rtk git commit -m "feat: add formal clique graph helpers"
 
 **Interfaces:**
 - Produce `CliqueResults(summary, sensitivity)` as a frozen dataclass.
-- Produce `run_clique_analysis(edges, membership, flagged_keys, seed=42, null_replicates=499, label_swaps=499) -> CliqueResults`.
+- Produce `run_clique_analysis(edges, membership, flagged_keys, seed=42, null_replicates=500, label_swaps=500) -> CliqueResults`.
 
 - [ ] **Step 1: Write a failing orchestration test**
 
@@ -178,7 +178,7 @@ Write `clique_summary.csv`, `clique_summary.tex`, `clique_sensitivity.csv`, and 
 
 - [ ] **Step 2: Thread clique results through `run_analysis`**
 
-Call `run_clique_analysis` after the canonical flags and mixing result are available. Add CLI options `--clique-null-replicates` and `--clique-label-swaps` with defaults 499, pass them through `run_analysis`, and include their values in `run_metadata.json`.
+Call `run_clique_analysis` after the canonical flags and mixing result are available. Add CLI options `--clique-null-replicates` and `--clique-label-swaps` with defaults 500, pass them through `run_analysis`, and include their values in `run_metadata.json`. The add-one empirical p-value rule gives a minimum attainable value of `1/501`; 500 is a declared precision and runtime choice rather than a theoretical requirement.
 
 - [ ] **Step 3: Run unit tests and a writer smoke test**
 

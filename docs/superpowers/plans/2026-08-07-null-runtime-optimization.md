@@ -134,7 +134,7 @@ Expected: 36 or more Python tests pass and all SQL fixtures pass.
 **Files:**
 - Modify: `citation_analysis.py` constants, `run_analysis`, parser, and metadata.
 - Modify: `main.tex` clique-null methods paragraph.
-- Modify: `docs/superpowers/specs/2026-08-06-formal-clique-analysis-design.md` and `docs/superpowers/plans/2026-08-06-formal-clique-analysis.md` references from 499 to 500.
+- Modify: `docs/superpowers/specs/2026-08-06-formal-clique-analysis-design.md` and `docs/superpowers/plans/2026-08-06-formal-clique-analysis.md` references to 500.
 - Test: `tests/test_citation_analysis.py` constant and metadata checks if needed.
 
 **Interfaces:**
@@ -147,7 +147,7 @@ Set `CLIQUE_NULL_REPLICATES = 500` and `CLIQUE_LABEL_SWAPS = 500`. Add `DEFAULT_
 
 - [ ] **Step 2: Update manuscript and design records**
 
-Replace 499 with 500 and state that the add-one rule gives a minimum attainable empirical p-value of `1/501`, while 500 draws balance resolution and runtime. Do not imply that 500 is a theoretical requirement.
+State that the add-one rule gives a minimum attainable empirical p-value of `1/501`, while 500 draws balance resolution and runtime. Do not imply that 500 is a theoretical requirement.
 
 - [ ] **Step 3: Run the full test suite and manuscript checks**
 

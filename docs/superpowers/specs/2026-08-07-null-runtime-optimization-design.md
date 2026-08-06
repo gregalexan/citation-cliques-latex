@@ -8,7 +8,7 @@ statistics.
 
 ## Constraints
 
-- Keep the canonical 499 graph null replicates and 499 label swaps.
+- Keep the canonical 500 graph null replicates and 500 label swaps.
 - Preserve the existing conditional null: observed maximal clique memberships
   are rescored after degree-preserving subject rewiring.
 - Preserve deterministic results for a fixed seed.
@@ -36,6 +36,6 @@ the clique null loop.
   fixed seed.
 - Keep degree, weight, node-membership, and threshold invariants covered.
 - Benchmark the current and optimized paths with 49 replicates before running
-  the canonical 499-replicate analysis.
+  the canonical 500-replicate analysis.
 - Retain the optimization only if the benchmark shows a material wall-clock
   improvement without a material memory or result discrepancy.

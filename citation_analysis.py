@@ -14,9 +14,11 @@ import hashlib
 from itertools import combinations
 import json
 import math
+import os
 import random
 import re
 import sqlite3
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
@@ -43,8 +45,9 @@ YEARS = tuple(range(2020, 2025))
 CLIQUE_MIN_SIZES = (3, 4, 5)
 CLIQUE_RECIPROCITY_THRESHOLDS = (0.25, 0.50, 0.75)
 CLIQUE_DENSITY_THRESHOLD = 0.75
-CLIQUE_NULL_REPLICATES = 499
-CLIQUE_LABEL_SWAPS = 499
+CLIQUE_NULL_REPLICATES = 500
+CLIQUE_LABEL_SWAPS = 500
+DEFAULT_CLIQUE_WORKERS = min(4, os.cpu_count() or 1)
 
 PRIMARY_METRICS = (
     "coauthor_citation_rate",
@@ -119,6 +122,30 @@ class MixingResults:
 class CliqueResults:
     summary: pd.DataFrame
     sensitivity: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class _CliqueNullSubject:
+    subject: str
+    sources: np.ndarray
+    targets: np.ndarray
+    weights: np.ndarray
+    node_count: int
+    candidate_offsets: np.ndarray
+    candidate_forward_codes: np.ndarray
+    candidate_reverse_codes: np.ndarray
+    candidate_sizes: np.ndarray
+
+
+@dataclass(frozen=True)
+class _CliqueNullContext:
+    subjects: tuple[_CliqueNullSubject, ...]
+
+
+@dataclass(frozen=True)
+class _CliqueNullReplicateResult:
+    valid: bool
+    summaries: tuple[tuple[int, float, float], ...]
 
 
 def _require_columns(frame: pd.DataFrame, columns: Iterable[str], table: str) -> None:
@@ -362,6 +389,267 @@ def rewire_subject_dyads(
         for (citing, cited), weight in zip(edge_list, weights)
     ]
     return pd.DataFrame(rows)
+
+
+def _prepare_clique_null_context(
+    edges: pd.DataFrame,
+    membership: pd.DataFrame,
+    observed_rows: Sequence[Mapping[str, object]],
+) -> _CliqueNullContext:
+    """Prepare compact subject arrays for repeated graph-null scoring."""
+
+    cumulative = aggregate_cumulative_dyads(edges)
+    cumulative = cumulative[
+        cumulative["citing_orcid"] != cumulative["cited_orcid"]
+    ]
+    observed_by_subject: dict[str, list[Mapping[str, object]]] = {}
+    for row in observed_rows:
+        observed_by_subject.setdefault(str(row["subject"]), []).append(row)
+
+    subjects: list[_CliqueNullSubject] = []
+    for subject, members in membership.groupby("subject", sort=True):
+        subject_name = str(subject)
+        subject_dyads = cumulative[
+            cumulative["subject"].astype(str) == subject_name
+        ]
+        member_names = {str(value) for value in members["orcid"].drop_duplicates()}
+        if len(member_names) < 4 or len(subject_dyads) < 3:
+            continue
+        edge_names = set(subject_dyads["citing_orcid"].astype(str)) | set(
+            subject_dyads["cited_orcid"].astype(str)
+        )
+        node_names = sorted(member_names | edge_names)
+        node_index = {name: index for index, name in enumerate(node_names)}
+        edge_pairs = sorted(
+            (
+                node_index[str(row.citing_orcid)],
+                node_index[str(row.cited_orcid)],
+            )
+            for row in subject_dyads.itertuples(index=False)
+        )
+        sources = np.asarray([pair[0] for pair in edge_pairs], dtype=np.int64)
+        targets = np.asarray([pair[1] for pair in edge_pairs], dtype=np.int64)
+        weights = subject_dyads["citation_weight"].to_numpy(dtype=float, copy=True)
+
+        offsets = [0]
+        forward_codes: list[int] = []
+        reverse_codes: list[int] = []
+        candidate_sizes: list[int] = []
+        for row in observed_by_subject.get(subject_name, []):
+            candidate_members = [node_index[str(node)] for node in row["members"]]
+            for left, right in combinations(candidate_members, 2):
+                forward_codes.append(left * len(node_names) + right)
+                reverse_codes.append(right * len(node_names) + left)
+            offsets.append(len(forward_codes))
+            candidate_sizes.append(len(candidate_members))
+
+        subjects.append(
+            _CliqueNullSubject(
+                subject=subject_name,
+                sources=sources,
+                targets=targets,
+                weights=weights,
+                node_count=len(node_names),
+                candidate_offsets=np.asarray(offsets, dtype=np.int64),
+                candidate_forward_codes=np.asarray(forward_codes, dtype=np.int64),
+                candidate_reverse_codes=np.asarray(reverse_codes, dtype=np.int64),
+                candidate_sizes=np.asarray(candidate_sizes, dtype=np.int64),
+            )
+        )
+    return _CliqueNullContext(tuple(subjects))
+
+
+def _rewire_clique_subject(
+    subject: _CliqueNullSubject,
+    *,
+    seed: int,
+    swaps: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Rewire one compact subject graph and permute its weights."""
+
+    if swaps <= 0:
+        raise ValueError("swaps must be positive")
+    edge_list = list(zip(subject.sources.tolist(), subject.targets.tolist()))
+    if len(set(edge_list)) < 3 or len(
+        {node for edge in edge_list for node in edge}
+    ) < 4:
+        raise ValueError("subject graph is too small to rewire")
+    edge_set = set(edge_list)
+    rng = random.Random(seed)
+    accepted = 0
+    attempts = 0
+    max_attempts = max(100, swaps * 100)
+    while accepted < swaps and attempts < max_attempts:
+        attempts += 1
+        first, second = rng.sample(range(len(edge_list)), 2)
+        source_a, target_a = edge_list[first]
+        source_b, target_b = edge_list[second]
+        if source_a == source_b or target_a == target_b:
+            continue
+        replacement_a = (source_a, target_b)
+        replacement_b = (source_b, target_a)
+        if (
+            source_a == target_b
+            or source_b == target_a
+            or replacement_a == replacement_b
+        ):
+            continue
+        occupied = edge_set - {edge_list[first], edge_list[second]}
+        if replacement_a in occupied or replacement_b in occupied:
+            continue
+        edge_set.remove(edge_list[first])
+        edge_set.remove(edge_list[second])
+        edge_set.update((replacement_a, replacement_b))
+        edge_list[first] = replacement_a
+        edge_list[second] = replacement_b
+        accepted += 1
+    if accepted < swaps:
+        # ponytail: keep a valid partial swap state for rigid degree sequences.
+        pass
+    weights = subject.weights.astype(float, copy=True).tolist()
+    rng.shuffle(weights)
+    rewired_sources = np.asarray([edge[0] for edge in edge_list], dtype=np.int64)
+    rewired_targets = np.asarray([edge[1] for edge in edge_list], dtype=np.int64)
+    return rewired_sources, rewired_targets, np.asarray(weights, dtype=float)
+
+
+def _compact_weight_lookup(
+    sorted_codes: np.ndarray,
+    sorted_weights: np.ndarray,
+    query_codes: np.ndarray,
+) -> np.ndarray:
+    """Look up sparse edge weights for encoded directed pairs."""
+
+    values = np.zeros(query_codes.shape, dtype=float)
+    if not len(query_codes) or not len(sorted_codes):
+        return values
+    positions = np.searchsorted(sorted_codes, query_codes)
+    valid = positions < len(sorted_codes)
+    safe_positions = np.minimum(positions, len(sorted_codes) - 1)
+    valid &= sorted_codes[safe_positions] == query_codes
+    values[valid] = sorted_weights[positions[valid]]
+    return values
+
+
+def _score_compact_clique_subject(
+    subject: _CliqueNullSubject,
+    sources: np.ndarray,
+    targets: np.ndarray,
+    weights: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Score all fixed candidates for one rewired compact subject graph."""
+
+    candidate_count = len(subject.candidate_sizes)
+    if candidate_count == 0:
+        return np.empty(0, dtype=float), np.empty(0, dtype=float)
+    codes = sources * subject.node_count + targets
+    order = np.argsort(codes, kind="mergesort")
+    sorted_codes = codes[order]
+    sorted_weights = weights[order]
+    forward = _compact_weight_lookup(
+        sorted_codes, sorted_weights, subject.candidate_forward_codes
+    )
+    reverse = _compact_weight_lookup(
+        sorted_codes, sorted_weights, subject.candidate_reverse_codes
+    )
+    starts = subject.candidate_offsets[:-1]
+    directed_counts = np.add.reduceat(
+        (forward > 0).astype(np.int64) + (reverse > 0).astype(np.int64), starts
+    )
+    pair_maximum = np.add.reduceat(np.maximum(forward, reverse), starts)
+    pair_minimum = np.add.reduceat(np.minimum(forward, reverse), starts)
+    possible_arcs = subject.candidate_sizes * (subject.candidate_sizes - 1)
+    density = directed_counts / possible_arcs
+    reciprocity = np.full(candidate_count, np.nan, dtype=float)
+    valid = pair_maximum > 0
+    reciprocity[valid] = pair_minimum[valid] / pair_maximum[valid]
+    return density, reciprocity
+
+
+def _run_clique_null_replicate(
+    context: _CliqueNullContext,
+    replicate: int,
+    seed: int,
+    configurations: Sequence[tuple[int, float]] | None = None,
+) -> _CliqueNullReplicateResult:
+    """Run and summarize one deterministic compact graph-null replicate."""
+
+    configurations = tuple(
+        configurations
+        or (
+            (minimum, threshold)
+            for minimum in CLIQUE_MIN_SIZES
+            for threshold in CLIQUE_RECIPROCITY_THRESHOLDS
+        )
+    )
+    if not context.subjects:
+        return _CliqueNullReplicateResult(False, tuple())
+    totals = [[0, 0.0, 0.0, 0] for _ in configurations]
+    for subject_index, subject in enumerate(context.subjects):
+        try:
+            sources, targets, weights = _rewire_clique_subject(
+                subject,
+                seed=seed + 1009 * (replicate + 1) + subject_index,
+                swaps=max(1, min(len(subject.weights), 10)),
+            )
+        except (ValueError, nx.NetworkXException):
+            return _CliqueNullReplicateResult(False, tuple())
+        density, reciprocity = _score_compact_clique_subject(
+            subject, sources, targets, weights
+        )
+        for index, (minimum, threshold) in enumerate(configurations):
+            structural = (
+                (subject.candidate_sizes >= minimum)
+                & (density >= CLIQUE_DENSITY_THRESHOLD)
+            )
+            qualifying = (
+                structural
+                & np.isfinite(reciprocity)
+                & (reciprocity >= threshold)
+            )
+            count = int(np.count_nonzero(qualifying))
+            totals[index][0] += count
+            totals[index][1] += float(density[qualifying].sum())
+            totals[index][2] += float(reciprocity[qualifying].sum())
+            totals[index][3] += count
+    summaries = tuple(
+        (
+            int(total[0]),
+            float(total[1] / total[3]) if total[3] else math.nan,
+            float(total[2] / total[3]) if total[3] else math.nan,
+        )
+        for total in totals
+    )
+    return _CliqueNullReplicateResult(True, summaries)
+
+
+_CLIQUE_NULL_WORKER_CONTEXT: _CliqueNullContext | None = None
+_CLIQUE_NULL_WORKER_CONFIGURATIONS: tuple[tuple[int, float], ...] = tuple()
+_CLIQUE_NULL_WORKER_SEED = DEFAULT_SEED
+
+
+def _init_clique_null_worker(
+    context: _CliqueNullContext,
+    configurations: Sequence[tuple[int, float]],
+    seed: int,
+) -> None:
+    global _CLIQUE_NULL_WORKER_CONTEXT
+    global _CLIQUE_NULL_WORKER_CONFIGURATIONS
+    global _CLIQUE_NULL_WORKER_SEED
+    _CLIQUE_NULL_WORKER_CONTEXT = context
+    _CLIQUE_NULL_WORKER_CONFIGURATIONS = tuple(configurations)
+    _CLIQUE_NULL_WORKER_SEED = seed
+
+
+def _run_clique_null_worker(replicate: int) -> _CliqueNullReplicateResult:
+    if _CLIQUE_NULL_WORKER_CONTEXT is None:
+        raise RuntimeError("clique null worker was not initialized")
+    return _run_clique_null_replicate(
+        _CLIQUE_NULL_WORKER_CONTEXT,
+        replicate,
+        _CLIQUE_NULL_WORKER_SEED,
+        _CLIQUE_NULL_WORKER_CONFIGURATIONS,
+    )
 
 
 def _clique_rows(
@@ -632,12 +920,17 @@ def run_clique_analysis(
     seed: int = DEFAULT_SEED,
     null_replicates: int = CLIQUE_NULL_REPLICATES,
     label_swaps: int = CLIQUE_LABEL_SWAPS,
+    workers: int = 1,
 ) -> CliqueResults:
     """Summarize reciprocal cliques and compare them with seeded null graphs."""
 
     if null_replicates <= 0 or label_swaps <= 0:
         raise ValueError("null_replicates and label_swaps must be positive")
-    _require_columns(membership, ("subject", "orcid", "pair_id", "tier_type"), "membership")
+    if workers <= 0:
+        raise ValueError("workers must be positive")
+    _require_columns(
+        membership, ("subject", "orcid", "pair_id", "tier_type"), "membership"
+    )
     flagged = {(str(subject), str(orcid)) for subject, orcid in flagged_keys}
     observed_rows = _clique_rows(edges, membership, flagged)
     configurations = [
@@ -646,64 +939,47 @@ def run_clique_analysis(
         for threshold in CLIQUE_RECIPROCITY_THRESHOLDS
     ]
     observed = _clique_threshold_summaries(observed_rows, configurations)
-    null_values: dict[tuple[int, float], list[dict[str, object]]] = {
+    null_values: dict[tuple[int, float], list[tuple[int, float, float]]] = {
         config: [] for config in configurations
     }
-    cumulative = aggregate_cumulative_dyads(edges)
-    subject_inputs = []
-    for subject, members in membership.groupby("subject", sort=True):
-        subject_name = str(subject)
-        subject_dyads = cumulative[cumulative["subject"].astype(str) == subject_name]
-        if len(members["orcid"].drop_duplicates()) >= 4 and len(subject_dyads) >= 3:
-            subject_inputs.append((subject_name, subject_dyads))
-    for replicate in range(null_replicates):
-        rewired_frames: list[pd.DataFrame] = []
-        for subject_index, (subject, subject_dyads) in enumerate(subject_inputs):
-            try:
-                rewired_frames.append(
-                    rewire_subject_dyads(
-                        subject_dyads,
-                        seed=seed + 1009 * (replicate + 1) + subject_index,
-                        swaps=max(1, min(len(subject_dyads), 10)),
-                        cumulative=True,
-                    )
-                )
-            except nx.NetworkXException:
-                rewired_frames = []
-                break
-        if not rewired_frames:
+    context = _prepare_clique_null_context(edges, membership, observed_rows)
+    if workers == 1:
+        replicate_results = [
+            _run_clique_null_replicate(context, replicate, seed, configurations)
+            for replicate in range(null_replicates)
+        ]
+    else:
+        with ProcessPoolExecutor(
+            max_workers=workers,
+            initializer=_init_clique_null_worker,
+            initargs=(context, configurations, seed),
+        ) as executor:
+            replicate_results = list(
+                executor.map(_run_clique_null_worker, range(null_replicates))
+            )
+    for result in replicate_results:
+        if not result.valid:
             continue
-        rewired_weights = {
-            str(frame["subject"].iloc[0]): {
-                (str(row.citing_orcid), str(row.cited_orcid)): float(row.citation_weight)
-                for row in frame.itertuples(index=False)
-            }
-            for frame in rewired_frames
-        }
-        null_rows = _clique_rows_from_candidate_weights(
-            rewired_weights, membership, observed_rows, flagged
-        )
-        null_summaries = _clique_threshold_summaries(null_rows, configurations)
-        for config in configurations:
-            null_values[config].append(null_summaries[config])
+        for config_index, config in enumerate(configurations):
+            null_values[config].append(result.summaries[config_index])
     sensitivity_rows: list[dict[str, object]] = []
     for config in configurations:
         row = dict(observed[config])
         null_rows = null_values[config]
         row["null_mean_reciprocal_clique_count"] = (
-            float(np.mean([item["observed_reciprocal_clique_count"] for item in null_rows]))
+            float(np.mean([item[0] for item in null_rows]))
             if null_rows
             else math.nan
         )
         null_density_values = [
-            float(item["observed_mean_density"])
+            float(item[1])
             for item in null_rows
-            if np.isfinite(float(item["observed_mean_density"]))
+            if np.isfinite(float(item[1]))
         ]
         null_reciprocity_values = [
-            float(item["observed_mean_reciprocity"])
+            float(item[2])
             for item in null_rows
-            if np.isfinite(float(item["observed_mean_reciprocity"]))
+            if np.isfinite(float(item[2]))
         ]
         row["null_mean_density"] = (
             float(np.mean(null_density_values))
@@ -716,15 +992,15 @@ def run_clique_analysis(
             else math.nan
         )
         row["null_p_reciprocal_clique_count"] = _empirical_upper_p(
-            [item["observed_reciprocal_clique_count"] for item in null_rows],
+            [item[0] for item in null_rows],
             float(row["observed_reciprocal_clique_count"]),
         )
         row["null_p_mean_density"] = _empirical_upper_p(
-            [item["observed_mean_density"] for item in null_rows],
+            [item[1] for item in null_rows],
             float(row["observed_mean_density"]),
         )
         row["null_p_mean_reciprocity"] = _empirical_upper_p(
-            [item["observed_mean_reciprocity"] for item in null_rows],
+            [item[2] for item in null_rows],
             float(row["observed_mean_reciprocity"]),
         )
         row["valid_null_replicates"] = len(null_rows)
@@ -1506,7 +1782,7 @@ def screen_anomalies(
             max_samples="auto",
             contamination="auto",
             random_state=seed,
-            n_jobs=1,
+            n_jobs=-1,
         )
         local_control = subject_scored.index.isin(control_index)
         model.fit(transformed[local_control])
@@ -3010,6 +3286,7 @@ def write_artifacts(
     components: ComponentResults,
     mixing: MixingResults,
     cliques: CliqueResults,
+    clique_workers: int = 1,
 ) -> None:
     tables_directory = output_directory / "tables"
     figures_directory = output_directory / "figures"
@@ -3153,6 +3430,7 @@ def write_artifacts(
         )
         if not cliques.summary.empty
         else 0,
+        "clique_workers": int(clique_workers),
     }
     (output_directory / "run_metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -3169,6 +3447,7 @@ def run_analysis(
     tier_swaps: int = 10_000,
     clique_null_replicates: int = CLIQUE_NULL_REPLICATES,
     clique_label_swaps: int = CLIQUE_LABEL_SWAPS,
+    clique_workers: int = DEFAULT_CLIQUE_WORKERS,
     validate_only: bool = False,
 ) -> None:
     """Execute the canonical offline workflow."""
@@ -3245,6 +3524,7 @@ def run_analysis(
         seed=seed,
         null_replicates=clique_null_replicates,
         label_swaps=clique_label_swaps,
+        workers=clique_workers,
     )
     write_artifacts(
         output_directory=output_directory,
@@ -3263,6 +3543,7 @@ def run_analysis(
         components=components,
         mixing=mixing,
         cliques=cliques,
+        clique_workers=clique_workers,
     )
     print(f"Analysis complete: {output_directory.resolve()}")
 
@@ -3300,6 +3581,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=CLIQUE_LABEL_SWAPS,
     )
     parser.add_argument(
+        "--clique-workers",
+        type=int,
+        default=DEFAULT_CLIQUE_WORKERS,
+        help="Worker processes for graph-null replicates.",
+    )
+    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Validate schemas and invariants without writing artifacts.",
@@ -3318,6 +3605,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         tier_swaps=args.tier_swaps,
         clique_null_replicates=args.clique_null_replicates,
         clique_label_swaps=args.clique_label_swaps,
+        clique_workers=args.clique_workers,
         validate_only=args.validate_only,
     )
 
