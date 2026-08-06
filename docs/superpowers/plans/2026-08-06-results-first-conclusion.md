@@ -96,13 +96,11 @@ Expected: pdfTeX completes successfully and writes `main.pdf`.
 - [ ] **Step 2: Rebuild the reviewer response**
 
 ```bash
-rtk biber response_to_reviewer
-rtk pdflatex -interaction=nonstopmode -halt-on-error response_to_reviewer.tex
 rtk pdflatex -interaction=nonstopmode -halt-on-error response_to_reviewer.tex
 rtk pdflatex -interaction=nonstopmode -halt-on-error response_to_reviewer.tex
 ```
 
-Expected: pdfTeX completes successfully and writes `response_to_reviewer.pdf`.
+Expected: pdfTeX completes successfully and writes `response_to_reviewer.pdf`; Biber is not used because this response has no bibliography control file.
 
 - [ ] **Step 3: Rebuild the tracked-change manuscript**
 
