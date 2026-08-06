@@ -76,6 +76,7 @@
 \providecommand{\AnomalyOverlapFindingText}{Detector--restriction overlap estimates are pending the canonical full-data rebuild.}
 \providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
 \providecommand{\MixingFindingText}{Tier-mixing estimates are pending the canonical full-data rebuild.}
+\providecommand{\CliqueFindingText}{Formal clique estimates are pending the canonical full-data rebuild.}
 
 \newcommand{\artifactpending}[1]{%
   \fbox{\begin{minipage}{0.88\linewidth}\centering
@@ -95,7 +96,7 @@
   }%
 }
 
-\title{Citation-Network Cohesion Across Low- and High-Impact Journals:\\
+\title{Citation-Network Cohesion and Reciprocal Citation Cliques Across Journal-Impact Strata:\\
 A Matched Author Analysis}
 \author{Panagiotis-Alexios Spanakis}
 \author{Grigorios Alexandrou}
@@ -218,6 +219,22 @@ Its simple binary undirected projection is
   \Longleftrightarrow i\ne j\ \text{and}\ w_{ij}+w_{ji}>0.
 \end{equation}
 Direction and fractional weight are discarded only in $U_s$.  Self-edges remain available in the outgoing ego layer for self-citation and surge share but do not enter $G_s$ or its peer-network measures.
+
+\subsection{Formal reciprocal-clique analysis}
+\label{sec:clique-analysis}
+
+We test citation-clique structure on the full matched-author graph rather than on the anomaly flags.  A clique $C$ is a maximal clique in $U_s$ with at least four matched authors.  This definition requires every unordered member pair to have a positive citation in at least one direction; the direction and weight of those links are then evaluated separately.  For a clique of size $k$, directed density is
+\begin{equation}
+  d_C=\frac{m_C}{k(k-1)},
+\end{equation}
+where $m_C$ is the number of positive directed dyads among the $k$ members.  Weighted reciprocity is
+\begin{equation}
+  r_C=\frac{\sum_{\{i,j\}\subset C}\min(w_{ij},w_{ji})}
+           {\sum_{\{i,j\}\subset C}\max(w_{ij},w_{ji})}.
+\end{equation}
+The primary rule requires $d_C\geq0.75$ and $r_C\geq0.50$.  We repeat it for minimum clique sizes $k=3,4,5$ and reciprocity thresholds $0.25,0.50,0.75$; the density threshold remains fixed at 0.75.  The canonical anomaly flag is counted as an overlay on these groups and does not define the clique population.
+
+For a graph-based null, each subject graph is rewired with directed edge swaps that preserve every node's in-degree and out-degree.  The observed cumulative weights are then permuted across the rewired dyads within subject.  We recompute the clique counts and group measures in 499 seeded null replicates.  The empirical upper-tail probability is $(1+n_{\geq})/(1+N)$, where $n_{\geq}$ is the number of null counts at least as large as observed and $N$ is the number of valid replicates.  A second null independently swaps Case and Control labels within matched pairs to test the Case share of clique memberships.  These tests establish whether the defined structural pattern is unusual under the stated nulls; they do not assign a motive to any group.
 
 The study-specific temporal measure is
 \begin{equation}
@@ -431,12 +448,23 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
   \end{figure}
 }{ }
 
+\subsection{Formal reciprocal-clique structure}
+\label{sec:clique-results}
+
+\CliqueFindingText
+
+\inputgeneratedtable{clique_summary}{tab:clique-summary}{Primary formal reciprocal-clique rule and comparison with degree-preserving rewired graphs.}
+
+\inputgeneratedtable{clique_sensitivity}{tab:clique-sensitivity}{Sensitivity to minimum clique size and the weighted-reciprocity threshold.}
+
+The analysis treats a clique as a structural configuration in the defined citation graph.  The rewiring comparison tests whether the observed count is higher than expected under the preserved degree sequences, while the pair-label comparison tests whether clique memberships are concentrated in Cases.  Neither comparison changes the graph definition or turns a structural association into a claim about motive.
+
 \section{Discussion}
 \label{sec:discussion}
 
 This matched design asks whether citation structure differs between two operational journal-impact strata after authors are compared within subject and at similar recent citation productivity.  The comparison is a within-pair association, not the causal effect of publishing in a particular venue.  Journal choice, collaboration, topic, and citation behavior can influence one another, and the observational design does not order those mechanisms causally.
 
-The regenerated evidence is summarized as follows.  \PrimaryFindingText\ \AnomalyFindingText\ \MixingFindingText\ The detailed estimates, intervals, and sensitivity results in Section~\ref{sec:results} govern interpretation when a short summary masks heterogeneous directions or uncertainty.
+The regenerated evidence is summarized as follows.  \PrimaryFindingText\ \AnomalyFindingText\ \MixingFindingText\ \CliqueFindingText\ The detailed estimates, intervals, and sensitivity results in Section~\ref{sec:results} govern interpretation when a short summary masks heterogeneous directions or uncertainty.
 
 All four primary mean paired differences favored Cases.  The zero median paired differences for prior-coauthor citation rate, reciprocity, and local clustering reflect their zero-inflated, tie-heavy distributions; their positive rank-biserial effects still indicate higher Case values in the paired ordering.  Outgoing HHI additionally had a positive median paired difference, indicating greater concentration of Cases' identified non-self outgoing citation weight across recipients.  This is a directional complement to, rather than a replication of, Evdaimon et al.: their concentration indicator counts the incoming citing authors needed to account for 50\% of an author's received citations, whereas outgoing HHI measures how an author distributes references \parencite{Evdaimon2024}.  That separation is compatible with Evdaimon et al.'s finding that extremes on their concentration- and collaboration-based indicators only partly co-occur, but the different edge direction, sampling frame, and author populations preclude numerical comparison.
 
