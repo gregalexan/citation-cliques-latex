@@ -145,6 +145,52 @@ class MetricDefinitionTests(unittest.TestCase):
         self.assertTrue(observed.between(0, 1).all())
 
 
+class CliqueAnalysisTests(unittest.TestCase):
+    @staticmethod
+    def clique_fixture() -> tuple[pd.DataFrame, pd.DataFrame]:
+        edges = pd.DataFrame(
+            {
+                "subject": ["s"] * 9,
+                "citing_orcid": ["A", "B", "A", "C", "A", "D", "B", "B", "C"],
+                "cited_orcid": ["B", "A", "C", "A", "D", "A", "C", "D", "D"],
+                "citation_weight": [2, 2, 3, 3, 2, 2, 1, 1, 1],
+            }
+        )
+        membership = pd.DataFrame(
+            {
+                "pair_id": [0, 0, 1, 1],
+                "subject": ["s"] * 4,
+                "orcid": ["A", "B", "C", "D"],
+                "tier_type": ["Case", "Control", "Case", "Control"],
+            }
+        )
+        return edges, membership
+
+    def test_clique_analysis_reports_primary_and_sensitivity_nulls(self) -> None:
+        edges, membership = self.clique_fixture()
+        result = analysis.run_clique_analysis(
+            edges,
+            membership,
+            flagged_keys=set(),
+            seed=7,
+            null_replicates=3,
+            label_swaps=3,
+        )
+        primary = result.summary.iloc[0]
+        self.assertEqual(primary["minimum_clique_size"], 4)
+        self.assertAlmostEqual(primary["reciprocity_threshold"], 0.50)
+        self.assertIn("observed_reciprocal_clique_count", result.summary.columns)
+        self.assertIn("null_mean_reciprocal_clique_count", result.summary.columns)
+        self.assertEqual(
+            len(result.sensitivity[result.sensitivity["minimum_clique_size"] == 4]),
+            3,
+        )
+        self.assertGreater(int(primary["valid_null_replicates"]), 0)
+        self.assertTrue(
+            result.sensitivity["null_p_reciprocal_clique_count"].between(0, 1).all()
+        )
+
+
 class PairedInferenceTests(unittest.TestCase):
     def setUp(self) -> None:
         self.pairs = pd.DataFrame(

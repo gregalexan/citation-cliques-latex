@@ -40,6 +40,11 @@ DEFAULT_SEED = 42
 MAX_MATCHED_PAIRS = 9_431
 MATCHING_H5_CALIPER = 3
 YEARS = tuple(range(2020, 2025))
+CLIQUE_MIN_SIZES = (3, 4, 5)
+CLIQUE_RECIPROCITY_THRESHOLDS = (0.25, 0.50, 0.75)
+CLIQUE_DENSITY_THRESHOLD = 0.75
+CLIQUE_NULL_REPLICATES = 499
+CLIQUE_LABEL_SWAPS = 499
 
 PRIMARY_METRICS = (
     "coauthor_citation_rate",
@@ -108,6 +113,12 @@ class MixingResults:
     assortativity: float
     permutation_p: float
     null_same_tier_share: np.ndarray
+
+
+@dataclass(frozen=True)
+class CliqueResults:
+    summary: pd.DataFrame
+    sensitivity: pd.DataFrame
 
 
 def _require_columns(frame: pd.DataFrame, columns: Iterable[str], table: str) -> None:
@@ -235,6 +246,15 @@ def clique_group_metrics(
         (str(row.citing_orcid), str(row.cited_orcid)): float(row.citation_weight)
         for row in peer.itertuples(index=False)
     }
+    return _clique_group_metrics_from_weights(members, weights, tier_by_orcid)
+
+
+def _clique_group_metrics_from_weights(
+    members: Sequence[str],
+    weights: Mapping[tuple[str, str], float],
+    tier_by_orcid: Mapping[str, str],
+) -> dict[str, object]:
+    members = tuple(sorted(str(node) for node in members))
     possible_arcs = len(members) * (len(members) - 1)
     pair_maximum = 0.0
     pair_minimum = 0.0
@@ -284,12 +304,17 @@ def rewire_subject_dyads(
         cumulative[["citing_orcid", "cited_orcid"]].itertuples(index=False, name=None)
     )
     rng = random.Random(seed)
-    nx.directed_edge_swap(
-        graph,
-        nswap=swaps,
-        max_tries=max(100, swaps * 100),
-        seed=rng,
-    )
+    try:
+        nx.directed_edge_swap(
+            graph,
+            nswap=swaps,
+            max_tries=max(100, swaps * 100),
+            seed=rng,
+        )
+    except nx.NetworkXAlgorithmError:
+        # ponytail: a rigid degree sequence has the identity graph as its
+        # only simple realization, so retain that valid null state.
+        pass
     weights = cumulative["citation_weight"].astype(float).tolist()
     rng.shuffle(weights)
     subject = cumulative["subject"].iloc[0]
@@ -303,6 +328,282 @@ def rewire_subject_dyads(
         for (citing, cited), weight in zip(sorted(graph.edges()), weights)
     ]
     return pd.DataFrame(rows)
+
+
+def _clique_rows(
+    edges: pd.DataFrame,
+    membership: pd.DataFrame,
+    flagged_keys: set[tuple[str, str]],
+) -> list[dict[str, object]]:
+    cumulative = aggregate_cumulative_dyads(edges)
+    rows: list[dict[str, object]] = []
+    for subject, members in membership.groupby("subject", sort=True):
+        subject = str(subject)
+        nodes = [str(node) for node in members["orcid"].drop_duplicates()]
+        subject_dyads = cumulative[cumulative["subject"].astype(str) == subject]
+        groups = enumerate_subject_cliques(subject_dyads, nodes, min_size=3)
+        if not groups:
+            continue
+        tier_by_orcid = {
+            str(row.orcid): str(row.tier_type)
+            for row in members.itertuples(index=False)
+        }
+        weights = {
+            (str(row.citing_orcid), str(row.cited_orcid)): float(row.citation_weight)
+            for row in subject_dyads.itertuples(index=False)
+            if row.citing_orcid != row.cited_orcid
+        }
+        for clique in groups:
+            metrics = _clique_group_metrics_from_weights(
+                clique, weights, tier_by_orcid
+            )
+            metrics.update(
+                {
+                    "subject": subject,
+                    "members": clique,
+                    "flagged_memberships": sum(
+                        (subject, node) in flagged_keys for node in clique
+                    ),
+                }
+            )
+            rows.append(metrics)
+    return rows
+
+
+def _clique_share(
+    rows: Sequence[Mapping[str, object]],
+    *,
+    tier_by_key: Mapping[tuple[str, str], str] | None = None,
+) -> float:
+    if not rows:
+        return math.nan
+    denominator = sum(len(row["members"]) for row in rows)
+    if denominator <= 0:
+        return math.nan
+    if tier_by_key is None:
+        numerator = sum(int(row["case_memberships"]) for row in rows)
+    else:
+        numerator = sum(
+            sum(
+                tier_by_key.get((str(row["subject"]), str(node))) == "Case"
+                for node in row["members"]
+            )
+            for row in rows
+        )
+    return float(numerator / denominator)
+
+
+def _clique_threshold_summary(
+    rows: Sequence[Mapping[str, object]],
+    *,
+    min_size: int,
+    reciprocity_threshold: float,
+) -> dict[str, object]:
+    structural = [
+        row
+        for row in rows
+        if int(row["clique_size"]) >= min_size
+        and float(row["directed_density"]) >= CLIQUE_DENSITY_THRESHOLD
+    ]
+    qualifying = [
+        row
+        for row in structural
+        if np.isfinite(float(row["weighted_reciprocity"]))
+        and float(row["weighted_reciprocity"]) >= reciprocity_threshold
+    ]
+
+    def mean(rows_to_summarize: Sequence[Mapping[str, object]], key: str) -> float:
+        values = [
+            float(row[key])
+            for row in rows_to_summarize
+            if np.isfinite(float(row[key]))
+        ]
+        return float(np.mean(values)) if values else math.nan
+
+    return {
+        "minimum_clique_size": min_size,
+        "reciprocity_threshold": reciprocity_threshold,
+        "density_threshold": CLIQUE_DENSITY_THRESHOLD,
+        "observed_clique_count": len(structural),
+        "observed_reciprocal_clique_count": len(qualifying),
+        "observed_mean_density": mean(qualifying, "directed_density"),
+        "observed_mean_reciprocity": mean(qualifying, "weighted_reciprocity"),
+        "observed_case_membership_share": _clique_share(qualifying),
+        "observed_flagged_membership_share": (
+            sum(int(row["flagged_memberships"]) for row in qualifying)
+            / sum(len(row["members"]) for row in qualifying)
+            if qualifying
+            else math.nan
+        ),
+    }
+
+
+def _empirical_upper_p(values: Sequence[float], observed: float) -> float:
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0 or not np.isfinite(observed):
+        return math.nan
+    return float((1 + np.count_nonzero(finite >= observed - 1e-12)) / (len(finite) + 1))
+
+
+def _clique_label_swap_shares(
+    rows: Sequence[Mapping[str, object]],
+    membership: pd.DataFrame,
+    *,
+    min_size: int,
+    reciprocity_threshold: float,
+    n_swaps: int,
+    seed: int,
+) -> np.ndarray:
+    if n_swaps <= 0:
+        raise ValueError("label swap count must be positive")
+    structural = [
+        row
+        for row in rows
+        if int(row["clique_size"]) >= min_size
+        and float(row["directed_density"]) >= CLIQUE_DENSITY_THRESHOLD
+        and np.isfinite(float(row["weighted_reciprocity"]))
+        and float(row["weighted_reciprocity"]) >= reciprocity_threshold
+    ]
+    if not structural:
+        return np.array([], dtype=float)
+    pair_ids = sorted(membership["pair_id"].dropna().unique())
+    rng = np.random.default_rng(seed)
+    shares = np.empty(n_swaps, dtype=float)
+    for index in range(n_swaps):
+        flips = {pair_id: bool(rng.integers(0, 2)) for pair_id in pair_ids}
+        tiers: dict[tuple[str, str], str] = {}
+        for row in membership.itertuples(index=False):
+            tier = str(row.tier_type)
+            if flips.get(row.pair_id, False):
+                tier = "Control" if tier == "Case" else "Case"
+            tiers[(str(row.subject), str(row.orcid))] = tier
+        shares[index] = _clique_share(structural, tier_by_key=tiers)
+    return shares
+
+
+def run_clique_analysis(
+    edges: pd.DataFrame,
+    membership: pd.DataFrame,
+    flagged_keys: set[tuple[str, str]],
+    *,
+    seed: int = DEFAULT_SEED,
+    null_replicates: int = CLIQUE_NULL_REPLICATES,
+    label_swaps: int = CLIQUE_LABEL_SWAPS,
+) -> CliqueResults:
+    """Summarize reciprocal cliques and compare them with seeded null graphs."""
+
+    if null_replicates <= 0 or label_swaps <= 0:
+        raise ValueError("null_replicates and label_swaps must be positive")
+    _require_columns(membership, ("subject", "orcid", "pair_id", "tier_type"), "membership")
+    flagged = {(str(subject), str(orcid)) for subject, orcid in flagged_keys}
+    observed_rows = _clique_rows(edges, membership, flagged)
+    configurations = [
+        (minimum, threshold)
+        for minimum in CLIQUE_MIN_SIZES
+        for threshold in CLIQUE_RECIPROCITY_THRESHOLDS
+    ]
+    observed = {
+        config: _clique_threshold_summary(
+            observed_rows,
+            min_size=config[0],
+            reciprocity_threshold=config[1],
+        )
+        for config in configurations
+    }
+    null_values: dict[tuple[int, float], list[dict[str, object]]] = {
+        config: [] for config in configurations
+    }
+    cumulative = aggregate_cumulative_dyads(edges)
+    subject_inputs = []
+    for subject, members in membership.groupby("subject", sort=True):
+        subject_name = str(subject)
+        subject_dyads = cumulative[cumulative["subject"].astype(str) == subject_name]
+        if len(members["orcid"].drop_duplicates()) >= 4 and len(subject_dyads) >= 3:
+            subject_inputs.append((subject_name, subject_dyads))
+    for replicate in range(null_replicates):
+        rewired_frames: list[pd.DataFrame] = []
+        for subject_index, (subject, subject_dyads) in enumerate(subject_inputs):
+            try:
+                rewired_frames.append(
+                    rewire_subject_dyads(
+                        subject_dyads,
+                        seed=seed + 1009 * (replicate + 1) + subject_index,
+                        swaps=max(1, min(len(subject_dyads), 10)),
+                    )
+                )
+            except nx.NetworkXException:
+                rewired_frames = []
+                break
+        if not rewired_frames:
+            continue
+        null_rows = _clique_rows(
+            pd.concat(rewired_frames, ignore_index=True), membership, flagged
+        )
+        for config in configurations:
+            null_values[config].append(
+                _clique_threshold_summary(
+                    null_rows,
+                    min_size=config[0],
+                    reciprocity_threshold=config[1],
+                )
+            )
+    sensitivity_rows: list[dict[str, object]] = []
+    for config in configurations:
+        row = dict(observed[config])
+        null_rows = null_values[config]
+        row["null_mean_reciprocal_clique_count"] = (
+            float(np.mean([item["observed_reciprocal_clique_count"] for item in null_rows]))
+            if null_rows
+            else math.nan
+        )
+        null_density_values = [
+            float(item["observed_mean_density"])
+            for item in null_rows
+            if np.isfinite(float(item["observed_mean_density"]))
+        ]
+        null_reciprocity_values = [
+            float(item["observed_mean_reciprocity"])
+            for item in null_rows
+            if np.isfinite(float(item["observed_mean_reciprocity"]))
+        ]
+        row["null_mean_density"] = (
+            float(np.mean(null_density_values))
+            if null_density_values
+            else math.nan
+        )
+        row["null_mean_reciprocity"] = (
+            float(np.mean(null_reciprocity_values))
+            if null_reciprocity_values
+            else math.nan
+        )
+        row["null_p_reciprocal_clique_count"] = _empirical_upper_p(
+            [item["observed_reciprocal_clique_count"] for item in null_rows],
+            float(row["observed_reciprocal_clique_count"]),
+        )
+        row["valid_null_replicates"] = len(null_rows)
+        label_share_null = _clique_label_swap_shares(
+            observed_rows,
+            membership,
+            min_size=config[0],
+            reciprocity_threshold=config[1],
+            n_swaps=label_swaps,
+            seed=seed + 2003 * (config[0] + int(config[1] * 100)),
+        )
+        row["null_mean_case_membership_share"] = (
+            float(np.mean(label_share_null)) if label_share_null.size else math.nan
+        )
+        row["label_swap_p_case_membership_share"] = _empirical_upper_p(
+            label_share_null,
+            float(row["observed_case_membership_share"]),
+        )
+        sensitivity_rows.append(row)
+    sensitivity = pd.DataFrame(sensitivity_rows)
+    primary_mask = (sensitivity["minimum_clique_size"] == 4) & np.isclose(
+        sensitivity["reciprocity_threshold"], 0.50
+    )
+    summary = sensitivity.loc[primary_mask].reset_index(drop=True)
+    return CliqueResults(summary=summary, sensitivity=sensitivity)
 
 
 def reciprocity_from_dyads(
