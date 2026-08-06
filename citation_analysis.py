@@ -260,7 +260,12 @@ def _clique_group_metrics_from_weights(
     tier_by_orcid: Mapping[str, str],
 ) -> dict[str, object]:
     members = tuple(sorted(str(node) for node in members))
+    member_set = set(members)
     possible_arcs = len(members) * (len(members) - 1)
+    directed_dyads = sum(
+        source in member_set and target in member_set and source != target
+        for source, target in weights
+    )
     pair_maximum = 0.0
     pair_minimum = 0.0
     for left, right in combinations(members, 2):
@@ -270,8 +275,10 @@ def _clique_group_metrics_from_weights(
         pair_minimum += min(forward, reverse)
     return {
         "clique_size": len(members),
-        "directed_dyads": len(weights),
-        "directed_density": len(weights) / possible_arcs if possible_arcs else math.nan,
+        "directed_dyads": directed_dyads,
+        "directed_density": (
+            directed_dyads / possible_arcs if possible_arcs else math.nan
+        ),
         "weighted_reciprocity": (
             pair_minimum / pair_maximum if pair_maximum > 0 else math.nan
         ),

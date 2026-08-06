@@ -273,6 +273,22 @@ class CliqueAnalysisTests(unittest.TestCase):
         )
         self.assertTrue(all("X" not in group for group in groups))
 
+    def test_clique_rows_report_bounded_internal_density(self) -> None:
+        edges, membership = self.clique_fixture()
+        extra = pd.DataFrame(
+            {
+                "subject": ["s"] * 20,
+                "citing_orcid": ["A"] * 20,
+                "cited_orcid": [f"X{i}" for i in range(20)],
+                "citation_weight": [1.0] * 20,
+            }
+        )
+        edges = pd.concat([edges, extra], ignore_index=True)
+        rows = analysis._clique_rows(edges, membership, set())
+        self.assertTrue(
+            all(0.0 <= row["directed_density"] <= 1.0 for row in rows)
+        )
+
 
 class PairedInferenceTests(unittest.TestCase):
     def setUp(self) -> None:
