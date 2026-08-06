@@ -76,7 +76,6 @@
 \providecommand{\AnomalyOverlapFindingText}{Detector--restriction overlap estimates are pending the canonical full-data rebuild.}
 \providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
 \providecommand{\MixingFindingText}{Tier-mixing estimates are pending the canonical full-data rebuild.}
-\providecommand{\ComponentFindingText}{Component summaries are pending the canonical full-data rebuild.}
 
 \newcommand{\artifactpending}[1]{%
   \fbox{\begin{minipage}{0.88\linewidth}\centering
@@ -128,10 +127,10 @@ The study asks three questions:
 \begin{enumerate}
   \item Do matched Case and Control authors differ in citation-network cohesion and outgoing citation concentration?
   \item Are author--subject profiles that are unusual relative to Controls enriched among Cases?
-  \item What is the descriptive structure of connected components formed by flagged profiles, and how do fractional citation weights mix across the two tiers?
+  \item How do fractional citation weights mix across the two tiers?
 \end{enumerate}
 
-We expect Case author--subjects to have higher values than Controls on the four primary measures: prior-coauthor citation rate, reciprocity, local clustering, and outgoing HHI.  This is an associational hypothesis, not a causal or integrity claim.  Because the measures are zero-inflated, a zero median shift does not rule out a directional difference.  Network closure may reflect many mechanisms, including legitimate topical specialization and collaboration, so the anomaly procedure is presented as a screening device and component labels describe graph position rather than motive or conduct.
+We expect Case author--subjects to have higher values than Controls on the four primary measures: prior-coauthor citation rate, reciprocity, local clustering, and outgoing HHI.  This is an associational hypothesis, not a causal or integrity claim.  Because the measures are zero-inflated, a zero median shift does not rule out a directional difference.  Network closure may reflect many mechanisms, including legitimate topical specialization and collaboration, so the anomaly procedure is presented as a screening device.
 
 \section{Related Work}
 \label{sec:related-work}
@@ -198,14 +197,14 @@ For coauthor classification, let $c_{ij}$ be the first year in which authors $i$
 The analysis deliberately separates three analytic populations.
 \begin{description}
   \item[Outgoing ego layer.] For each matched author--subject $i$, this layer contains citations from $i$ to any identified author reached from an eligible citing work.  It defines self-citation, prior-coauthor citation, outgoing concentration, and annual dyadic surge share.
-  \item[Matched-author induced graph.] For each subject $s$, this graph retains only nodes in the matched cohort for $s$ and the edges among them.  It defines reciprocity, local clustering, within-sample citation balance, outlier components, and tier mixing.
+  \item[Matched-author induced graph.] For each subject $s$, this graph retains only nodes in the matched cohort for $s$ and the edges among them.  It defines reciprocity, local clustering, within-sample citation balance, and tier mixing.
   \item[Deduplicated work-reference layer.] This layer precedes author expansion and defines journal endogamy without requiring an identified cited-author endpoint.
 \end{description}
 The separation prevents a metric computed on all identified recipients or work references from being described as though it were computed only among matched authors.
 
 \subsection{Notation, metrics, and missing values}
 
-For the network analysis, authors are nodes and citations are directed weighted edges.  Some measures follow each author's outgoing citations to any identified recipient; others use only edges between matched authors.  Direction is ignored only for the binary neighbor graph used for local clustering and weak components.
+For the network analysis, authors are nodes and citations are directed weighted edges.  Some measures follow each author's outgoing citations to any identified recipient; others use only edges between matched authors.  Direction is ignored only for the binary neighbor graph used for local clustering.
 
 Let $x_{ijt}$ denote the fractional citation weight from author $i$ to author $j$ in year $t$, after the construction above.  Missing dyad--years are zero, and $w_{ij}=\sum_{t=2020}^{2024}x_{ijt}$ is cumulative weight.  If $V_s$ is the set of matched authors in subject $s$, the matched-author graph is the directed, weighted, loopless graph
 \begin{equation}
@@ -303,7 +302,7 @@ Unavailable values remain missing through feature assembly.  A zero is used only
     \node[box,right=of venues] (cohort) {Author--subject cohort\\70\% portfolio rule and $h_5$ matching};
     \node[box,below=of venues] (edges) {Subject-keyed citation construction\\deduplication, full team denominators, identified endpoints};
     \node[branch,below left=of edges] (paired) {Paired inference\\four primary and four secondary outcomes};
-    \node[branch,below right=of edges] (screen) {Control-referenced screen\\enrichment and component analysis; tier mixing};
+    \node[branch,below right=of edges] (screen) {Control-referenced screen\\enrichment and tier mixing};
     \draw[arrow] (data) -- (venues);
     \draw[arrow] (venues) -- (cohort);
     \draw[arrow] (cohort) |- (edges);
@@ -336,11 +335,9 @@ The anomaly analysis answers a different question from paired inference: whether
 
 An author--subject enters the screen only when it has at least one identified non-self outgoing citation.  The screen uses five author-edge measures that represent self-reference, prior collaboration, mutual exchange, neighborhood closure, and concentration among recipients.  Journal endogamy is a work-reference measure, balance describes signed internal flow, and surge share is temporal, so none is used as a screen input.  This is a transparent operational rule, not independent validation or a claim that the feature set is optimal.  All five inputs must be observed; unavailable values are not recoded as zeros.  Controls define the subject-specific reference distributions, and Cases are evaluated against them.
 
-Isolation Forest repeatedly partitions the Control profiles; profiles separated from typical Controls in fewer partitions receive higher departure scores \parencite{Liu2008}.  A row passes the detector criterion when its score exceeds the empirical 99th percentile among Controls in its subject.  This percentile is an explicit tail operating point, not a normality assumption or a uniquely optimal threshold.  A row also passes the cohesion restriction when at least two of prior-coauthor citation rate, reciprocity, clustering, and outgoing HHI exceed their respective Control percentiles.  Because these four measures also enter the detector, the intersection is an overlapping guardrail rather than independent corroboration.  The final flag is the intersection and is used for enrichment, components, and figures.
+Isolation Forest repeatedly partitions the Control profiles; profiles separated from typical Controls in fewer partitions receive higher departure scores \parencite{Liu2008}.  A row passes the detector criterion when its score exceeds the empirical 99th percentile among Controls in its subject.  This percentile is an explicit tail operating point, not a normality assumption or a uniquely optimal threshold.  A row also passes the cohesion restriction when at least two of prior-coauthor citation rate, reciprocity, clustering, and outgoing HHI exceed their respective Control percentiles.  Because these four measures also enter the detector, the intersection is an overlapping guardrail rather than independent corroboration.  The final flag is the intersection and is used for enrichment and figures.
 
 Sensitivity analyses vary the Control percentile, random seed, and detector feature set.  We report overlap between the detector and cohesion restriction, their rank association, and leave-one-feature-out stability.  These quantities describe an operational screen; they are not measures of classification accuracy because tier is not a ground-truth anomaly label.
-
-Components are connected sets of flagged nodes found after temporarily ignoring edge direction.  We retain citation weights when describing net giving, net receiving, and weighted betweenness.  Five nodes is only a reporting gate, not a topology label, and no illustrative or synthetic network is substituted.
 
 Finally, we summarize how fractional citation weight moves within and between the two tiers.  The directed $2\times2$ matrix has citing tier in rows and cited tier in columns.  Weighted assortativity compares the observed within-tier share with the share expected from the row and column totals:
 \begin{equation}
@@ -418,20 +415,6 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
   \end{figure}
 }{ }
 
-\subsection{Flagged components}
-\label{sec:component-results}
-
-\ComponentFindingText
-
-\IfFileExists{\GeneratedRoot/figures/outlier_components.pdf}{%
-  \begin{figure}[H]
-    \centering
-    \includegraphics[width=\linewidth]{\GeneratedRoot/figures/outlier_components.pdf}
-    \caption{Qualifying flagged component or components.  Edge width represents cumulative fractional citation weight; anonymized node styling summarizes descriptive flow and network position.}
-    \label{fig:outlier-components}
-  \end{figure}
-}{ }
-
 \subsection{Fractional tier mixing}
 \label{sec:mixing-results}
 
@@ -453,17 +436,17 @@ The sensitivity table is interpreted by direction, interval width, and effect ma
 
 This matched design asks whether citation structure differs between two operational journal-impact strata after authors are compared within subject and at similar recent citation productivity.  The comparison is a within-pair association, not the causal effect of publishing in a particular venue.  Journal choice, collaboration, topic, and citation behavior can influence one another, and the observational design does not order those mechanisms causally.
 
-The regenerated evidence is summarized as follows.  \PrimaryFindingText\ \AnomalyFindingText\ \ComponentFindingText\ \MixingFindingText\ The detailed estimates, intervals, and sensitivity results in Section~\ref{sec:results} govern interpretation when a short summary masks heterogeneous directions or uncertainty.
+The regenerated evidence is summarized as follows.  \PrimaryFindingText\ \AnomalyFindingText\ \MixingFindingText\ The detailed estimates, intervals, and sensitivity results in Section~\ref{sec:results} govern interpretation when a short summary masks heterogeneous directions or uncertainty.
 
 All four primary mean paired differences favored Cases.  The zero median paired differences for prior-coauthor citation rate, reciprocity, and local clustering reflect their zero-inflated, tie-heavy distributions; their positive rank-biserial effects still indicate higher Case values in the paired ordering.  Outgoing HHI additionally had a positive median paired difference, indicating greater concentration of Cases' identified non-self outgoing citation weight across recipients.  This is a directional complement to, rather than a replication of, Evdaimon et al.: their concentration indicator counts the incoming citing authors needed to account for 50\% of an author's received citations, whereas outgoing HHI measures how an author distributes references \parencite{Evdaimon2024}.  That separation is compatible with Evdaimon et al.'s finding that extremes on their concentration- and collaboration-based indicators only partly co-occur, but the different edge direction, sampling frame, and author populations preclude numerical comparison.
 
 Among secondary outcomes, Cases had lower same-journal endogamy but a higher maximum annual dyadic surge share.  The first result does not support a simple account of greater same-journal referencing among Cases, while the second identifies a larger concentration in the greatest positive year-to-year increment to one recipient.  Neither is a replication of Heneberg's journal-level evidence: that study compared the timing of journal self-citations and foreign citations and documented citation stacking around the journal-impact-factor window, whereas the present measures concern work-reference ISSN equality and author dyads over a fixed five-year window \parencite{heneberg2016}.
 
-The enrichment and mixing results also address a different claim from CIDRE.  Kojaku et al.\ classify journal-to-journal edges as excessive against a null model accounting for journal size and scientific communities, form weakly connected residual groups, and compare those groups with JCR suspensions \parencite{Kojaku2021}.  Here, the \CaseControlEnrichment-fold Case--Control difference is enrichment under a Control-referenced author-profile rule, and the \WithinTierMixingPercent\% within-tier weight is compared with within-pair label swaps; weighted assortativity is a separate descriptive summary.  Neither result establishes excessive citation exchange or validates a group detector.  No flagged component met the declared five-node reporting gate, so this study offers no component topology to compare with CIDRE's journal groups; that result does not exclude smaller connected flagged sets.
+The enrichment and mixing results also address a different claim from CIDRE.  Kojaku et al.\ classify journal-to-journal edges as excessive against a null model accounting for journal size and scientific communities, form weakly connected residual groups, and compare those groups with JCR suspensions \parencite{Kojaku2021}.  Here, the \CaseControlEnrichment-fold Case--Control difference is enrichment under a Control-referenced author-profile rule, and the \WithinTierMixingPercent\% within-tier weight is compared with within-pair label swaps; weighted assortativity is a separate descriptive summary.  Neither result establishes excessive citation exchange or validates a group detector.
 
 Several non-adversarial mechanisms could produce differences in cohesion or any observed enrichment.  Narrow specialties may have small reference communities.  Geographic and language proximity may shape both collaboration and citation, especially where research questions are locally grounded.  Stable teams naturally generate prior-coauthor references and closed neighborhoods.  Institutional, career-stage, and team-composition differences can also change the observable graph even when underlying behavior is similar.  These explanations are alternatives to, and may coexist with, any strategic response to evaluation incentives.
 
-The Control-referenced procedure should consequently be understood as triage.  It identifies profiles that are unusual under a declared reference distribution and adds a transparent cohesion restriction.  The two criteria deliberately share inputs, so their intersection is a guardrail rather than two independent lines of evidence.  It does not estimate the probability of manipulation, determine whether a citation was intellectually warranted, or establish intent.  Component structure and net-flow labels are summaries of observed edges only.  Any research-integrity use would require independent validation from full texts, editorial records, author disambiguation, and domain experts.
+The Control-referenced procedure should consequently be understood as triage.  It identifies profiles that are unusual under a declared reference distribution and adds a transparent cohesion restriction.  The two criteria deliberately share inputs, so their intersection is a guardrail rather than two independent lines of evidence.  It does not estimate the probability of manipulation, determine whether a citation was intellectually warranted, or establish intent.  Any research-integrity use would require independent validation from full texts, editorial records, author disambiguation, and domain experts.
 
 \section{Limitations}
 \label{sec:limitations}
@@ -472,7 +455,7 @@ The estimates apply to the fixed 2020--2024 snapshot and the author--subject obs
 
 The five broad subject categories cannot capture fine topical proximity.  The journal classifier was not independently validated against blinded human coding, and the publication-weighted Eigenfactor cutoffs remain sensitive to the observed journal network.  Missing intermediate journal-edge and article-count exports prevent an independent end-to-end reconstruction of the fixed upstream scores.  The 70\% portfolio rule, deterministic ORCID sample, and exclusion of otherwise tier-eligible zero-$h_5$ profiles further limit generalization.  Matching on subject-specific positive $h_5$ improves comparability within that restricted pool but does not balance geography, language, institution, team structure, career age, or unmeasured research topic.
 
-Graph metrics depend on population boundaries.  Ego-layer measures include identified recipients outside the matched cohort, whereas reciprocity, clustering, balance, components, and mixing are restricted to matched nodes.  Results from the latter should not be interpreted as full-network properties.  The 2020--2024 citation window limits observed citation behavior, while historical work and author metadata in the snapshot can left-censor or misdate prior collaborations.  The year dimension of the edge data supports coauthor timing and the scalar surge-share outcome, but is not analyzed as a tier-specific trajectory or tier-by-year interaction; we therefore make no claim that a Case--Control gap widens over time.
+Graph metrics depend on population boundaries.  Ego-layer measures include identified recipients outside the matched cohort, whereas reciprocity, clustering, balance, and mixing are restricted to matched nodes.  Results from the latter should not be interpreted as full-network properties.  The 2020--2024 citation window limits observed citation behavior, while historical work and author metadata in the snapshot can left-censor or misdate prior collaborations.  The year dimension of the edge data supports coauthor timing and the scalar surge-share outcome, but is not analyzed as a tier-specific trajectory or tier-by-year interaction; we therefore make no claim that a Case--Control gap widens over time.
 
 The anomaly thresholds and Isolation Forest define an operational screen, not a validated diagnostic.  Percentile, seed, and leave-one-feature-out sensitivity quantify some model dependence but do not supply ground-truth labels or make the overlapping restriction independent.  Finally, structural metadata cannot reveal the textual function, scientific relevance, or motivation of a citation \parencite{Liu2024}.
 
@@ -526,7 +509,7 @@ The paired bootstrap resamples pair identifiers with replacement.  The sign-flip
 \section{Anomaly-Screen Specification}
 \label{app:screen}
 
-Controls define subject-specific robust centers, scales, detector fits, score cutoffs, and univariate cohesion cutoffs.  Cases do not affect those reference quantities.  The canonical feature output retains the detector score, cohesion-restriction indicator, citation eligibility, and final flag for each $(\mathrm{ORCID},s,\mathrm{tier})$ row.  The downstream component and mixing routines consume that final flag rather than recomputing or substituting a label.
+Controls define subject-specific robust centers, scales, detector fits, score cutoffs, and univariate cohesion cutoffs.  Cases do not affect those reference quantities.  The canonical feature output retains the detector score, cohesion-restriction indicator, citation eligibility, and final flag for each $(\mathrm{ORCID},s,\mathrm{tier})$ row.  The downstream mixing routine consumes that final flag rather than recomputing or substituting a label.
 
 The primary screen uses seed~42 and the 99th Control percentiles.  The threshold analysis repeats the complete fit at the 97.5th, 99th, and 99.5th percentiles for ten fixed seeds.  A row with an unavailable required detector input is not zero-imputed; it receives no detector score, cannot be flagged, and is identified by a separate detector-completeness field.  The overlap table is restricted to rows on which both criteria are defined.
 
@@ -542,8 +525,7 @@ The rebuild checks the following manuscript-facing invariants:
   \item every analytic edge has non-null endpoints and is unique on $(s,i,j,t)$;
   \item each per-metric complete-pair count is no greater than \MatchedPairCount;
   \item every observed surge share lies in $[0,1]$;
-  \item the same final flag supplies every flag-dependent enrichment, component, and figure artifact;
-  \item a component figure is absent unless a component has at least five nodes; and
+  \item the same final flag supplies every flag-dependent enrichment and figure artifact; and
   \item reported numerical values enter through generated LaTeX artifacts rather than hand-copied prose.
 \end{itemize}
 

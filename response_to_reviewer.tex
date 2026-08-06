@@ -18,7 +18,6 @@
 \providecommand{\SecondaryAnnualDyadicSurgeSharePairCount}{pending}
 \providecommand{\AnomalyOverlapFindingText}{Detector--restriction overlap estimates are pending the canonical full-data rebuild.}
 \providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
-\providecommand{\ComponentFindingText}{Component results are pending the canonical full-data rebuild.}
 \providecommand{\CaseControlEnrichment}{pending}
 \providecommand{\WithinTierMixingPercent}{pending}
 \setlength{\parindent}{0pt}
@@ -73,7 +72,7 @@ The former normalised burst-intensity variable has been removed.  It is replaced
 
 \response All essential definitions and analytical decisions now precede Results, which begins only after the Data, Matching, Network, Paired Inference, and Anomaly Screen sections.  Figure~\ref{ms-fig:study-design} summarizes that sequence.  K-means and the former three-cluster result have been removed because they are no longer part of the revised study.
 
-The Discussion now connects the regenerated findings, not only the study design, to prior work.  It distinguishes outgoing HHI from Evdaimon et al.'s incoming-citer concentration indicator, uses the tie-heavy zero-median findings to limit interpretation of cohesion differences, contrasts lower journal endogamy and higher surge share with Heneberg's journal-level kinetics, and explains why the enrichment, mixing, and absent qualifying component do not reproduce the excessive-edge group detection studied by Kojaku et al.  It also discusses non-adversarial alternatives and states why these studies are conceptually informative but not numerically comparable.
+The Discussion now connects the regenerated findings, not only the study design, to prior work.  It distinguishes outgoing HHI from Evdaimon et al.'s incoming-citer concentration indicator, uses the tie-heavy zero-median findings to limit interpretation of cohesion differences, contrasts lower journal endogamy and higher surge share with Heneberg's journal-level kinetics, and explains why the enrichment and mixing results do not reproduce the excessive-edge group detection studied by Kojaku et al.  It also discusses non-adversarial alternatives and states why these studies are conceptually informative but not numerically comparable.
 
 \location{Methods through Results, and Discussion; pp.~4--16 and 22--24}{74--280 and 320--377}
 
@@ -119,7 +118,7 @@ We removed the earlier widening-gap claim.  The year field supports coauthor tim
 
 The revision separates the journal and author networks.  Eigenfactor is a fixed journal-level exposure used before author matching, not an author centrality.  The Methods now specifies citing-to-cited orientation, journal self-citation removal, outgoing-column normalization, 0.85 damping, article-count redistribution of dangling mass and teleportation, and within-subject normalization.  The current workflow consumes the fixed database scores; because the intermediate journal-edge and article-count exports are unavailable, the manuscript explicitly states that the revision cannot independently reproduce or verify the upstream scores or extraction window end to end.
 
-For the author analysis, the Methods formally defines the loopless directed weighted graph $G_s$ and its binary undirected projection $U_s$.  It identifies the population, direction, weight, denominator, and missingness rule for every measure.  Direction is discarded only for $U_s$ clustering and weak-component membership; reciprocity, balance, component flow, directed $1/w_{ij}$ betweenness, and tier mixing retain fractional weights and direction.  The label-swap $p$-value tests the within-tier fractional-weight share, while weighted assortativity is reported separately as a descriptive statistic.  Five nodes is only a reporting gate, not a topology threshold.  \ComponentFindingText\ Accordingly, no component topology or substitute illustration is reported.
+For the author analysis, the Methods formally defines the loopless directed weighted graph $G_s$ and its binary undirected projection $U_s$.  It identifies the population, direction, weight, denominator, and missingness rule for every measure.  Direction is discarded only for $U_s$ clustering; reciprocity, balance, and tier mixing retain fractional weights and direction.  The label-swap $p$-value tests the within-tier fractional-weight share, while weighted assortativity is reported separately as a descriptive statistic.  No community or topology result is inferred.
 
 \location{Data and Cohort, Network Construction, Anomaly Screen, and network results; pp.~4--5, 7--11, 15--16, and 20--21; Tables~\ref{ms-tab:metric-definitions} and~\ref{ms-tab:tier-mixing}}{83--104, 145--190, 261--279, and 314--319}
 
@@ -133,7 +132,7 @@ For the author analysis, the Methods formally defines the loopless directed weig
 
 \section*{Additional corrections incorporated in the revision}
 
-Beyond the issues named above, the rebuild makes subject part of every author and edge key; deduplicates work references before author expansion; counts complete author teams in fractional denominators while requiring identified graph endpoints; separates ego, induced-graph, and work-reference populations; preserves unavailable values; and uses the same final flag for enrichment, components, and figures.  All manuscript values, tables, and figures are generated by one declared canonical analysis; earlier estimates are not used.
+Beyond the issues named above, the rebuild makes subject part of every author and edge key; deduplicates work references before author expansion; counts complete author teams in fractional denominators while requiring identified graph endpoints; separates ego, induced-graph, and work-reference populations; preserves unavailable values; and uses the same final flag for enrichment and figures.  All manuscript values, tables, and figures are generated by one declared canonical analysis; earlier estimates are not used.
 
 \location{Author--subject cohort through Paired Inference, Anomaly Screen, Results, and Data and Code Availability; pp.~5--16 and 26}{105--215, 250--251, 280--284, and 428--438}
 
