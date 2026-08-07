@@ -181,6 +181,8 @@ class CliqueAnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(primary["reciprocity_threshold"], 0.50)
         self.assertIn("observed_reciprocal_clique_count", result.summary.columns)
         self.assertIn("null_mean_reciprocal_clique_count", result.summary.columns)
+        self.assertEqual(len(result.null_reciprocal_clique_counts), 3)
+        self.assertEqual(len(result.label_case_membership_shares), 3)
         self.assertEqual(
             len(result.sensitivity[result.sensitivity["minimum_clique_size"] == 4]),
             3,
@@ -212,6 +214,30 @@ class CliqueAnalysisTests(unittest.TestCase):
         )
         pd.testing.assert_frame_equal(serial.summary, parallel.summary)
         pd.testing.assert_frame_equal(serial.sensitivity, parallel.sensitivity)
+        np.testing.assert_array_equal(
+            serial.null_reciprocal_clique_counts,
+            parallel.null_reciprocal_clique_counts,
+        )
+        np.testing.assert_array_equal(
+            serial.label_case_membership_shares,
+            parallel.label_case_membership_shares,
+        )
+
+    def test_clique_null_plot_writes_vector_figure(self) -> None:
+        edges, membership = self.clique_fixture()
+        result = analysis.run_clique_analysis(
+            edges,
+            membership,
+            flagged_keys=set(),
+            seed=7,
+            null_replicates=3,
+            label_swaps=3,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            analysis.plot_clique_nulls(result, Path(temporary))
+            figure = Path(temporary) / "clique_nulls.pdf"
+            self.assertTrue(figure.is_file())
+            self.assertGreater(figure.stat().st_size, 0)
 
     def test_compact_clique_null_rewiring_preserves_subject_weights(self) -> None:
         edges, membership = self.clique_fixture()
@@ -565,6 +591,23 @@ class MixingTests(unittest.TestCase):
 
 
 class ArtifactWriterTests(unittest.TestCase):
+    def test_generated_tables_use_one_fixed_readable_format(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "table.tex"
+            analysis._write_complete_table(
+                path,
+                caption="Example table.",
+                label="tab:example",
+                alignment="lrr",
+                headers=("Measure", "Case", "Control"),
+                rows=(("Example", "1", "2"),),
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn(r"\scriptsize", content)
+            self.assertIn(r"\setlength{\tabcolsep}{1pt}", content)
+            self.assertIn(r"\begin{tabularx}{\textwidth}", content)
+            self.assertNotIn(r"\resizebox{\textwidth}{!}", content)
+
     def test_corrected_sqlite_interface_loads_subject_keyed_features(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "fixture.db"
@@ -821,9 +864,9 @@ class ArtifactWriterTests(unittest.TestCase):
             paired_primary = (output / "tables/paired_primary.tex").read_text(
                 encoding="utf-8"
             )
-            self.assertIn(r"Mean $\Delta$", paired_primary)
-            self.assertIn(r"Mean boot. 95\% CI", paired_primary)
-            self.assertIn("zero-inflated", paired_primary)
+            self.assertIn("Mean diff.", paired_primary)
+            self.assertIn("Mean boot. CI", paired_primary)
+            self.assertIn("rank-biserial", paired_primary)
 
 
 class ScratchDatabaseTests(unittest.TestCase):

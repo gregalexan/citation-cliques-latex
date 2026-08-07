@@ -122,6 +122,8 @@ class MixingResults:
 class CliqueResults:
     summary: pd.DataFrame
     sensitivity: pd.DataFrame
+    null_reciprocal_clique_counts: np.ndarray
+    label_case_membership_shares: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -972,6 +974,11 @@ def run_clique_analysis(
         for config_index, config in enumerate(configurations):
             null_values[config].append(result.summaries[config_index])
     sensitivity_rows: list[dict[str, object]] = []
+    primary_config = (4, 0.50)
+    primary_null_counts = np.asarray(
+        [item[0] for item in null_values[primary_config]], dtype=float
+    )
+    primary_label_shares = np.array([], dtype=float)
     for config in configurations:
         row = dict(observed[config])
         null_rows = null_values[config]
@@ -1021,6 +1028,8 @@ def run_clique_analysis(
             n_swaps=label_swaps,
             seed=seed + 2003 * (config[0] + int(config[1] * 100)),
         )
+        if config == primary_config:
+            primary_label_shares = label_share_null.copy()
         row["null_mean_case_membership_share"] = (
             float(np.mean(label_share_null)) if label_share_null.size else math.nan
         )
@@ -1034,7 +1043,12 @@ def run_clique_analysis(
         sensitivity["reciprocity_threshold"], 0.50
     )
     summary = sensitivity.loc[primary_mask].reset_index(drop=True)
-    return CliqueResults(summary=summary, sensitivity=sensitivity)
+    return CliqueResults(
+        summary=summary,
+        sensitivity=sensitivity,
+        null_reciprocal_clique_counts=primary_null_counts,
+        label_case_membership_shares=primary_label_shares,
+    )
 
 
 def reciprocity_from_dyads(
@@ -2351,6 +2365,20 @@ def _format_p(value: object) -> str:
     return r"$<0.001$" if numeric < 0.001 else f"{numeric:.3f}"
 
 
+def _tabularx_spec(alignment: str) -> str:
+    columns = []
+    for index, column in enumerate(alignment):
+        if index == 0 and column == "l":
+            columns.append("l")
+        elif column == "l":
+            columns.append(r">{\raggedright\arraybackslash}X")
+        elif column == "r":
+            columns.append(r">{\raggedleft\arraybackslash}X")
+        else:
+            raise ValueError(f"Unsupported table alignment: {alignment}")
+    return "@{}" + "".join(columns) + "@{}"
+
+
 def _write_complete_table(
     path: Path,
     *,
@@ -2366,17 +2394,17 @@ def _write_complete_table(
         r"\centering",
         f"\\caption{{{caption}}}",
         f"\\label{{{label}}}",
-        r"\small",
-        r"\resizebox{\textwidth}{!}{%",
-        f"\\begin{{tabular}}{{{alignment}}}",
+        r"\scriptsize",
+        r"\setlength{\tabcolsep}{1pt}",
+        f"\\begin{{tabularx}}{{\\textwidth}}{{{_tabularx_spec(alignment)}}}",
         r"\toprule",
         " & ".join(headers) + r" \\",
         r"\midrule",
     ]
     lines.extend(" & ".join(row) + r" \\" for row in rows)
-    lines.extend([r"\bottomrule", r"\end{tabular}", r"}"])
+    lines.extend([r"\bottomrule", r"\end{tabularx}"])
     if note:
-        lines.append(r"\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize " + note)
+        lines.append(r"\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize " + note)
         lines.append(r"\end{minipage}")
     lines.append(r"\end{table*}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -2398,7 +2426,7 @@ def write_matching_table(balance: pd.DataFrame, path: Path) -> None:
         )
     _write_complete_table(
         path,
-        caption="Matching balance overall and by subject.",
+        caption="Matched authors by subject.",
         label="tab:matching-balance",
         alignment="lrrrrrr",
         headers=("Subject", "Pairs", "$h_5$ observed", "Exact $h_5$", r"Median $\Delta h_5$", r"Median $|\Delta h_5|$", r"Maximum $|\Delta h_5|$"),
@@ -2443,25 +2471,27 @@ def write_paired_table(
         alignment="lrrrrrrrrrr",
         headers=(
             "Metric",
-            "$n$",
-            "Case med.",
-            "Control med.",
-            r"$\Delta$ med.",
-            r"Paired boot. 95\% CI",
-            r"Mean $\Delta$",
-            r"Mean boot. 95\% CI",
-            "$r_{rb}$",
-            "$p_{BH}$",
-            "$p_{flip}$",
+            "Pairs",
+            "Case median",
+            "Control median",
+            "Median diff.",
+            r"Boot. CI",
+            "Mean diff.",
+            r"Mean boot. CI",
+            "Rank effect",
+            "Adj. $p$",
+            "Sign-flip $p$",
         ),
         rows=rows,
         note=note
         or (
-            "Complete-pair deletion is performed separately for each metric. "
-            "Median differences can be zero because of tie-heavy zero-inflated outcomes; "
-            "mean differences summarize the directional shift. "
-            r"Positive differences and rank-biserial effects indicate Case $>$ Control. "
-            "BH correction is within the displayed outcome family."
+            "The Pairs column gives the number of matched pairs with both values present; "
+            "this count can differ by metric. Each confidence interval (CI) is a 95\\% range "
+            "from the paired bootstrap. The rank effect is the rank-biserial effect size. Median differences can be zero because "
+            "many values are tied at zero, while mean differences show the average shift. "
+            "Positive differences and positive rank-biserial effects indicate Case $>$ Control. "
+            "BH adjusts the four displayed $p$-values for multiple testing; the sign-flip "
+            "$p$-value comes from randomly reversing pair directions."
         ),
     )
 
@@ -2487,13 +2517,15 @@ def write_anomaly_enrichment_table(enrichment: pd.DataFrame, path: Path) -> None
         )
     _write_complete_table(
         path,
-        caption="Control-referenced anomaly-screen flags by journal-impact tier.",
+        caption="Screen results by journal-impact tier.",
         label="tab:anomaly-enrichment",
         alignment="lrrrrrrr",
-        headers=("Tier", "Eligible", "Screenable", "Flagged", "Flagged share", "Case/Control enrichment", "Case share of flags", "Fisher $p$"),
+        headers=("Tier", "Eligible", "Screenable", "Flagged", "Flagged share", "Case/Control enrichment", "Case share of flags", "Fisher exact $p$"),
         rows=rows,
         note=(
             "Eligibility requires identified non-self outgoing citation weight. "
+            "Enrichment is the Case flagged share divided by the Control flagged share. "
+            "The Fisher exact $p$-value tests whether the two flagged shares differ. "
             "Flags are screening results and do not establish intent or misconduct."
         ),
     )
@@ -2532,12 +2564,16 @@ def write_anomaly_sensitivity_table(summary: pd.DataFrame, path: Path) -> None:
         )
     _write_complete_table(
         path,
-        caption="Anomaly-screen threshold and seed sensitivity.",
+        caption="Sensitivity of screen results.",
         label="tab:anomaly-sensitivity",
         alignment="lrrrrr",
-        headers=("Control percentile", "Flagged, median [range]", "Case share", "Control share", "Enrichment", "Jaccard vs. canonical"),
+        headers=("Control percentile", "Flagged count: median [range]", "Case share", "Control share", "Enrichment", "Overlap with main screen"),
         rows=rows,
-        note="Each row summarises ten fixed seeds; the canonical screen uses the 99th percentile and seed 42.",
+        note=(
+            "Each row summarises ten fixed seeds; the main screen uses the 99th percentile "
+            "and seed 42. Enrichment is the Case flagged share divided by the Control flagged "
+            "share. Overlap is the Jaccard share of flagged rows retained by both screens."
+        ),
     )
 
 
@@ -2578,13 +2614,13 @@ def write_anomaly_overlap_table(overlap: pd.DataFrame, path: Path) -> None:
     ]
     _write_complete_table(
         path,
-        caption="Overlap between detector-threshold exceedance and the cohesion restriction.",
+        caption="The two screen rules and their overlap.",
         label="tab:anomaly-overlap",
         alignment="lrrr",
         headers=(
             "Detector exceeds threshold",
-            "No restriction",
-            "Restriction",
+            "Cohesion rule: no",
+            "Cohesion rule: yes",
             "Total",
         ),
         rows=rows,
@@ -2619,10 +2655,7 @@ def write_anomaly_feature_ablation_table(ablation: pd.DataFrame, path: Path) -> 
     seed = int(ablation["seed"].iloc[0])
     _write_complete_table(
         path,
-        caption=(
-            "Leave-one-feature-out anomaly-screen sensitivity at the canonical "
-            "threshold and seed."
-        ),
+        caption="Screen stability when one input is removed.",
         label="tab:anomaly-feature-ablation",
         alignment="lrrrrr",
         headers=(
@@ -2631,13 +2664,14 @@ def write_anomaly_feature_ablation_table(ablation: pd.DataFrame, path: Path) -> 
             "Case flags",
             "Control flags",
             "Enrichment",
-            "Jaccard vs. canonical",
+            "Overlap with main screen",
         ),
         rows=rows,
         note=(
             f"Each fit uses the {100 * quantile:.1f}\\% Control percentile and seed {seed}. "
-            "The canonical detector-complete population and cohesion restriction are "
-            "held fixed; Case and Control percentages retain eligible-row denominators."
+            "The main detector-complete population and cohesion restriction are held fixed; "
+            "Case and Control percentages retain eligible-row denominators. Overlap is the "
+            "Jaccard share of flagged rows retained by both screens."
         ),
     )
 
@@ -2654,16 +2688,17 @@ def write_tier_mixing_table(mixing: MixingResults, path: Path) -> None:
     ]
     note = (
         f"Cells are cumulative fractional citation weights. The within-tier share is "
-        f"{100 * mixing.same_tier_share:.2f}\\%, weighted assortativity is "
-        f"{_format_number(mixing.assortativity, 3)}, and the two-sided 10,000 within-pair "
-        f"tier-label-swap p-value is {_format_p(mixing.permutation_p)}."
+        f"{100 * mixing.same_tier_share:.2f}\\%, and weighted assortativity is "
+        f"{_format_number(mixing.assortativity, 3)}; this compares same-tier weight "
+        f"with the amount expected from the row and column totals. The two-sided 10,000 "
+        f"within-pair tier-label-swap p-value is {_format_p(mixing.permutation_p)}."
     )
     _write_complete_table(
         path,
-        caption="Weighted citation mixing among matched authors.",
+        caption="Where matched authors cite.",
         label="tab:tier-mixing",
         alignment="lrr",
-        headers=("Citing tier", "Cited Case", "Cited Control"),
+        headers=("Citing group", "Cited Case", "Cited Control"),
         rows=rows,
         note=note,
     )
@@ -2691,7 +2726,7 @@ def write_component_table(components: ComponentResults, path: Path) -> None:
         alignment = "lrrrrrrr"
     _write_complete_table(
         path,
-        caption="Descriptive structure of outlier components with at least five nodes.",
+        caption="Flagged components with at least five nodes.",
         label="tab:outlier-components",
         alignment=alignment,
         headers=("Subject", "Component", "Nodes", "Dyads", "Weight", "Net givers", "Net receivers", "Highest betweenness"),
@@ -2722,29 +2757,30 @@ def write_clique_summary_table(cliques: CliqueResults, path: Path) -> None:
     ]
     _write_complete_table(
         path,
-        caption="Formal reciprocal-clique analysis in the matched-author graph.",
+        caption="Defined reciprocal-clique pattern and randomized comparison.",
         label="tab:clique-summary",
         alignment="lrrrrrrrrrr",
         headers=(
             "Primary rule",
-            "Structural cliques",
-            "Reciprocal candidates",
-            "Conditional null mean",
-            "Conditional null $p$",
+            "All groups",
+            "Recip. groups",
+            "Random mean",
+            "Random $p$",
             "Mean density",
             "Density $p$",
-            "Mean reciprocity",
-            "Reciprocity $p$",
+            "Recip. mean",
+            "Recip. $p$",
             "Case share",
             "Label-swap $p$",
         ),
         rows=rows,
         note=(
-            "A clique is maximal in the positive undirected projection. The primary rule "
-            "requires at least four nodes, directed density at least 0.75, and weighted "
-            "reciprocity at least 0.50. Conditional null means and p-values rescore the "
-            "observed maximal-clique candidates after subject-stratified degree-preserving "
-            "directed edge swaps."
+            "A candidate group is a maximal group in which every pair has a citation in at least "
+            "one direction. The primary rule requires at least four members, density at least 0.75, "
+            "and weighted reciprocity at least 0.50. The randomized graphs keep each author's "
+            "number of incoming and outgoing links and keep the same set of edge weights, but "
+            "rewire the links and reassign those weights. Randomized $p$-values are the fraction "
+            "of 500 randomized graphs with a value at least as large as the observed value."
         ),
     )
 
@@ -2770,28 +2806,28 @@ def write_clique_sensitivity_table(cliques: CliqueResults, path: Path) -> None:
         )
     _write_complete_table(
         path,
-        caption="Clique minimum-size and reciprocity-threshold sensitivity.",
+        caption="Sensitivity of the clique rule.",
         label="tab:clique-sensitivity",
         alignment="lrrrrrrrrrrr",
         headers=(
-            "$k$ minimum",
-            "Reciprocity threshold",
-            "Structural cliques",
-            "Reciprocal candidates",
-            "Conditional null mean",
-            "Conditional null $p$",
+            "Minimum group size",
+            "Recip. threshold",
+            "All groups",
+            "Recip. groups",
+            "Random mean",
+            "Random $p$",
             "Mean density",
             "Density $p$",
-            "Mean reciprocity",
-            "Reciprocity $p$",
+            "Recip. mean",
+            "Recip. $p$",
             "Case share",
             "Label-swap $p$",
         ),
         rows=rows,
         note=(
-            "The directed density threshold is fixed at 0.75. Thresholds are evaluated "
-            "on the same subject-specific maximal-clique population; null values condition "
-            "on those observed candidate memberships."
+            "The directed density threshold is fixed at 0.75. The reciprocity threshold is "
+            "the minimum share of two-way citation weight. Each row uses the same subject-specific "
+            "candidate groups; randomized values are scored on those observed memberships."
         ),
     )
 
@@ -2859,6 +2895,42 @@ def plot_tier_mixing(mixing: MixingResults, directory: Path) -> None:
     ax.set_ylabel("Citing tier")
     fig.colorbar(image, ax=ax, label="Row-normalised fractional weight")
     _save_figure(fig, directory, "tier_mixing")
+
+
+def plot_clique_nulls(cliques: CliqueResults, directory: Path) -> None:
+    primary = cliques.summary.iloc[0]
+    observed_count = float(primary["observed_reciprocal_clique_count"])
+    observed_share = 100.0 * float(primary["observed_case_membership_share"])
+    null_count_mean = float(primary["null_mean_reciprocal_clique_count"])
+    null_share_mean = 100.0 * float(primary["null_mean_case_membership_share"])
+    p_count = float(primary["null_p_reciprocal_clique_count"])
+    p_share = float(primary["label_swap_p_case_membership_share"])
+    fig, axes = plt.subplots(2, 1, figsize=(6.6, 2.8), sharey=True)
+    rows = (
+        (axes[0], "Reciprocal cliques", "Number of cliques", null_count_mean, observed_count, p_count, ".2f", ".0f"),
+        (axes[1], "Case membership", "Share of members (%)", null_share_mean, observed_share, p_share, ".1f", ".1f"),
+    )
+    for axis, title, xlabel, random_average, observed, p_value, random_format, observed_format in rows:
+        limit = 100.0 if xlabel.endswith("(%)") else max(1.0, observed * 1.18)
+        pad = max(limit * 0.025, 0.15)
+        axis.barh(
+            [0, 1],
+            [random_average, observed],
+            color=["#bdbdbd", "#b2182b"],
+            height=0.42,
+            edgecolor="none",
+        )
+        axis.set_title(title, loc="left", fontsize=10)
+        axis.set_yticks([0, 1], ["Random average", "Observed"])
+        axis.set_xlabel(xlabel)
+        axis.set_xlim(0, limit)
+        axis.text(random_average + pad, 0, format(random_average, random_format), va="center")
+        axis.text(observed + pad, 1, format(observed, observed_format), va="center")
+        p_text = "p < 0.001" if p_value < 0.001 else f"p = {p_value:.3f}"
+        axis.text(1.0, 1.08, p_text, transform=axis.transAxes, ha="right", va="bottom")
+        axis.grid(axis="x", alpha=0.25)
+        axis.spines[["top", "right"]].set_visible(False)
+    _save_figure(fig, directory, "clique_nulls")
 
 
 def plot_largest_component(components: ComponentResults, directory: Path, *, seed: int) -> bool:
@@ -2989,13 +3061,11 @@ def write_result_macros(
     commands["PrimarySignificantCount"] = str(significant_primary)
     commands["PrimaryMinimumPairCount"] = f"{min_pairs:,}"
     commands["PrimaryMaximumPairCount"] = f"{max_pairs:,}"
-    positive_mean_count = int((primary["mean_difference"] > 0).sum())
     zero_median_count = int(np.isclose(primary["median_difference"], 0.0).sum())
     # Kept deliberately concise so the assembled abstract remains below 200 words.
     commands["PrimaryFindingText"] = (
-        f"All {significant_primary} primary comparisons met the 5\\% BH threshold, "
-        f"with positive mean paired differences for all {positive_mean_count}; "
-        f"zero inflation made {zero_median_count} median differences zero."
+        f"All {significant_primary} primary comparisons favored Cases on average; "
+        f"{zero_median_count} median differences were zero because many pairs tied."
     )
 
     primary_by_metric = primary.set_index("metric")
@@ -3010,38 +3080,31 @@ def write_result_macros(
         )
     ]
     commands["PrimaryDetailedFindingText"] = (
-        "All four primary signed-rank comparisons remained different after BH correction. "
-        "Mean paired differences favored Cases for coauthor-citation rate, reciprocity, "
-        "local clustering, and outgoing HHI ("
+        "Cases had higher average values on all four primary measures ("
         + "; ".join(
             f"{row.metric_label} {_macro_number(row.mean_difference)}, 95\\% bootstrap CI "
             f"[{_macro_number(row.mean_bootstrap_ci_low)}, {_macro_number(row.mean_bootstrap_ci_high)}]"
             for row in mean_summary
         )
         + "). "
-        "Because the outcomes are zero-inflated, the first three had zero median paired "
-        "differences; their matched rank-biserial effects were positive "
-        f"({_macro_number(primary_by_metric.loc['coauthor_citation_rate'].rank_biserial)}, "
-        f"{_macro_number(primary_by_metric.loc['reciprocity'].rank_biserial)}, "
-        f"{_macro_number(primary_by_metric.loc['local_clustering'].rank_biserial)}). "
-        "Outgoing HHI also had a positive median paired difference "
+        "Three median differences were zero because many pairs had the same zero value. "
+        "Among non-tied pairs, Case values were more often higher. Outgoing HHI also had a "
+        "positive median paired difference "
         f"{_macro_number(hhi.median_difference)}, 95\\% bootstrap CI "
         f"[{_macro_number(hhi.bootstrap_ci_low)}, "
-        f"{_macro_number(hhi.bootstrap_ci_high)}]; "
-        f"$r_{{\\mathrm{{rb}}}}={_macro_number(hhi.rank_biserial)}$."
+        f"{_macro_number(hhi.bootstrap_ci_high)}]."
     )
 
     secondary_by_metric = secondary.set_index("metric")
     endogamy = secondary_by_metric.loc["journal_endogamy"]
     surge = secondary_by_metric.loc["annual_dyadic_surge_share"]
     commands["SecondaryDetailedFindingText"] = (
-        f"Among secondary outcomes, journal endogamy was lower for Cases (median paired "
-        f"difference {_macro_number(endogamy.median_difference)}, 95\\% bootstrap CI "
-        f"[{_macro_number(endogamy.bootstrap_ci_low)}, "
-        f"{_macro_number(endogamy.bootstrap_ci_high)}]), whereas maximum annual dyadic "
-        f"surge share was higher (difference {_macro_number(surge.median_difference)}, "
-        f"95\\% CI [{_macro_number(surge.bootstrap_ci_low)}, "
-        f"{_macro_number(surge.bootstrap_ci_high)}])."
+        f"Cases had less same-journal referencing (median difference "
+        f"{_macro_number(endogamy.median_difference)}, 95\\% CI "
+        f"[{_macro_number(endogamy.bootstrap_ci_low)}, {_macro_number(endogamy.bootstrap_ci_high)}]) "
+        f"and larger year-to-year increases to one recipient (median difference "
+        f"{_macro_number(surge.median_difference)}, 95\\% CI "
+        f"[{_macro_number(surge.bootstrap_ci_low)}, {_macro_number(surge.bootstrap_ci_high)}])."
     )
 
     sensitivity_by_metric = sensitivity_inference.set_index("metric")
@@ -3052,9 +3115,8 @@ def write_result_macros(
     if "outgoing_hhi" in sensitivity_by_metric.index:
         exact_hhi = sensitivity_by_metric.loc["outgoing_hhi"]
         sensitivity_sentences.append(
-            f"All {int(exact_rows['bh_significant_05'].sum())} exact-$h_5$ primary "
-            f"comparisons retained positive rank-biserial effects; exact-$h_5$ outgoing "
-            f"HHI had a median paired difference of "
+            f"The exact-$h_5$ check kept the direction of all four primary comparisons; "
+            f"outgoing HHI had a median difference of "
             f"{_macro_number(exact_hhi.median_difference)} (95\\% CI "
             f"[{_macro_number(exact_hhi.bootstrap_ci_low)}, "
             f"{_macro_number(exact_hhi.bootstrap_ci_high)}])."
@@ -3062,7 +3124,7 @@ def write_result_macros(
     if "coauthor_citation_rate_same_year" in sensitivity_by_metric.index:
         same_year = sensitivity_by_metric.loc["coauthor_citation_rate_same_year"]
         sensitivity_sentences.append(
-            f"Under same-year coauthor classification, the median paired difference was "
+            f"Using the same-year coauthor definition, the median difference was "
             f"{_macro_number(same_year.median_difference)} (95\\% CI "
             f"[{_macro_number(same_year.bootstrap_ci_low)}, "
             f"{_macro_number(same_year.bootstrap_ci_high)}])."
@@ -3155,45 +3217,34 @@ def write_result_macros(
                 ablation_enrichment_max, 2
             ),
             "AnomalyOverlapFindingText": (
-                f"Among {screenable_rows:,} screenable author--subject rows, "
-                f"{detector_count:,} exceeded the detector threshold, "
-                f"{cohesion_count:,} met the cohesion restriction, and "
-                f"{detector_and_cohesion:,} met both; {detector_only:,} were "
-                f"detector-only and {cohesion_only:,} restriction-only. Detector score "
-                f"and cohesion exceedance count had Spearman "
-                f"$\\rho={_macro_number(association.spearman_rho, 3)}$ "
-                f"({association_p_text})."
+                f"The two screen rules agreed for {detector_and_cohesion:,} rows; "
+                f"{detector_only:,} passed only the first rule and {cohesion_only:,} only the second. "
+                f"Their scores were positively related ($\\rho={_macro_number(association.spearman_rho, 3)}$, "
+                f"{association_p_text})."
             ),
             "AnomalyFeatureAblationFindingText": (
-                f"Across {len(feature_ablation)} leave-one-feature-out detector fits, "
-                f"final-flag Jaccard similarity with the canonical flags ranged from "
-                f"{_macro_number(ablation_jaccard_min, 3)} to "
-                f"{_macro_number(ablation_jaccard_max, 3)}, and Case/Control enrichment "
-                f"ranged from {_macro_number(ablation_enrichment_min, 2)} to "
-                f"{_macro_number(ablation_enrichment_max, 2)}."
+                f"Removing one input at a time changed little: flag overlap ranged from "
+                f"{_macro_number(ablation_jaccard_min, 3)} to {_macro_number(ablation_jaccard_max, 3)}, "
+                f"and Case/Control enrichment ranged from {_macro_number(ablation_enrichment_min, 2)} "
+                f"to {_macro_number(ablation_enrichment_max, 2)}."
             ),
             "AnomalyFindingText": (
-                f"The screen flagged {100 * case.flagged_share:.2f}\\% of eligible Case rows "
-                f"and {100 * control.flagged_share:.2f}\\% of Controls "
-                f"({_macro_number(case.case_to_control_enrichment, 2)}-fold enrichment)."
+                f"The screen flagged {100 * case.flagged_share:.2f}\\% of Case rows and "
+                f"{100 * control.flagged_share:.2f}\\% of Control rows, a "
+                f"{_macro_number(case.case_to_control_enrichment, 2)}-fold difference."
             ),
             "AnomalyDetailedFindingText": (
-                f"Of {int(case.eligible_rows):,} eligible Case and "
-                f"{int(control.eligible_rows):,} eligible Control rows, "
-                f"{int(case.screenable_rows):,} and {int(control.screenable_rows):,}, "
-                f"respectively, had all detector inputs. The canonical rule flagged "
-                f"{int(case.flagged_rows)} Cases and {int(control.flagged_rows)} Controls "
-                f"({100 * case.flagged_share:.2f}\\% versus "
-                f"{100 * control.flagged_share:.2f}\\% of eligible rows; "
-                f"{_macro_number(case.case_to_control_enrichment, 2)}-fold enrichment; "
-                "$p<0.001$ by Fisher's exact test)."
+                f"The screen flagged {int(case.flagged_rows)} Cases and {int(control.flagged_rows)} Controls "
+                f"({100 * case.flagged_share:.2f}\\% versus {100 * control.flagged_share:.2f}\\%; "
+                f"{_macro_number(case.case_to_control_enrichment, 2)}-fold difference; "
+                "$p<0.001$)."
             ),
             "WithinTierMixingPercent": _macro_number(100 * mixing.same_tier_share, 2),
             "TierMixingAssortativity": _macro_number(mixing.assortativity, 3),
             "TierMixingPermutationP": _macro_number(mixing.permutation_p, 4),
             "MixingFindingText": (
-                f"Within-tier citations represented {100 * mixing.same_tier_share:.2f}\\% of "
-                "matched-sample weight (label-swap $p<0.001$)."
+                f"{100 * mixing.same_tier_share:.2f}\\% of matched citation weight stayed "
+                "within the same group (label-swap $p<0.001$)."
             ),
             "OutlierComponentCount": str(len(components.summary)),
             "LargestOutlierComponentSize": (
@@ -3221,6 +3272,7 @@ def write_result_macros(
                 "CliqueMeanDensity": "NA",
                 "CliqueMeanReciprocity": "NA",
                 "CliqueCaseSharePercent": "NA",
+                "CliqueNullMeanCaseSharePercent": "NA",
                 "CliqueFlaggedSharePercent": "NA",
                 "CliqueLabelSwapP": "NA",
                 "CliqueValidNullReplicates": "0",
@@ -3250,6 +3302,9 @@ def write_result_macros(
                 "CliqueCaseSharePercent": _macro_number(
                     100 * clique.observed_case_membership_share, 1
                 ),
+                "CliqueNullMeanCaseSharePercent": _macro_number(
+                    100 * clique.null_mean_case_membership_share, 1
+                ),
                 "CliqueFlaggedSharePercent": _macro_number(
                     100 * clique.observed_flagged_membership_share, 1
                 ),
@@ -3258,17 +3313,12 @@ def write_result_macros(
                 ),
                 "CliqueValidNullReplicates": str(int(clique.valid_null_replicates)),
                 "CliqueFindingText": (
-                    f"The primary rule identified {int(clique.observed_reciprocal_clique_count):,} "
-                    f"reciprocal cliques among {int(clique.observed_clique_count):,} structural "
-                    f"cliques; the conditional rewired-candidate null mean was "
-                    f"{_macro_number(clique.null_mean_reciprocal_clique_count, 2)} "
+                    f"The rule found {int(clique.observed_reciprocal_clique_count):,} reciprocal cliques "
+                    f"among {int(clique.observed_clique_count):,} candidate groups. Randomized graphs "
+                    f"averaged {_macro_number(clique.null_mean_reciprocal_clique_count, 2)} reciprocal cliques "
                     f"(empirical $p={_macro_number(clique.null_p_reciprocal_clique_count, 4)}$). "
-                    f"Their mean directed density was "
-                    f"{_macro_number(clique.observed_mean_density, 3)} and mean weighted "
-                    f"reciprocity was {_macro_number(clique.observed_mean_reciprocity, 3)}. "
-                    f"Canonical flags comprised "
-                    f"{_macro_number(100 * clique.observed_flagged_membership_share, 1)}\\% "
-                    f"of clique memberships."
+                    f"Mean density was {_macro_number(clique.observed_mean_density, 3)} and mean reciprocity "
+                    f"was {_macro_number(clique.observed_mean_reciprocity, 3)}."
                 ),
             }
         )
@@ -3334,6 +3384,16 @@ def write_artifacts(
     )
     cliques.summary.to_csv(tables_directory / "clique_summary.csv", index=False)
     cliques.sensitivity.to_csv(tables_directory / "clique_sensitivity.csv", index=False)
+    pd.DataFrame(
+        {
+            "graph_null_reciprocal_clique_count": pd.Series(
+                cliques.null_reciprocal_clique_counts
+            ),
+            "label_swap_case_membership_share": pd.Series(
+                cliques.label_case_membership_shares
+            ),
+        }
+    ).to_csv(tables_directory / "clique_null_samples.csv", index_label="replicate")
     components.summary.to_csv(tables_directory / "outlier_components.csv", index=False)
     components.nodes.to_csv(tables_directory / "outlier_component_nodes.csv", index=False)
     components.dyads.to_csv(tables_directory / "outlier_component_dyads.csv", index=False)
@@ -3347,25 +3407,27 @@ def write_artifacts(
         primary,
         tables_directory / "paired_primary.tex",
         label="tab:paired-primary",
-        caption="Primary matched comparisons of citation-network cohesion.",
+        caption="Matched comparisons of the four primary measures.",
     )
     write_paired_table(
         secondary,
         tables_directory / "paired_secondary.tex",
         label="tab:paired-secondary",
-        caption="Secondary matched comparisons.",
+        caption="Matched comparisons of secondary measures.",
     )
     write_paired_table(
         exact,
         tables_directory / "exact_h5_sensitivity.tex",
         label="tab:exact-h5",
-        caption="Exact-$h_5$ and coauthor-timing sensitivity analyses.",
+        caption="Checks using exact $h_5$ matches and same-year collaborations.",
         note=(
-            "Complete-pair deletion is metric-specific. The first four rows use the exact-$h_5$ "
-            "cohort and BH correction across those primary outcomes; the same-year coauthor row "
-            "uses the full cohort as a separate one-outcome sensitivity family. "
-            "Median differences can be zero because of tie-heavy zero-inflated outcomes; "
-            "mean differences summarize the directional shift."
+            "The Pairs column gives the number of matched pairs with both values present; this count "
+            "can differ by metric. Each confidence interval (CI) is a 95\\% range from the paired "
+            "bootstrap. The rank effect is the rank-biserial effect size. The first four rows use exact-$h_5$ matches and BH correction "
+            "across the primary outcomes. The same-year coauthor row uses the full cohort as a "
+            "separate one-outcome check. A confidence interval (CI) gives the range supported by "
+            "the paired bootstrap. Median differences can be zero because many values are tied at "
+            "zero, while mean differences show the average shift."
         ),
     )
     write_anomaly_enrichment_table(enrichment, tables_directory / "anomaly_enrichment.tex")
@@ -3386,6 +3448,7 @@ def write_artifacts(
     plot_paired_effects(primary, secondary, figures_directory)
     plot_anomaly_enrichment(enrichment, figures_directory)
     plot_tier_mixing(mixing, figures_directory)
+    plot_clique_nulls(cliques, figures_directory)
     component_figure = plot_largest_component(components, figures_directory, seed=seed)
 
     write_result_macros(

@@ -1,17 +1,18 @@
 \begin{table*}[t]
 \centering
-\caption{Anomaly-screen threshold and seed sensitivity.}
+\caption{Sensitivity of screen results.}
 \label{tab:anomaly-sensitivity}
-\tableformat
-\begin{tabularx}{\textwidth}{@{}P{0.20\textwidth}*{5}{Z}@{}}
+\scriptsize
+\setlength{\tabcolsep}{1pt}
+\begin{tabularx}{\textwidth}{@{}l>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X@{}}
 \toprule
-Control percentile & Flagged, median [range] & Case share & Control share & Enrichment & Jaccard vs. canonical \\
+Control percentile & Flagged count: median [range] & Case share & Control share & Enrichment & Overlap with main screen \\
 \midrule
 97.5\% & 97 [93--99] & 1.21\% & 0.13\% & 9.22 & 0.55 \\
 99.0\% & 54 [52--55] & 0.71\% & 0.04\% & 16.31 & 0.98 \\
 99.5\% & 42 [41--44] & 0.55\% & 0.04\% & 12.68 & 0.77 \\
 \bottomrule
 \end{tabularx}
-\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Each row summarises ten fixed seeds; the canonical screen uses the 99th percentile and seed 42.
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize Each row summarises ten fixed seeds; the main screen uses the 99th percentile and seed 42. Enrichment is the Case flagged share divided by the Control flagged share. Overlap is the Jaccard share of flagged rows retained by both screens.
 \end{minipage}
 \end{table*}

@@ -1,16 +1,17 @@
 \begin{table*}[t]
 \centering
-\caption{Control-referenced anomaly-screen flags by journal-impact tier.}
+\caption{Screen results by journal-impact group.}
 \label{tab:anomaly-enrichment}
-\tableformat
-\begin{tabularx}{\textwidth}{@{}P{0.10\textwidth}*{7}{Z}@{}}
+\scriptsize
+\setlength{\tabcolsep}{1pt}
+\begin{tabularx}{\textwidth}{@{}l>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X@{}}
 \toprule
-Tier & Eligible & Screenable & Flagged & Flagged share & \shortstack{Case/Control\\ enrichment} & Case share of flags & Fisher $p$ \\
+Tier & Eligible & Screenable & Flagged & Flagged share & Case/Control enrichment & Case share of flags & Fisher exact $p$ \\
 \midrule
 Case & 6,960 & 1,897 & 49 & 0.70\% & 16.14 & 92.45\% & $<0.001$ \\
 Control & 9,171 & 1,973 & 4 & 0.04\% & 16.14 & -- & $<0.001$ \\
 \bottomrule
 \end{tabularx}
-\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Eligibility requires identified non-self outgoing citation weight. Flags are screening results and do not establish intent or misconduct.
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize Eligibility requires identified non-self outgoing citation weight. Enrichment is the Case flagged share divided by the Control flagged share. The Fisher exact $p$-value tests whether the two flagged shares differ. Flags are screening results and do not establish intent or misconduct.
 \end{minipage}
 \end{table*}

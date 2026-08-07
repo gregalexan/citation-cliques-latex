@@ -1,20 +1,19 @@
 \begin{table*}[t]
 \centering
-\caption{Primary matched comparisons of citation-network cohesion.}
+\caption{Matched comparisons of the four primary measures.}
 \label{tab:paired-primary}
-\small
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lrrrrrrrrrr}
+\scriptsize
+\setlength{\tabcolsep}{1pt}
+\begin{tabularx}{\textwidth}{@{}l>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X@{}}
 \toprule
-Metric & $n$ & Case med. & Control med. & $\Delta$ med. & Paired boot. 95\% CI & Mean $\Delta$ & Mean boot. 95\% CI & $r_{rb}$ & $p_{BH}$ & $p_{flip}$ \\
+Metric & Pairs & Case median & Control median & Median diff. & Boot. CI & Mean diff. & Mean boot. CI & Rank effect & Adj. $p$ & Sign-flip $p$ \\
 \midrule
 Coauthor-citation rate & 6,848 & 0.000 & 0.029 & 0.000 & [0.000, 0.000] & 0.045 & [0.039, 0.050] & 0.116 & $<0.001$ & $<0.001$ \\
 Reciprocity & 464 & 0.000 & 0.000 & 0.000 & [0.000, 0.000] & 0.129 & [0.089, 0.170] & 0.468 & $<0.001$ & $<0.001$ \\
 Local clustering & 9,431 & 0.000 & 0.000 & 0.000 & [0.000, 0.000] & 0.026 & [0.021, 0.031] & 0.395 & $<0.001$ & $<0.001$ \\
 Outgoing HHI & 6,848 & 0.073 & 0.030 & 0.035 & [0.033, 0.038] & 0.097 & [0.091, 0.102] & 0.580 & $<0.001$ & $<0.001$ \\
 \bottomrule
-\end{tabular}
-}
-\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Complete-pair deletion is performed separately for each metric. Median differences can be zero because of tie-heavy zero-inflated outcomes; mean differences summarize the directional shift. Positive differences and rank-biserial effects indicate Case $>$ Control. BH correction is within the displayed outcome family.
+\end{tabularx}
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize The Pairs column gives the number of matched pairs with both values present; this count can differ by metric. Each confidence interval (CI) is a 95\% range from the paired bootstrap. The rank effect is the rank-biserial effect size. Median differences can be zero because many values are tied at zero, while mean differences show the average shift. Positive differences and positive rank-biserial effects indicate Case $>$ Control. BH adjusts the four displayed $p$-values for multiple testing; the sign-flip $p$-value comes from randomly reversing pair directions.
 \end{minipage}
 \end{table*}

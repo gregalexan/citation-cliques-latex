@@ -1,11 +1,12 @@
 \begin{table*}[t]
 \centering
-\caption{Leave-one-feature-out anomaly-screen sensitivity at the canonical threshold and seed.}
+\caption{Screen stability when one input is removed.}
 \label{tab:anomaly-feature-ablation}
-\tableformat
-\begin{tabularx}{\textwidth}{@{}P{0.30\textwidth}*{5}{Z}@{}}
+\scriptsize
+\setlength{\tabcolsep}{1pt}
+\begin{tabularx}{\textwidth}{@{}l>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X@{}}
 \toprule
-Detector feature omitted & Flags & Case flags & Control flags & Enrichment & Jaccard vs. canonical \\
+Detector feature omitted & Flags & Case flags & Control flags & Enrichment & Overlap with main screen \\
 \midrule
 Self-citation rate & 53 & 49 (0.70\%) & 4 (0.04\%) & 16.14 & 0.963 \\
 Coauthor-citation rate & 50 & 46 (0.66\%) & 4 (0.04\%) & 15.15 & 0.907 \\
@@ -14,6 +15,6 @@ Local clustering & 55 & 51 (0.73\%) & 4 (0.04\%) & 16.80 & 0.964 \\
 Outgoing HHI & 51 & 47 (0.68\%) & 4 (0.04\%) & 15.48 & 0.962 \\
 \bottomrule
 \end{tabularx}
-\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Each fit uses the 99.0\% Control percentile and seed 42. The canonical detector-complete population and cohesion restriction are held fixed; Case and Control percentages retain eligible-row denominators.
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize Each row removes one screen input. The cutoff and random seed stay fixed, and the Case and Control percentages use the same eligible rows. Overlap is the Jaccard share of flagged rows retained by both screens.
 \end{minipage}
 \end{table*}

@@ -103,10 +103,10 @@
 \newcommand{\PrimarySignificantCount}{4}
 \newcommand{\PrimaryMinimumPairCount}{464}
 \newcommand{\PrimaryMaximumPairCount}{9,431}
-\newcommand{\PrimaryFindingText}{All 4 primary comparisons met the 5\% BH threshold, with positive mean paired differences for all 4; zero inflation made 3 median differences zero.}
-\newcommand{\PrimaryDetailedFindingText}{All four primary signed-rank comparisons remained different after BH correction. Mean paired differences favored Cases for coauthor-citation rate, reciprocity, local clustering, and outgoing HHI (Coauthor-citation rate 0.045, 95\% bootstrap CI [0.039, 0.050]; Reciprocity 0.129, 95\% bootstrap CI [0.089, 0.170]; Local clustering 0.026, 95\% bootstrap CI [0.021, 0.031]; Outgoing HHI 0.097, 95\% bootstrap CI [0.091, 0.102]). Because the outcomes are zero-inflated, the first three had zero median paired differences; their matched rank-biserial effects were positive (0.116, 0.468, 0.395). Outgoing HHI also had a positive median paired difference 0.035, 95\% bootstrap CI [0.033, 0.038]; $r_{\mathrm{rb}}=0.580$.}
-\newcommand{\SecondaryDetailedFindingText}{Among secondary outcomes, journal endogamy was lower for Cases (median paired difference -0.028, 95\% bootstrap CI [-0.030, -0.026]), whereas maximum annual dyadic surge share was higher (difference 0.047, 95\% CI [0.044, 0.051]).}
-\newcommand{\SensitivityFindingText}{All 4 exact-$h_5$ primary comparisons retained positive rank-biserial effects; exact-$h_5$ outgoing HHI had a median paired difference of 0.034 (95\% CI [0.031, 0.037]). Under same-year coauthor classification, the median paired difference was 0.000 (95\% CI [-0.003, 0.000]).}
+\newcommand{\PrimaryFindingText}{All 4 primary comparisons favored Cases on average; 3 median differences were zero because many pairs tied.}
+\newcommand{\PrimaryDetailedFindingText}{Cases had higher average values on all four primary measures (Coauthor-citation rate 0.045, 95\% bootstrap CI [0.039, 0.050]; Reciprocity 0.129, 95\% bootstrap CI [0.089, 0.170]; Local clustering 0.026, 95\% bootstrap CI [0.021, 0.031]; Outgoing HHI 0.097, 95\% bootstrap CI [0.091, 0.102]). Three median differences were zero because many pairs had the same zero value. Among non-tied pairs, Case values were more often higher. Outgoing HHI also had a positive median paired difference 0.035, 95\% bootstrap CI [0.033, 0.038].}
+\newcommand{\SecondaryDetailedFindingText}{Cases had less same-journal referencing (median difference -0.028, 95\% CI [-0.030, -0.026]) and larger year-to-year increases to one recipient (median difference 0.047, 95\% CI [0.044, 0.051]).}
+\newcommand{\SensitivityFindingText}{The exact-$h_5$ check kept the direction of all four primary comparisons; outgoing HHI had a median difference of 0.034 (95\% CI [0.031, 0.037]). Using the same-year coauthor definition, the median difference was 0.000 (95\% CI [-0.003, 0.000]).}
 \newcommand{\EligibleCaseCount}{6,960}
 \newcommand{\EligibleControlCount}{9,171}
 \newcommand{\ScreenableCaseCount}{1,897}
@@ -137,14 +137,28 @@
 \newcommand{\AnomalyFeatureAblationJaccardMaximum}{0.981}
 \newcommand{\AnomalyFeatureAblationEnrichmentMinimum}{15.15}
 \newcommand{\AnomalyFeatureAblationEnrichmentMaximum}{16.80}
-\newcommand{\AnomalyOverlapFindingText}{Among 3,870 screenable author--subject rows, 200 exceeded the detector threshold, 55 met the cohesion restriction, and 53 met both; 147 were detector-only and 2 restriction-only. Detector score and cohesion exceedance count had Spearman $\rho=0.385$ ($p<0.001$).}
-\newcommand{\AnomalyFeatureAblationFindingText}{Across 5 leave-one-feature-out detector fits, final-flag Jaccard similarity with the canonical flags ranged from 0.907 to 0.981, and Case/Control enrichment ranged from 15.15 to 16.80.}
-\newcommand{\AnomalyFindingText}{The screen flagged 0.70\% of eligible Case rows and 0.04\% of Controls (16.14-fold enrichment).}
-\newcommand{\AnomalyDetailedFindingText}{Of 6,960 eligible Case and 9,171 eligible Control rows, 1,897 and 1,973, respectively, had all detector inputs. The canonical rule flagged 49 Cases and 4 Controls (0.70\% versus 0.04\% of eligible rows; 16.14-fold enrichment; $p<0.001$ by Fisher's exact test).}
+\newcommand{\AnomalyOverlapFindingText}{The two screen rules agreed for 53 rows; 147 passed only the first rule and 2 only the second. Their scores were positively related ($\rho=0.385$, $p<0.001$).}
+\newcommand{\AnomalyFeatureAblationFindingText}{Removing one input at a time changed little: flag overlap ranged from 0.907 to 0.981, and Case/Control enrichment ranged from 15.15 to 16.80.}
+\newcommand{\AnomalyFindingText}{The screen flagged 0.70\% of Case rows and 0.04\% of Control rows, a 16.14-fold difference.}
+\newcommand{\AnomalyDetailedFindingText}{The screen flagged 49 Cases and 4 Controls (0.70\% versus 0.04\%; 16.14-fold difference; $p<0.001$).}
 \newcommand{\WithinTierMixingPercent}{93.91}
 \newcommand{\TierMixingAssortativity}{0.824}
 \newcommand{\TierMixingPermutationP}{0.0001}
-\newcommand{\MixingFindingText}{Within-tier citations represented 93.91\% of matched-sample weight (label-swap $p<0.001$).}
+\newcommand{\MixingFindingText}{93.91\% of matched citation weight stayed within the same group (label-swap $p<0.001$).}
 \newcommand{\OutlierComponentCount}{0}
 \newcommand{\LargestOutlierComponentSize}{0}
 \newcommand{\ComponentFindingText}{No outlier component contained at least five flagged nodes.}
+\newcommand{\CliqueStructuralCount}{50}
+\newcommand{\CliqueReciprocalCount}{17}
+\newcommand{\CliqueNullMeanCount}{0.73}
+\newcommand{\CliqueNullP}{0.0020}
+\newcommand{\CliqueDensityNullP}{0.4685}
+\newcommand{\CliqueReciprocityNullP}{0.1220}
+\newcommand{\CliqueMeanDensity}{0.825}
+\newcommand{\CliqueMeanReciprocity}{0.641}
+\newcommand{\CliqueCaseSharePercent}{91.6}
+\newcommand{\CliqueNullMeanCaseSharePercent}{50.2}
+\newcommand{\CliqueFlaggedSharePercent}{0.0}
+\newcommand{\CliqueLabelSwapP}{0.0020}
+\newcommand{\CliqueValidNullReplicates}{500}
+\newcommand{\CliqueFindingText}{The rule found 17 reciprocal cliques among 50 candidate groups. Randomized graphs averaged 0.73 reciprocal cliques ($p=0.0020$). Mean density was 0.825 and mean reciprocity was 0.641.}

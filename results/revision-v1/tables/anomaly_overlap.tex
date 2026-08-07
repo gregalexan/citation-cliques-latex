@@ -1,17 +1,18 @@
 \begin{table*}[t]
 \centering
-\caption{Overlap between detector-threshold exceedance and the cohesion restriction.}
+\caption{The two screen rules and their overlap.}
 \label{tab:anomaly-overlap}
-\tableformat
-\begin{tabularx}{\textwidth}{@{}P{0.30\textwidth}*{3}{Z}@{}}
+\scriptsize
+\setlength{\tabcolsep}{1pt}
+\begin{tabularx}{\textwidth}{@{}l>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X@{}}
 \toprule
-Detector exceeds threshold & No restriction & Restriction & Total \\
+Detector exceeds threshold & Cohesion rule: no & Cohesion rule: yes & Total \\
 \midrule
 No & 3,668 (94.78\%) & 2 (0.05\%) & 3,670 (94.83\%) \\
 Yes & 147 (3.80\%) & 53 (1.37\%) & 200 (5.17\%) \\
 Total & 3,815 (98.58\%) & 55 (1.42\%) & 3,870 (100.00\%) \\
 \bottomrule
 \end{tabularx}
-\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\footnotesize Cells are counts (percent of 3,870 screenable author--subject rows). Spearman's $\rho$ between detector score and cohesion exceedance count was 0.385 ($n=3,870$; $p<0.001$). The four cohesion measures are detector inputs, so this is an overlapping interpretable restriction rather than independent corroboration.
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize Cells are counts among 3,870 screenable author--subject rows. The detector rule uses the tree-based score; the cohesion rule requires at least two of four measures to exceed their Control references. The two rules share four measures, so their overlap is not independent evidence. Their scores were positively related ($\rho=0.385$, $p<0.001$).
 \end{minipage}
 \end{table*}

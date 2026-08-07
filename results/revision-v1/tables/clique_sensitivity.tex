@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\centering
+\caption{Sensitivity of the clique rule.}
+\label{tab:clique-sensitivity}
+\scriptsize
+\setlength{\tabcolsep}{1pt}
+\begin{tabularx}{\textwidth}{@{}l>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X>{\raggedleft\arraybackslash}X@{}}
+\toprule
+Minimum group size & Recip. threshold & All groups & Recip. groups & Random mean & Random $p$ & Mean density & Density $p$ & Recip. mean & Recip. $p$ & Case share & Label-swap $p$ \\
+\midrule
+3 & 0.25 & 98 & 73 & 29.42 & 0.002 & 0.859 & 0.848 & 0.539 & 0.002 & 87.9\% & 0.002 \\
+3 & 0.50 & 98 & 38 & 5.36 & 0.002 & 0.878 & 0.706 & 0.693 & 0.040 & 89.0\% & 0.002 \\
+3 & 0.75 & 98 & 11 & 0.54 & 0.002 & 0.970 & 0.378 & 0.909 & 0.053 & 77.8\% & 0.002 \\
+4 & 0.25 & 50 & 35 & 10.85 & 0.002 & 0.806 & 0.619 & 0.492 & 0.002 & 92.4\% & 0.002 \\
+4 & 0.50 & 50 & 17 & 0.73 & 0.002 & 0.825 & 0.469 & 0.641 & 0.122 & 91.6\% & 0.002 \\
+4 & 0.75 & 50 & 2 & 0.01 & 0.002 & 1.000 & 0.125 & 0.899 & 0.125 & 44.4\% & 0.782 \\
+5 & 0.25 & 21 & 11 & 4.18 & 0.006 & 0.852 & 0.389 & 0.550 & 0.004 & 90.3\% & 0.002 \\
+5 & 0.50 & 21 & 8 & 0.13 & 0.002 & 0.847 & 0.615 & 0.649 & 0.058 & 87.2\% & 0.002 \\
+5 & 0.75 & 21 & 1 & 0.00 & 0.002 & 1.000 & -- & 1.000 & -- & 0.0\% & 1.000 \\
+\bottomrule
+\end{tabularx}
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize The directed density threshold stays at 0.75. The reciprocity threshold is the minimum share of two-way citation weight. Each row uses the same subject-specific candidate groups, and each randomized run scores those same groups.
+\end{minipage}
+\end{table*}
