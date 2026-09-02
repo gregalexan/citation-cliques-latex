@@ -14,11 +14,9 @@ import hashlib
 from itertools import combinations
 import json
 import math
-import os
-import random
 import re
 import sqlite3
-from concurrent.futures import ProcessPoolExecutor
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
@@ -31,7 +29,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy import sparse
-from scipy.stats import fisher_exact, rankdata, spearmanr, wilcoxon
+from scipy.stats import binomtest, fisher_exact, rankdata, spearmanr, wilcoxon
 from sklearn.ensemble import IsolationForest
 
 
@@ -39,15 +37,11 @@ ANALYSIS_VERSION = "revision-v1"
 DEFAULT_DATABASE = Path("rolap.db")
 DEFAULT_OUTPUT_DIRECTORY = Path("results") / ANALYSIS_VERSION
 DEFAULT_SEED = 42
-MAX_MATCHED_PAIRS = 9_431
 MATCHING_H5_CALIPER = 3
 YEARS = tuple(range(2020, 2025))
 CLIQUE_MIN_SIZES = (3, 4, 5)
 CLIQUE_RECIPROCITY_THRESHOLDS = (0.25, 0.50, 0.75)
 CLIQUE_DENSITY_THRESHOLD = 0.75
-CLIQUE_NULL_REPLICATES = 500
-CLIQUE_LABEL_SWAPS = 500
-DEFAULT_CLIQUE_WORKERS = min(4, os.cpu_count() or 1)
 
 PRIMARY_METRICS = (
     "coauthor_citation_rate",
@@ -86,6 +80,11 @@ METRIC_LABELS = {
     "annual_dyadic_surge_share": "Maximum annual dyadic surge share",
     "coauthor_citation_rate_same_year": "Coauthor-citation rate (same-year included)",
 }
+
+
+def _progress(message: str, *, started_at: float) -> None:
+    elapsed_minutes = max(0.0, time.monotonic() - started_at) / 60
+    print(f"[{elapsed_minutes:7.1f} min] {message}", flush=True)
 PAIRED_EFFECT_XLABEL = "Median paired difference (Case minus Control)"
 TIER_ORDER = ("Case", "Control")
 
@@ -122,33 +121,8 @@ class MixingResults:
 class CliqueResults:
     summary: pd.DataFrame
     sensitivity: pd.DataFrame
-    null_reciprocal_clique_counts: np.ndarray
-    label_case_membership_shares: np.ndarray
-
-
-@dataclass(frozen=True)
-class _CliqueNullSubject:
-    subject: str
-    sources: np.ndarray
-    targets: np.ndarray
-    weights: np.ndarray
-    node_count: int
-    swap_count: int
-    candidate_offsets: np.ndarray
-    candidate_forward_codes: np.ndarray
-    candidate_reverse_codes: np.ndarray
-    candidate_sizes: np.ndarray
-
-
-@dataclass(frozen=True)
-class _CliqueNullContext:
-    subjects: tuple[_CliqueNullSubject, ...]
-
-
-@dataclass(frozen=True)
-class _CliqueNullReplicateResult:
-    valid: bool
-    summaries: tuple[tuple[int, float, float], ...]
+    membership: pd.DataFrame
+    subject_consistency: pd.DataFrame
 
 
 def _require_columns(frame: pd.DataFrame, columns: Iterable[str], table: str) -> None:
@@ -175,7 +149,12 @@ def _read_table(connection: sqlite3.Connection, table: str) -> pd.DataFrame:
 def _normalise_keys(frame: pd.DataFrame, *, orcid_columns: Sequence[str]) -> pd.DataFrame:
     result = frame.copy()
     if "subject" in result:
-        result["subject"] = result["subject"].astype("string").str.strip()
+        result["subject"] = (
+            result["subject"]
+            .astype("string")
+            .str.strip()
+            .str.replace(r"^([+-]?\d+)\.0+$", r"\1", regex=True)
+        )
     for column in orcid_columns:
         if column in result:
             result[column] = result[column].astype("string").str.strip()
@@ -290,11 +269,12 @@ def _clique_group_metrics_from_weights(
     tier_by_orcid: Mapping[str, str],
 ) -> dict[str, object]:
     members = tuple(sorted(str(node) for node in members))
-    member_set = set(members)
     possible_arcs = len(members) * (len(members) - 1)
     directed_dyads = sum(
-        source in member_set and target in member_set and source != target
-        for source, target in weights
+        (source, target) in weights
+        for source in members
+        for target in members
+        if source != target
     )
     pair_maximum = 0.0
     pair_minimum = 0.0
@@ -321,353 +301,13 @@ def _clique_group_metrics_from_weights(
     }
 
 
-def rewire_subject_dyads(
-    dyads: pd.DataFrame,
-    *,
-    seed: int,
-    swaps: int,
-    cumulative: bool = False,
-) -> pd.DataFrame:
-    """Rewire a subject graph while preserving binary degrees and weights."""
-
-    if swaps <= 0:
-        raise ValueError("swaps must be positive")
-    cumulative = dyads if cumulative else aggregate_cumulative_dyads(dyads)
-    cumulative = cumulative[
-        cumulative["citing_orcid"] != cumulative["cited_orcid"]
-    ].copy()
-    if cumulative["subject"].nunique() > 1:
-        raise ValueError("rewiring expects one subject")
-    nodes = set(cumulative["citing_orcid"]) | set(cumulative["cited_orcid"])
-    if len(nodes) < 4 or len(cumulative) < 3:
-        raise ValueError("subject graph is too small to rewire")
-    edge_list = sorted(
-        cumulative[["citing_orcid", "cited_orcid"]].itertuples(
-            index=False, name=None
-        )
-    )
-    edge_set = set(edge_list)
-    rng = random.Random(seed)
-    accepted = 0
-    attempts = 0
-    max_attempts = max(100, swaps * 100)
-    while accepted < swaps and attempts < max_attempts:
-        attempts += 1
-        first, second = rng.sample(range(len(edge_list)), 2)
-        source_a, target_a = edge_list[first]
-        source_b, target_b = edge_list[second]
-        if source_a == source_b or target_a == target_b:
-            continue
-        replacement_a = (source_a, target_b)
-        replacement_b = (source_b, target_a)
-        if (
-            source_a == target_b
-            or source_b == target_a
-            or replacement_a == replacement_b
-        ):
-            continue
-        occupied = edge_set - {edge_list[first], edge_list[second]}
-        if replacement_a in occupied or replacement_b in occupied:
-            continue
-        edge_set.remove(edge_list[first])
-        edge_set.remove(edge_list[second])
-        edge_set.update((replacement_a, replacement_b))
-        edge_list[first] = replacement_a
-        edge_list[second] = replacement_b
-        accepted += 1
-    if accepted < swaps:
-        # ponytail: a rigid or saturated degree sequence keeps its valid
-        # partial-swap state instead of spending unbounded time searching.
-        pass
-    weights = cumulative["citation_weight"].astype(float).tolist()
-    rng.shuffle(weights)
-    subject = cumulative["subject"].iloc[0]
-    rows = [
-        {
-            "subject": subject,
-            "citing_orcid": citing,
-            "cited_orcid": cited,
-            "citation_weight": weight,
-        }
-        for (citing, cited), weight in zip(edge_list, weights)
-    ]
-    return pd.DataFrame(rows)
-
-
-def _prepare_clique_null_context(
-    edges: pd.DataFrame,
-    membership: pd.DataFrame,
-    observed_rows: Sequence[Mapping[str, object]],
-) -> _CliqueNullContext:
-    """Prepare compact subject arrays for repeated graph-null scoring."""
-
-    cumulative = aggregate_cumulative_dyads(edges)
-    cumulative = cumulative[
-        cumulative["citing_orcid"] != cumulative["cited_orcid"]
-    ]
-    observed_by_subject: dict[str, list[Mapping[str, object]]] = {}
-    for row in observed_rows:
-        observed_by_subject.setdefault(str(row["subject"]), []).append(row)
-
-    subjects: list[_CliqueNullSubject] = []
-    for subject, members in membership.groupby("subject", sort=True):
-        subject_name = str(subject)
-        subject_all_dyads = cumulative[
-            cumulative["subject"].astype(str) == subject_name
-        ]
-        subject_dyads = subject_all_dyads[
-            subject_all_dyads["citing_orcid"] != subject_all_dyads["cited_orcid"]
-        ]
-        member_names = {str(value) for value in members["orcid"].drop_duplicates()}
-        if (
-            len(member_names) < 4
-            or len(subject_all_dyads) < 3
-            or len(subject_dyads) < 3
-        ):
-            continue
-        edge_names = set(subject_dyads["citing_orcid"].astype(str)) | set(
-            subject_dyads["cited_orcid"].astype(str)
-        )
-        node_names = sorted(member_names | edge_names)
-        node_index = {name: index for index, name in enumerate(node_names)}
-        edge_pairs = sorted(
-            (
-                node_index[str(row.citing_orcid)],
-                node_index[str(row.cited_orcid)],
-            )
-            for row in subject_dyads.itertuples(index=False)
-        )
-        sources = np.asarray([pair[0] for pair in edge_pairs], dtype=np.int64)
-        targets = np.asarray([pair[1] for pair in edge_pairs], dtype=np.int64)
-        weights = subject_dyads["citation_weight"].to_numpy(dtype=float, copy=True)
-
-        offsets = [0]
-        forward_codes: list[int] = []
-        reverse_codes: list[int] = []
-        candidate_sizes: list[int] = []
-        for row in observed_by_subject.get(subject_name, []):
-            candidate_members = [node_index[str(node)] for node in row["members"]]
-            for left, right in combinations(candidate_members, 2):
-                forward_codes.append(left * len(node_names) + right)
-                reverse_codes.append(right * len(node_names) + left)
-            offsets.append(len(forward_codes))
-            candidate_sizes.append(len(candidate_members))
-
-        subjects.append(
-            _CliqueNullSubject(
-                subject=subject_name,
-                sources=sources,
-                targets=targets,
-                weights=weights,
-                node_count=len(node_names),
-                swap_count=len(subject_all_dyads),
-                candidate_offsets=np.asarray(offsets, dtype=np.int64),
-                candidate_forward_codes=np.asarray(forward_codes, dtype=np.int64),
-                candidate_reverse_codes=np.asarray(reverse_codes, dtype=np.int64),
-                candidate_sizes=np.asarray(candidate_sizes, dtype=np.int64),
-            )
-        )
-    return _CliqueNullContext(tuple(subjects))
-
-
-def _rewire_clique_subject(
-    subject: _CliqueNullSubject,
-    *,
-    seed: int,
-    swaps: int,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Rewire one compact subject graph and permute its weights."""
-
-    if swaps <= 0:
-        raise ValueError("swaps must be positive")
-    edge_list = list(zip(subject.sources.tolist(), subject.targets.tolist()))
-    if len(set(edge_list)) < 3 or len(
-        {node for edge in edge_list for node in edge}
-    ) < 4:
-        raise ValueError("subject graph is too small to rewire")
-    edge_set = set(edge_list)
-    rng = random.Random(seed)
-    accepted = 0
-    attempts = 0
-    max_attempts = max(100, swaps * 100)
-    while accepted < swaps and attempts < max_attempts:
-        attempts += 1
-        first, second = rng.sample(range(len(edge_list)), 2)
-        source_a, target_a = edge_list[first]
-        source_b, target_b = edge_list[second]
-        if source_a == source_b or target_a == target_b:
-            continue
-        replacement_a = (source_a, target_b)
-        replacement_b = (source_b, target_a)
-        if (
-            source_a == target_b
-            or source_b == target_a
-            or replacement_a == replacement_b
-        ):
-            continue
-        occupied = edge_set - {edge_list[first], edge_list[second]}
-        if replacement_a in occupied or replacement_b in occupied:
-            continue
-        edge_set.remove(edge_list[first])
-        edge_set.remove(edge_list[second])
-        edge_set.update((replacement_a, replacement_b))
-        edge_list[first] = replacement_a
-        edge_list[second] = replacement_b
-        accepted += 1
-    if accepted < swaps:
-        # ponytail: keep a valid partial swap state for rigid degree sequences.
-        pass
-    weights = subject.weights.astype(float, copy=True).tolist()
-    rng.shuffle(weights)
-    rewired_sources = np.asarray([edge[0] for edge in edge_list], dtype=np.int64)
-    rewired_targets = np.asarray([edge[1] for edge in edge_list], dtype=np.int64)
-    return rewired_sources, rewired_targets, np.asarray(weights, dtype=float)
-
-
-def _compact_weight_lookup(
-    sorted_codes: np.ndarray,
-    sorted_weights: np.ndarray,
-    query_codes: np.ndarray,
-) -> np.ndarray:
-    """Look up sparse edge weights for encoded directed pairs."""
-
-    values = np.zeros(query_codes.shape, dtype=float)
-    if not len(query_codes) or not len(sorted_codes):
-        return values
-    positions = np.searchsorted(sorted_codes, query_codes)
-    valid = positions < len(sorted_codes)
-    safe_positions = np.minimum(positions, len(sorted_codes) - 1)
-    valid &= sorted_codes[safe_positions] == query_codes
-    values[valid] = sorted_weights[positions[valid]]
-    return values
-
-
-def _score_compact_clique_subject(
-    subject: _CliqueNullSubject,
-    sources: np.ndarray,
-    targets: np.ndarray,
-    weights: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Score all fixed candidates for one rewired compact subject graph."""
-
-    candidate_count = len(subject.candidate_sizes)
-    if candidate_count == 0:
-        return np.empty(0, dtype=float), np.empty(0, dtype=float)
-    codes = sources * subject.node_count + targets
-    order = np.argsort(codes, kind="mergesort")
-    sorted_codes = codes[order]
-    sorted_weights = weights[order]
-    forward = _compact_weight_lookup(
-        sorted_codes, sorted_weights, subject.candidate_forward_codes
-    )
-    reverse = _compact_weight_lookup(
-        sorted_codes, sorted_weights, subject.candidate_reverse_codes
-    )
-    starts = subject.candidate_offsets[:-1]
-    directed_counts = np.add.reduceat(
-        (forward > 0).astype(np.int64) + (reverse > 0).astype(np.int64), starts
-    )
-    pair_maximum = np.add.reduceat(np.maximum(forward, reverse), starts)
-    pair_minimum = np.add.reduceat(np.minimum(forward, reverse), starts)
-    possible_arcs = subject.candidate_sizes * (subject.candidate_sizes - 1)
-    density = directed_counts / possible_arcs
-    reciprocity = np.full(candidate_count, np.nan, dtype=float)
-    valid = pair_maximum > 0
-    reciprocity[valid] = pair_minimum[valid] / pair_maximum[valid]
-    return density, reciprocity
-
-
-def _run_clique_null_replicate(
-    context: _CliqueNullContext,
-    replicate: int,
-    seed: int,
-    configurations: Sequence[tuple[int, float]] | None = None,
-) -> _CliqueNullReplicateResult:
-    """Run and summarize one deterministic compact graph-null replicate."""
-
-    configurations = tuple(
-        configurations
-        or (
-            (minimum, threshold)
-            for minimum in CLIQUE_MIN_SIZES
-            for threshold in CLIQUE_RECIPROCITY_THRESHOLDS
-        )
-    )
-    if not context.subjects:
-        return _CliqueNullReplicateResult(False, tuple())
-    totals = [[0, 0.0, 0.0, 0] for _ in configurations]
-    for subject_index, subject in enumerate(context.subjects):
-        try:
-            sources, targets, weights = _rewire_clique_subject(
-                subject,
-                seed=seed + 1009 * (replicate + 1) + subject_index,
-                swaps=max(1, min(subject.swap_count, 10)),
-            )
-        except (ValueError, nx.NetworkXException):
-            return _CliqueNullReplicateResult(False, tuple())
-        density, reciprocity = _score_compact_clique_subject(
-            subject, sources, targets, weights
-        )
-        for index, (minimum, threshold) in enumerate(configurations):
-            structural = (
-                (subject.candidate_sizes >= minimum)
-                & (density >= CLIQUE_DENSITY_THRESHOLD)
-            )
-            qualifying = (
-                structural
-                & np.isfinite(reciprocity)
-                & (reciprocity >= threshold)
-            )
-            count = int(np.count_nonzero(qualifying))
-            totals[index][0] += count
-            totals[index][1] += float(density[qualifying].sum())
-            totals[index][2] += float(reciprocity[qualifying].sum())
-            totals[index][3] += count
-    summaries = tuple(
-        (
-            int(total[0]),
-            float(total[1] / total[3]) if total[3] else math.nan,
-            float(total[2] / total[3]) if total[3] else math.nan,
-        )
-        for total in totals
-    )
-    return _CliqueNullReplicateResult(True, summaries)
-
-
-_CLIQUE_NULL_WORKER_CONTEXT: _CliqueNullContext | None = None
-_CLIQUE_NULL_WORKER_CONFIGURATIONS: tuple[tuple[int, float], ...] = tuple()
-_CLIQUE_NULL_WORKER_SEED = DEFAULT_SEED
-
-
-def _init_clique_null_worker(
-    context: _CliqueNullContext,
-    configurations: Sequence[tuple[int, float]],
-    seed: int,
-) -> None:
-    global _CLIQUE_NULL_WORKER_CONTEXT
-    global _CLIQUE_NULL_WORKER_CONFIGURATIONS
-    global _CLIQUE_NULL_WORKER_SEED
-    _CLIQUE_NULL_WORKER_CONTEXT = context
-    _CLIQUE_NULL_WORKER_CONFIGURATIONS = tuple(configurations)
-    _CLIQUE_NULL_WORKER_SEED = seed
-
-
-def _run_clique_null_worker(replicate: int) -> _CliqueNullReplicateResult:
-    if _CLIQUE_NULL_WORKER_CONTEXT is None:
-        raise RuntimeError("clique null worker was not initialized")
-    return _run_clique_null_replicate(
-        _CLIQUE_NULL_WORKER_CONTEXT,
-        replicate,
-        _CLIQUE_NULL_WORKER_SEED,
-        _CLIQUE_NULL_WORKER_CONFIGURATIONS,
-    )
-
-
 def _clique_rows(
     edges: pd.DataFrame,
     membership: pd.DataFrame,
-    flagged_keys: set[tuple[str, str]],
+    *,
+    progress: bool = False,
 ) -> list[dict[str, object]]:
+    started_at = time.monotonic()
     cumulative = aggregate_cumulative_dyads(edges)
     rows: list[dict[str, object]] = []
     for subject, members in membership.groupby("subject", sort=True):
@@ -675,6 +315,11 @@ def _clique_rows(
         nodes = [str(node) for node in members["orcid"].drop_duplicates()]
         subject_dyads = cumulative[cumulative["subject"].astype(str) == subject]
         groups = enumerate_subject_cliques(subject_dyads, nodes, min_size=3)
+        if progress:
+            _progress(
+                f"Clique subject {subject}: enumerated {len(groups):,} maximal groups",
+                started_at=started_at,
+            )
         if not groups:
             continue
         tier_by_orcid = {
@@ -686,110 +331,112 @@ def _clique_rows(
             for row in subject_dyads.itertuples(index=False)
             if row.citing_orcid != row.cited_orcid
         }
-        for clique in groups:
+        scoring_started = time.monotonic()
+        for index, clique in enumerate(groups, start=1):
             metrics = _clique_group_metrics_from_weights(
                 clique, weights, tier_by_orcid
             )
-            metrics.update(
-                {
-                    "subject": subject,
-                    "members": clique,
-                    "flagged_memberships": sum(
-                        (subject, node) in flagged_keys for node in clique
-                    ),
-                }
-            )
+            metrics.update({"subject": subject, "members": clique})
             rows.append(metrics)
+            if progress and (index % 1_000 == 0 or index == len(groups)):
+                elapsed = max(time.monotonic() - scoring_started, 1e-9)
+                eta_minutes = (len(groups) - index) / (index / elapsed) / 60
+                _progress(
+                    f"Clique subject {subject}: scored {index:,}/{len(groups):,} "
+                    f"({100 * index / len(groups):.1f}%); ETA {eta_minutes:.1f} min",
+                    started_at=started_at,
+                )
     return rows
 
 
-def _clique_rows_for_candidates(
-    edges: pd.DataFrame,
-    membership: pd.DataFrame,
-    candidates: Sequence[Mapping[str, object]],
-    flagged_keys: set[tuple[str, str]],
-    *,
-    cumulative: bool = False,
-) -> list[dict[str, object]]:
-    """Re-score observed clique memberships on a rewired graph.
-
-    The null is conditional on the observed maximal-clique candidate set. This
-    avoids re-enumerating tens of thousands of alternative maximal cliques for
-    every replicate while preserving the same group definition and thresholds.
-    """
-
-    cumulative = edges if cumulative else aggregate_cumulative_dyads(edges)
-    weights_by_subject: dict[str, dict[tuple[str, str], float]] = {}
-    for row in cumulative.itertuples(index=False):
-        if row.citing_orcid == row.cited_orcid:
-            continue
-        weights_by_subject.setdefault(str(row.subject), {})[
-            (str(row.citing_orcid), str(row.cited_orcid))
-        ] = float(row.citation_weight)
-    return _clique_rows_from_candidate_weights(
-        weights_by_subject, membership, candidates, flagged_keys
-    )
-
-
-def _clique_rows_from_candidate_weights(
-    weights_by_subject: Mapping[str, Mapping[tuple[str, str], float]],
-    membership: pd.DataFrame,
-    candidates: Sequence[Mapping[str, object]],
-    flagged_keys: set[tuple[str, str]],
-) -> list[dict[str, object]]:
-    """Score fixed clique memberships from subject-indexed dyad weights."""
-
-    tiers_by_subject = {
-        str(subject): {
-            str(row.orcid): str(row.tier_type)
-            for row in members.itertuples(index=False)
-        }
-        for subject, members in membership.groupby("subject", sort=True)
+def _matched_binary_summary(pairs: pd.DataFrame) -> dict[str, object]:
+    case = pairs["Case"].astype(bool)
+    control = pairs["Control"].astype(bool)
+    pair_count = len(pairs)
+    case_only = int((case & ~control).sum())
+    control_only = int((~case & control).sum())
+    discordant = case_only + control_only
+    case_rate = float(case.mean()) if pair_count else math.nan
+    control_rate = float(control.mean()) if pair_count else math.nan
+    return {
+        "matched_pair_count": pair_count,
+        "unique_member_count": int(case.sum() + control.sum()),
+        "case_member_count": int(case.sum()),
+        "control_member_count": int(control.sum()),
+        "case_membership_rate": case_rate,
+        "control_membership_rate": control_rate,
+        "paired_difference": case_rate - control_rate if pair_count else math.nan,
+        "case_only_pairs": case_only,
+        "control_only_pairs": control_only,
+        "discordant_pairs": discordant,
+        "both_member_pairs": int((case & control).sum()),
+        "neither_member_pairs": int((~case & ~control).sum()),
+        "exact_p": (
+            float(binomtest(case_only, discordant, 0.5).pvalue)
+            if discordant
+            else 1.0
+        ),
     }
-    flagged = {(str(subject), str(orcid)) for subject, orcid in flagged_keys}
-    rows: list[dict[str, object]] = []
-    for candidate in candidates:
-        subject = str(candidate["subject"])
-        members = tuple(str(node) for node in candidate["members"])
-        metrics = _clique_group_metrics_from_weights(
-            members,
-            weights_by_subject.get(subject, {}),
-            tiers_by_subject.get(subject, {}),
-        )
-        metrics.update(
-            {
-                "subject": subject,
-                "members": members,
-                "flagged_memberships": sum(
-                    (subject, node) in flagged for node in members
-                ),
-            }
-        )
-        rows.append(metrics)
-    return rows
 
 
-def _clique_share(
+def matched_clique_inference(
     rows: Sequence[Mapping[str, object]],
+    membership: pd.DataFrame,
     *,
-    tier_by_key: Mapping[tuple[str, str], str] | None = None,
-) -> float:
-    if not rows:
-        return math.nan
-    denominator = sum(len(row["members"]) for row in rows)
-    if denominator <= 0:
-        return math.nan
-    if tier_by_key is None:
-        numerator = sum(int(row["case_memberships"]) for row in rows)
-    else:
-        numerator = sum(
-            sum(
-                tier_by_key.get((str(row["subject"]), str(node))) == "Case"
-                for node in row["members"]
-            )
-            for row in rows
-        )
-    return float(numerator / denominator)
+    min_size: int,
+    reciprocity_threshold: float,
+) -> tuple[dict[str, object], pd.DataFrame, pd.DataFrame]:
+    """Compare unique reciprocal-clique membership within matched pairs."""
+
+    _require_columns(
+        membership, ("pair_id", "subject", "orcid", "tier_type"), "membership"
+    )
+    qualifying = [
+        row
+        for row in rows
+        if int(row["clique_size"]) >= min_size
+        and float(row["directed_density"]) >= CLIQUE_DENSITY_THRESHOLD
+        and np.isfinite(float(row["weighted_reciprocity"]))
+        and float(row["weighted_reciprocity"]) >= reciprocity_threshold
+    ]
+    keys = {
+        (str(row["subject"]), str(orcid))
+        for row in qualifying
+        for orcid in row["members"]
+    }
+    assignments = membership.copy()
+    assignments["subject"] = assignments["subject"].astype(str)
+    assignments["orcid"] = assignments["orcid"].astype(str)
+    assignments["clique_member"] = [
+        (row.subject, row.orcid) in keys
+        for row in assignments.itertuples(index=False)
+    ]
+    pair_flags = assignments.pivot(
+        index=["pair_id", "subject"],
+        columns="tier_type",
+        values="clique_member",
+    )
+    if set(pair_flags.columns) != set(TIER_ORDER):
+        raise ValueError("each matched pair must contain one Case and one Control")
+    pair_flags = pair_flags[list(TIER_ORDER)].astype(bool)
+    summary = _matched_binary_summary(pair_flags)
+    summary["subjects_case_higher"] = 0
+    summary["subjects_control_higher"] = 0
+    summary["subjects_tied"] = 0
+    subject_rows = []
+    for subject, subject_pairs in pair_flags.groupby(level="subject", sort=True):
+        subject_summary = _matched_binary_summary(subject_pairs)
+        subject_summary["subject"] = str(subject)
+        subject_rows.append(subject_summary)
+        difference = float(subject_summary["paired_difference"])
+        if difference > 0:
+            summary["subjects_case_higher"] += 1
+        elif difference < 0:
+            summary["subjects_control_higher"] += 1
+        else:
+            summary["subjects_tied"] += 1
+    selected = assignments[assignments["clique_member"]].copy()
+    return summary, pd.DataFrame(subject_rows), selected
 
 
 def _clique_threshold_summary(
@@ -818,12 +465,6 @@ def _clique_threshold_summaries(
     reciprocities = np.fromiter(
         (float(row["weighted_reciprocity"]) for row in rows), dtype=float
     )
-    cases = np.fromiter(
-        (int(row["case_memberships"]) for row in rows), dtype=np.int64
-    )
-    flagged = np.fromiter(
-        (int(row["flagged_memberships"]) for row in rows), dtype=np.int64
-    )
     output: dict[tuple[int, float], dict[str, object]] = {}
     for min_size, reciprocity_threshold in configurations:
         structural = (sizes >= min_size) & (densities >= CLIQUE_DENSITY_THRESHOLD)
@@ -834,7 +475,6 @@ def _clique_threshold_summaries(
         )
         selected_density = densities[qualifying]
         selected_reciprocity = reciprocities[qualifying]
-        denominator = int(sizes[qualifying].sum())
         output[(min_size, reciprocity_threshold)] = {
             "minimum_clique_size": min_size,
             "reciprocity_threshold": reciprocity_threshold,
@@ -851,193 +491,47 @@ def _clique_threshold_summaries(
                 if selected_reciprocity.size
                 else math.nan
             ),
-            "observed_case_membership_share": (
-                float(cases[qualifying].sum() / denominator)
-                if denominator
-                else math.nan
-            ),
-            "observed_flagged_membership_share": (
-                float(flagged[qualifying].sum() / denominator)
-                if denominator
-                else math.nan
-            ),
         }
     return output
-
-
-def _empirical_upper_p(values: Sequence[float], observed: float) -> float:
-    finite = np.asarray(values, dtype=float)
-    finite = finite[np.isfinite(finite)]
-    if finite.size == 0 or not np.isfinite(observed):
-        return math.nan
-    return float((1 + np.count_nonzero(finite >= observed - 1e-12)) / (len(finite) + 1))
-
-
-def _clique_label_swap_shares(
-    rows: Sequence[Mapping[str, object]],
-    membership: pd.DataFrame,
-    *,
-    min_size: int,
-    reciprocity_threshold: float,
-    n_swaps: int,
-    seed: int,
-) -> np.ndarray:
-    if n_swaps <= 0:
-        raise ValueError("label swap count must be positive")
-    structural = [
-        row
-        for row in rows
-        if int(row["clique_size"]) >= min_size
-        and float(row["directed_density"]) >= CLIQUE_DENSITY_THRESHOLD
-        and np.isfinite(float(row["weighted_reciprocity"]))
-        and float(row["weighted_reciprocity"]) >= reciprocity_threshold
-    ]
-    if not structural:
-        return np.array([], dtype=float)
-    pair_ids = sorted(membership["pair_id"].dropna().unique())
-    pair_index = {pair_id: index for index, pair_id in enumerate(pair_ids)}
-    pair_by_key = {
-        (str(row.subject), str(row.orcid)): row.pair_id
-        for row in membership.itertuples(index=False)
-    }
-    tier_by_key = {
-        (str(row.subject), str(row.orcid)): str(row.tier_type) == "Case"
-        for row in membership.itertuples(index=False)
-    }
-    coefficients = np.zeros(len(pair_ids), dtype=np.int64)
-    baseline_cases = 0
-    denominator = 0
-    for row in structural:
-        subject = str(row["subject"])
-        for node in row["members"]:
-            is_case = tier_by_key.get((subject, str(node)), False)
-            pair_id = pair_by_key[(subject, str(node))]
-            coefficients[pair_index[pair_id]] += -1 if is_case else 1
-            baseline_cases += int(is_case)
-            denominator += 1
-    if denominator == 0:
-        return np.array([], dtype=float)
-    rng = np.random.default_rng(seed)
-    flips = rng.integers(0, 2, size=(n_swaps, len(pair_ids)), dtype=np.int8)
-    case_counts = baseline_cases + flips @ coefficients
-    return np.asarray(case_counts, dtype=float) / denominator
 
 
 def run_clique_analysis(
     edges: pd.DataFrame,
     membership: pd.DataFrame,
-    flagged_keys: set[tuple[str, str]],
     *,
-    seed: int = DEFAULT_SEED,
-    null_replicates: int = CLIQUE_NULL_REPLICATES,
-    label_swaps: int = CLIQUE_LABEL_SWAPS,
-    workers: int = 1,
+    progress: bool = False,
 ) -> CliqueResults:
-    """Summarize reciprocal cliques and compare them with seeded null graphs."""
+    """Summarize unique reciprocal-clique membership within matched pairs."""
 
-    if null_replicates <= 0 or label_swaps <= 0:
-        raise ValueError("null_replicates and label_swaps must be positive")
-    if workers <= 0:
-        raise ValueError("workers must be positive")
     _require_columns(
         membership, ("subject", "orcid", "pair_id", "tier_type"), "membership"
     )
-    flagged = {(str(subject), str(orcid)) for subject, orcid in flagged_keys}
-    observed_rows = _clique_rows(edges, membership, flagged)
+    observed_rows = _clique_rows(edges, membership, progress=progress)
     configurations = [
         (minimum, threshold)
         for minimum in CLIQUE_MIN_SIZES
         for threshold in CLIQUE_RECIPROCITY_THRESHOLDS
     ]
     observed = _clique_threshold_summaries(observed_rows, configurations)
-    null_values: dict[tuple[int, float], list[tuple[int, float, float]]] = {
-        config: [] for config in configurations
-    }
-    context = _prepare_clique_null_context(edges, membership, observed_rows)
-    if workers == 1:
-        replicate_results = [
-            _run_clique_null_replicate(context, replicate, seed, configurations)
-            for replicate in range(null_replicates)
-        ]
-    else:
-        with ProcessPoolExecutor(
-            max_workers=workers,
-            initializer=_init_clique_null_worker,
-            initargs=(context, configurations, seed),
-        ) as executor:
-            replicate_results = list(
-                executor.map(_run_clique_null_worker, range(null_replicates))
-            )
-    for result in replicate_results:
-        if not result.valid:
-            continue
-        for config_index, config in enumerate(configurations):
-            null_values[config].append(result.summaries[config_index])
     sensitivity_rows: list[dict[str, object]] = []
+    membership_frames = []
+    subject_frames = []
     primary_config = (4, 0.50)
-    primary_null_counts = np.asarray(
-        [item[0] for item in null_values[primary_config]], dtype=float
-    )
-    primary_label_shares = np.array([], dtype=float)
     for config in configurations:
         row = dict(observed[config])
-        null_rows = null_values[config]
-        row["null_mean_reciprocal_clique_count"] = (
-            float(np.mean([item[0] for item in null_rows]))
-            if null_rows
-            else math.nan
-        )
-        null_density_values = [
-            float(item[1])
-            for item in null_rows
-            if np.isfinite(float(item[1]))
-        ]
-        null_reciprocity_values = [
-            float(item[2])
-            for item in null_rows
-            if np.isfinite(float(item[2]))
-        ]
-        row["null_mean_density"] = (
-            float(np.mean(null_density_values))
-            if null_density_values
-            else math.nan
-        )
-        row["null_mean_reciprocity"] = (
-            float(np.mean(null_reciprocity_values))
-            if null_reciprocity_values
-            else math.nan
-        )
-        row["null_p_reciprocal_clique_count"] = _empirical_upper_p(
-            [item[0] for item in null_rows],
-            float(row["observed_reciprocal_clique_count"]),
-        )
-        row["null_p_mean_density"] = _empirical_upper_p(
-            [item[1] for item in null_rows],
-            float(row["observed_mean_density"]),
-        )
-        row["null_p_mean_reciprocity"] = _empirical_upper_p(
-            [item[2] for item in null_rows],
-            float(row["observed_mean_reciprocity"]),
-        )
-        row["valid_null_replicates"] = len(null_rows)
-        label_share_null = _clique_label_swap_shares(
+        inference, subjects, selected = matched_clique_inference(
             observed_rows,
             membership,
             min_size=config[0],
             reciprocity_threshold=config[1],
-            n_swaps=label_swaps,
-            seed=seed + 2003 * (config[0] + int(config[1] * 100)),
         )
-        if config == primary_config:
-            primary_label_shares = label_share_null.copy()
-        row["null_mean_case_membership_share"] = (
-            float(np.mean(label_share_null)) if label_share_null.size else math.nan
-        )
-        row["label_swap_p_case_membership_share"] = _empirical_upper_p(
-            label_share_null,
-            float(row["observed_case_membership_share"]),
-        )
+        row.update(inference)
         sensitivity_rows.append(row)
+        for frame in (subjects, selected):
+            frame.insert(0, "reciprocity_threshold", config[1])
+            frame.insert(0, "minimum_clique_size", config[0])
+        subject_frames.append(subjects)
+        membership_frames.append(selected)
     sensitivity = pd.DataFrame(sensitivity_rows)
     primary_mask = (sensitivity["minimum_clique_size"] == 4) & np.isclose(
         sensitivity["reciprocity_threshold"], 0.50
@@ -1046,8 +540,8 @@ def run_clique_analysis(
     return CliqueResults(
         summary=summary,
         sensitivity=sensitivity,
-        null_reciprocal_clique_counts=primary_null_counts,
-        label_case_membership_shares=primary_label_shares,
+        membership=pd.concat(membership_frames, ignore_index=True),
+        subject_consistency=pd.concat(subject_frames, ignore_index=True),
     )
 
 
@@ -1431,8 +925,6 @@ def validate_analysis_inputs(
 ) -> None:
     """Fail fast on the full-data invariants relevant to Python outputs."""
 
-    if len(pairs) > MAX_MATCHED_PAIRS:
-        raise ValueError(f"matched pair count {len(pairs)} exceeds {MAX_MATCHED_PAIRS}")
     _assert_unique(membership, ("subject", "orcid", "tier_type"), "membership")
     _assert_unique(features, ("subject", "orcid", "tier_type"), "features")
     if edges[["subject", "citing_orcid", "cited_orcid"]].isna().any().any():
@@ -1533,7 +1025,7 @@ def sign_flip_pvalue(
     """Two-sided randomisation p-value from within-pair sign flips.
 
     The test statistic is the mean paired difference.  Chunking avoids a
-    10,000-by-9,431 allocation in the full cohort.
+    one allocation spanning every randomization and matched pair.
     """
 
     values = np.asarray(list(differences), dtype=float)
@@ -1666,13 +1158,13 @@ def matching_balance(pairs: pd.DataFrame) -> pd.DataFrame:
     work["case_h5"] = pd.to_numeric(work["case_h5"], errors="coerce")
     work["control_h5"] = pd.to_numeric(work["control_h5"], errors="coerce")
     if work[["case_h5", "control_h5"]].isna().any().any():
-        raise AssertionError("a retained pair is missing a subject-keyed h5 value")
+        raise AssertionError("a matched pair is missing a subject-keyed h5 value")
     if work[["case_h5", "control_h5"]].le(0).any().any():
-        raise AssertionError("a retained pair has a nonpositive h5 value")
+        raise AssertionError("a matched pair has a nonpositive h5 value")
     work["h5_difference"] = work["case_h5"] - work["control_h5"]
     work["exact_h5"] = work["h5_difference"].eq(0) & work["h5_difference"].notna()
     if work["h5_difference"].abs().gt(MATCHING_H5_CALIPER).any():
-        raise AssertionError("a retained pair exceeds the inclusive h5 caliper")
+        raise AssertionError("a matched pair exceeds the inclusive h5 caliper")
     rows: list[dict[str, object]] = []
     groups: list[tuple[str, pd.DataFrame]] = [("Overall", work)]
     groups.extend((str(subject), group) for subject, group in work.groupby("subject", sort=True))
@@ -2365,6 +1857,16 @@ def _format_p(value: object) -> str:
     return r"$<0.001$" if numeric < 0.001 else f"{numeric:.3f}"
 
 
+def _format_p_relation(value: object, digits: int = 3) -> str:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "=NA"
+    if not np.isfinite(numeric):
+        return "=NA"
+    return "<0.001" if numeric < 0.001 else f"={numeric:.{digits}f}"
+
+
 def _tabularx_spec(alignment: str) -> str:
     columns = []
     for index, column in enumerate(alignment):
@@ -2745,42 +2247,36 @@ def write_clique_summary_table(cliques: CliqueResults, path: Path) -> None:
             f"$k\\geq{int(row.minimum_clique_size)}, r\\geq{row.reciprocity_threshold:.2f}$",
             f"{int(row.observed_clique_count):,}",
             f"{int(row.observed_reciprocal_clique_count):,}",
-            _format_number(row.null_mean_reciprocal_clique_count, 2),
-            _format_p(row.null_p_reciprocal_clique_count),
-            _format_number(row.observed_mean_density, 3),
-            _format_p(row.null_p_mean_density),
-            _format_number(row.observed_mean_reciprocity, 3),
-            _format_p(row.null_p_mean_reciprocity),
-            _format_number(100 * row.observed_case_membership_share, 1) + r"\%",
-            _format_p(row.label_swap_p_case_membership_share),
+            f"{int(row.case_member_count):,} ({100 * row.case_membership_rate:.2f}\\%)",
+            f"{int(row.control_member_count):,} ({100 * row.control_membership_rate:.2f}\\%)",
+            _format_number(100 * row.paired_difference, 2) + r" pp",
+            f"{int(row.case_only_pairs):,}",
+            f"{int(row.control_only_pairs):,}",
+            _format_p(row.exact_p),
         ]
     ]
     _write_complete_table(
         path,
-        caption="Defined reciprocal-clique pattern and randomized comparison.",
+        caption="Matched reciprocal-clique membership comparison.",
         label="tab:clique-summary",
-        alignment="lrrrrrrrrrr",
+        alignment="lrrrrrrrr",
         headers=(
             "Primary rule",
             "All groups",
             "Recip. groups",
-            "Random mean",
-            "Random $p$",
-            "Mean density",
-            "Density $p$",
-            "Recip. mean",
-            "Recip. $p$",
-            "Case share",
-            "Label-swap $p$",
+            "Case members",
+            "Control members",
+            "Paired diff.",
+            "Case only",
+            "Control only",
+            "Exact $p$",
         ),
         rows=rows,
         note=(
             "A candidate group is a maximal group in which every pair has a citation in at least "
             "one direction. The primary rule requires at least four members, density at least 0.75, "
-            "and weighted reciprocity at least 0.50. The randomized graphs keep each author's "
-            "number of incoming and outgoing links and keep the same set of edge weights, but "
-            "rewire the links and reassign those weights. Randomized $p$-values are the fraction "
-            "of 500 randomized graphs with a value at least as large as the observed value."
+            "and weighted reciprocity at least 0.50. Authors in overlapping qualifying groups are "
+            "counted once per subject. The exact two-sided matched test uses only discordant pairs."
         ),
     )
 
@@ -2792,42 +2288,38 @@ def write_clique_sensitivity_table(cliques: CliqueResults, path: Path) -> None:
             [
                 f"{int(row.minimum_clique_size)}",
                 f"{row.reciprocity_threshold:.2f}",
-                f"{int(row.observed_clique_count):,}",
                 f"{int(row.observed_reciprocal_clique_count):,}",
-                _format_number(row.null_mean_reciprocal_clique_count, 2),
-                _format_p(row.null_p_reciprocal_clique_count),
-                _format_number(row.observed_mean_density, 3),
-                _format_p(row.null_p_mean_density),
-                _format_number(row.observed_mean_reciprocity, 3),
-                _format_p(row.null_p_mean_reciprocity),
-                _format_number(100 * row.observed_case_membership_share, 1) + r"\%",
-                _format_p(row.label_swap_p_case_membership_share),
+                f"{100 * row.case_membership_rate:.2f}\\%",
+                f"{100 * row.control_membership_rate:.2f}\\%",
+                _format_number(100 * row.paired_difference, 2) + r" pp",
+                f"{int(row.case_only_pairs):,}",
+                f"{int(row.control_only_pairs):,}",
+                _format_p(row.exact_p),
+                f"{int(row.subjects_case_higher):,}/{int(row.subjects_control_higher):,}/{int(row.subjects_tied):,}",
             ]
         )
     _write_complete_table(
         path,
         caption="Sensitivity of the clique rule.",
         label="tab:clique-sensitivity",
-        alignment="lrrrrrrrrrrr",
+        alignment="lrrrrrrrrr",
         headers=(
             "Minimum group size",
             "Recip. threshold",
-            "All groups",
             "Recip. groups",
-            "Random mean",
-            "Random $p$",
-            "Mean density",
-            "Density $p$",
-            "Recip. mean",
-            "Recip. $p$",
-            "Case share",
-            "Label-swap $p$",
+            "Case rate",
+            "Control rate",
+            "Paired diff.",
+            "Case only",
+            "Control only",
+            "Exact $p$",
+            "Subjects $+/-/=$",
         ),
         rows=rows,
         note=(
             "The directed density threshold is fixed at 0.75. The reciprocity threshold is "
-            "the minimum share of two-way citation weight. Each row uses the same subject-specific "
-            "candidate groups; randomized values are scored on those observed memberships."
+            "the minimum share of two-way citation weight. Membership is unique by author--subject, "
+            "and the last column reports subjects with higher Case rates, higher Control rates, or ties."
         ),
     )
 
@@ -2897,40 +2389,28 @@ def plot_tier_mixing(mixing: MixingResults, directory: Path) -> None:
     _save_figure(fig, directory, "tier_mixing")
 
 
-def plot_clique_nulls(cliques: CliqueResults, directory: Path) -> None:
+def plot_clique_membership(cliques: CliqueResults, directory: Path) -> None:
     primary = cliques.summary.iloc[0]
-    observed_count = float(primary["observed_reciprocal_clique_count"])
-    observed_share = 100.0 * float(primary["observed_case_membership_share"])
-    null_count_mean = float(primary["null_mean_reciprocal_clique_count"])
-    null_share_mean = 100.0 * float(primary["null_mean_case_membership_share"])
-    p_count = float(primary["null_p_reciprocal_clique_count"])
-    p_share = float(primary["label_swap_p_case_membership_share"])
-    fig, axes = plt.subplots(2, 1, figsize=(6.6, 2.8), sharey=True)
-    rows = (
-        (axes[0], "Reciprocal cliques", "Number of cliques", null_count_mean, observed_count, p_count, ".2f", ".0f"),
-        (axes[1], "Case membership", "Share of members (%)", null_share_mean, observed_share, p_share, ".1f", ".1f"),
+    rates = 100 * np.array(
+        [primary["case_membership_rate"], primary["control_membership_rate"]],
+        dtype=float,
     )
-    for axis, title, xlabel, random_average, observed, p_value, random_format, observed_format in rows:
-        limit = 100.0 if xlabel.endswith("(%)") else max(1.0, observed * 1.18)
-        pad = max(limit * 0.025, 0.15)
-        axis.barh(
-            [0, 1],
-            [random_average, observed],
-            color=["#bdbdbd", "#b2182b"],
-            height=0.42,
-            edgecolor="none",
+    fig, ax = plt.subplots(figsize=(4.5, 3.2))
+    bars = ax.bar(TIER_ORDER, rates, color=["#b2182b", "#2166ac"], width=0.62)
+    for bar, value in zip(bars, rates):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            value,
+            f"{value:.2f}%",
+            ha="center",
+            va="bottom",
         )
-        axis.set_title(title, loc="left", fontsize=10)
-        axis.set_yticks([0, 1], ["Random average", "Observed"])
-        axis.set_xlabel(xlabel)
-        axis.set_xlim(0, limit)
-        axis.text(random_average + pad, 0, format(random_average, random_format), va="center")
-        axis.text(observed + pad, 1, format(observed, observed_format), va="center")
-        p_text = "p < 0.001" if p_value < 0.001 else f"p = {p_value:.3f}"
-        axis.text(1.0, 1.08, p_text, transform=axis.transAxes, ha="right", va="bottom")
-        axis.grid(axis="x", alpha=0.25)
-        axis.spines[["top", "right"]].set_visible(False)
-    _save_figure(fig, directory, "clique_nulls")
+    ax.set_ylabel("Authors in reciprocal cliques (%)")
+    ax.set_title(f"Exact matched p {_format_p_relation(primary['exact_p'])}")
+    ax.set_ylim(0, max(1.0, float(rates.max()) * 1.2))
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.grid(axis="y", alpha=0.25)
+    _save_figure(fig, directory, "clique_membership")
 
 
 def plot_largest_component(components: ComponentResults, directory: Path, *, seed: int) -> bool:
@@ -3062,10 +2542,28 @@ def write_result_macros(
     commands["PrimaryMinimumPairCount"] = f"{min_pairs:,}"
     commands["PrimaryMaximumPairCount"] = f"{max_pairs:,}"
     zero_median_count = int(np.isclose(primary["median_difference"], 0.0).sum())
+    case_favored = int(primary["mean_difference"].gt(0).sum())
+    control_favored = int(primary["mean_difference"].lt(0).sum())
+    tied_means = len(primary) - case_favored - control_favored
+    if case_favored == len(primary):
+        primary_direction = "All four primary mean differences favored Cases"
+    elif control_favored == len(primary):
+        primary_direction = "All four primary mean differences favored Controls"
+    else:
+        primary_direction = (
+            f"{case_favored} of four primary mean differences favored Cases, "
+            f"{control_favored} favored Controls, and {tied_means} were zero"
+        )
+    if significant_primary == len(primary):
+        significance_summary = "all four comparisons were significant after adjustment"
+    else:
+        significance_summary = (
+            f"{significant_primary} of four comparisons were significant after adjustment"
+        )
     # Kept deliberately concise so the assembled abstract remains below 200 words.
     commands["PrimaryFindingText"] = (
-        f"All {significant_primary} primary comparisons favored Cases on average; "
-        f"{zero_median_count} median differences were zero because many pairs tied."
+        f"{primary_direction}; {significance_summary}, and "
+        f"{zero_median_count} median differences were zero."
     )
 
     primary_by_metric = primary.set_index("metric")
@@ -3080,16 +2578,14 @@ def write_result_macros(
         )
     ]
     commands["PrimaryDetailedFindingText"] = (
-        "Cases had higher average values on all four primary measures ("
+        "The four primary mean paired differences were "
         + "; ".join(
             f"{row.metric_label} {_macro_number(row.mean_difference)}, 95\\% bootstrap CI "
             f"[{_macro_number(row.mean_bootstrap_ci_low)}, {_macro_number(row.mean_bootstrap_ci_high)}]"
             for row in mean_summary
         )
-        + "). "
-        "Three median differences were zero because many pairs had the same zero value. "
-        "Among non-tied pairs, Case values were more often higher. Outgoing HHI also had a "
-        "positive median paired difference "
+        + ". "
+        f"{zero_median_count} median differences were zero. Outgoing HHI had a median paired difference of "
         f"{_macro_number(hhi.median_difference)}, 95\\% bootstrap CI "
         f"[{_macro_number(hhi.bootstrap_ci_low)}, "
         f"{_macro_number(hhi.bootstrap_ci_high)}]."
@@ -3099,12 +2595,12 @@ def write_result_macros(
     endogamy = secondary_by_metric.loc["journal_endogamy"]
     surge = secondary_by_metric.loc["annual_dyadic_surge_share"]
     commands["SecondaryDetailedFindingText"] = (
-        f"Cases had less same-journal referencing (median difference "
+        f"The median difference in same-journal referencing was "
         f"{_macro_number(endogamy.median_difference)}, 95\\% CI "
-        f"[{_macro_number(endogamy.bootstrap_ci_low)}, {_macro_number(endogamy.bootstrap_ci_high)}]) "
-        f"and larger year-to-year increases to one recipient (median difference "
+        f"[{_macro_number(endogamy.bootstrap_ci_low)}, {_macro_number(endogamy.bootstrap_ci_high)}]; "
+        f"the median difference in the maximum year-to-year increase to one recipient was "
         f"{_macro_number(surge.median_difference)}, 95\\% CI "
-        f"[{_macro_number(surge.bootstrap_ci_low)}, {_macro_number(surge.bootstrap_ci_high)}])."
+        f"[{_macro_number(surge.bootstrap_ci_low)}, {_macro_number(surge.bootstrap_ci_high)}]."
     )
 
     sensitivity_by_metric = sensitivity_inference.set_index("metric")
@@ -3114,8 +2610,15 @@ def write_result_macros(
     sensitivity_sentences: list[str] = []
     if "outgoing_hhi" in sensitivity_by_metric.index:
         exact_hhi = sensitivity_by_metric.loc["outgoing_hhi"]
+        exact_case_favored = int(exact_rows["mean_difference"].gt(0).sum())
+        exact_direction = (
+            "all four"
+            if exact_case_favored == len(exact_rows)
+            else f"{exact_case_favored} of four"
+        )
         sensitivity_sentences.append(
-            f"The exact-$h_5$ check kept the direction of all four primary comparisons; "
+            f"The exact-$h_5$ check had positive mean differences for "
+            f"{exact_direction} primary comparisons; "
             f"outgoing HHI had a median difference of "
             f"{_macro_number(exact_hhi.median_difference)} (95\\% CI "
             f"[{_macro_number(exact_hhi.bootstrap_ci_low)}, "
@@ -3159,6 +2662,16 @@ def write_result_macros(
         "$p<0.001$"
         if np.isfinite(association.spearman_p) and association.spearman_p < 0.001
         else f"$p={_macro_number(association.spearman_p, 3)}$"
+    )
+    anomaly_p_text = (
+        "$p<0.001$"
+        if np.isfinite(case.fisher_exact_p) and case.fisher_exact_p < 0.001
+        else f"$p={_macro_number(case.fisher_exact_p, 3)}$"
+    )
+    mixing_p_text = (
+        "$p<0.001$"
+        if np.isfinite(mixing.permutation_p) and mixing.permutation_p < 0.001
+        else f"$p={_macro_number(mixing.permutation_p, 3)}$"
     )
     commands.update(
         {
@@ -3237,14 +2750,14 @@ def write_result_macros(
                 f"The screen flagged {int(case.flagged_rows)} Cases and {int(control.flagged_rows)} Controls "
                 f"({100 * case.flagged_share:.2f}\\% versus {100 * control.flagged_share:.2f}\\%; "
                 f"{_macro_number(case.case_to_control_enrichment, 2)}-fold difference; "
-                "$p<0.001$)."
+                f"Fisher exact {anomaly_p_text})."
             ),
             "WithinTierMixingPercent": _macro_number(100 * mixing.same_tier_share, 2),
             "TierMixingAssortativity": _macro_number(mixing.assortativity, 3),
             "TierMixingPermutationP": _macro_number(mixing.permutation_p, 4),
             "MixingFindingText": (
                 f"{100 * mixing.same_tier_share:.2f}\\% of matched citation weight stayed "
-                "within the same group (label-swap $p<0.001$)."
+                f"within the same group (label-swap {mixing_p_text})."
             ),
             "OutlierComponentCount": str(len(components.summary)),
             "LargestOutlierComponentSize": (
@@ -3260,68 +2773,44 @@ def write_result_macros(
             ),
         }
     )
-    if cliques.summary.empty:
-        commands.update(
-            {
-                "CliqueStructuralCount": "0",
-                "CliqueReciprocalCount": "0",
-                "CliqueNullMeanCount": "NA",
-                "CliqueNullP": "NA",
-                "CliqueDensityNullP": "NA",
-                "CliqueReciprocityNullP": "NA",
-                "CliqueMeanDensity": "NA",
-                "CliqueMeanReciprocity": "NA",
-                "CliqueCaseSharePercent": "NA",
-                "CliqueNullMeanCaseSharePercent": "NA",
-                "CliqueFlaggedSharePercent": "NA",
-                "CliqueLabelSwapP": "NA",
-                "CliqueValidNullReplicates": "0",
-                "CliqueFindingText": "No primary-rule clique was observed.",
-            }
-        )
-    else:
-        clique = cliques.summary.iloc[0]
-        commands.update(
-            {
-                "CliqueStructuralCount": str(int(clique.observed_clique_count)),
-                "CliqueReciprocalCount": str(
-                    int(clique.observed_reciprocal_clique_count)
-                ),
-                "CliqueNullMeanCount": _macro_number(
-                    clique.null_mean_reciprocal_clique_count, 2
-                ),
-                "CliqueNullP": _macro_number(clique.null_p_reciprocal_clique_count, 4),
-                "CliqueDensityNullP": _macro_number(clique.null_p_mean_density, 4),
-                "CliqueReciprocityNullP": _macro_number(
-                    clique.null_p_mean_reciprocity, 4
-                ),
-                "CliqueMeanDensity": _macro_number(clique.observed_mean_density, 3),
-                "CliqueMeanReciprocity": _macro_number(
-                    clique.observed_mean_reciprocity, 3
-                ),
-                "CliqueCaseSharePercent": _macro_number(
-                    100 * clique.observed_case_membership_share, 1
-                ),
-                "CliqueNullMeanCaseSharePercent": _macro_number(
-                    100 * clique.null_mean_case_membership_share, 1
-                ),
-                "CliqueFlaggedSharePercent": _macro_number(
-                    100 * clique.observed_flagged_membership_share, 1
-                ),
-                "CliqueLabelSwapP": _macro_number(
-                    clique.label_swap_p_case_membership_share, 4
-                ),
-                "CliqueValidNullReplicates": str(int(clique.valid_null_replicates)),
-                "CliqueFindingText": (
-                    f"The rule found {int(clique.observed_reciprocal_clique_count):,} reciprocal cliques "
-                    f"among {int(clique.observed_clique_count):,} candidate groups. Randomized graphs "
-                    f"averaged {_macro_number(clique.null_mean_reciprocal_clique_count, 2)} reciprocal cliques "
-                    f"(empirical $p={_macro_number(clique.null_p_reciprocal_clique_count, 4)}$). "
-                    f"Mean density was {_macro_number(clique.observed_mean_density, 3)} and mean reciprocity "
-                    f"was {_macro_number(clique.observed_mean_reciprocity, 3)}."
-                ),
-            }
-        )
+    clique = cliques.summary.iloc[0]
+    clique_p = _format_p_relation(clique.exact_p, 4)
+    commands.update(
+        {
+            "CliqueStructuralCount": str(int(clique.observed_clique_count)),
+            "CliqueReciprocalCount": str(
+                int(clique.observed_reciprocal_clique_count)
+            ),
+            "CliqueUniqueMemberCount": str(int(clique.unique_member_count)),
+            "CliqueCaseMemberCount": str(int(clique.case_member_count)),
+            "CliqueControlMemberCount": str(int(clique.control_member_count)),
+            "CliqueCaseMembershipPercent": _macro_number(
+                100 * clique.case_membership_rate, 2
+            ),
+            "CliqueControlMembershipPercent": _macro_number(
+                100 * clique.control_membership_rate, 2
+            ),
+            "CliquePairedDifferencePoints": _macro_number(
+                100 * clique.paired_difference, 2
+            ),
+            "CliqueCaseOnlyPairs": str(int(clique.case_only_pairs)),
+            "CliqueControlOnlyPairs": str(int(clique.control_only_pairs)),
+            "CliqueDiscordantPairs": str(int(clique.discordant_pairs)),
+            "CliqueExactP": clique_p,
+            "CliqueSubjectsCaseHigher": str(int(clique.subjects_case_higher)),
+            "CliqueSubjectsControlHigher": str(
+                int(clique.subjects_control_higher)
+            ),
+            "CliqueSubjectsTied": str(int(clique.subjects_tied)),
+            "CliqueFindingText": (
+                f"Primary-rule reciprocal-clique membership was "
+                f"{100 * clique.case_membership_rate:.2f}\\% for Cases and "
+                f"{100 * clique.control_membership_rate:.2f}\\% for Controls "
+                f"(paired difference {_macro_number(100 * clique.paired_difference, 2)} "
+                f"percentage points; exact $p{clique_p}$)."
+            ),
+        }
+    )
     lines = ["% Generated by citation_analysis.py; do not edit manually."]
     lines.extend(f"\\newcommand{{\\{name}}}{{{value}}}" for name, value in commands.items())
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -3345,12 +2834,17 @@ def write_artifacts(
     components: ComponentResults,
     mixing: MixingResults,
     cliques: CliqueResults,
-    clique_workers: int = 1,
 ) -> None:
     tables_directory = output_directory / "tables"
     figures_directory = output_directory / "figures"
     tables_directory.mkdir(parents=True, exist_ok=True)
     figures_directory.mkdir(parents=True, exist_ok=True)
+    for stale in (
+        tables_directory / "clique_null_samples.csv",
+        figures_directory / "clique_nulls.pdf",
+        figures_directory / "clique_nulls.png",
+    ):
+        stale.unlink(missing_ok=True)
 
     feature_columns = [
         "pair_id",
@@ -3384,16 +2878,12 @@ def write_artifacts(
     )
     cliques.summary.to_csv(tables_directory / "clique_summary.csv", index=False)
     cliques.sensitivity.to_csv(tables_directory / "clique_sensitivity.csv", index=False)
-    pd.DataFrame(
-        {
-            "graph_null_reciprocal_clique_count": pd.Series(
-                cliques.null_reciprocal_clique_counts
-            ),
-            "label_swap_case_membership_share": pd.Series(
-                cliques.label_case_membership_shares
-            ),
-        }
-    ).to_csv(tables_directory / "clique_null_samples.csv", index_label="replicate")
+    cliques.membership.to_csv(
+        tables_directory / "clique_membership.csv", index=False
+    )
+    cliques.subject_consistency.to_csv(
+        tables_directory / "clique_subject_consistency.csv", index=False
+    )
     components.summary.to_csv(tables_directory / "outlier_components.csv", index=False)
     components.nodes.to_csv(tables_directory / "outlier_component_nodes.csv", index=False)
     components.dyads.to_csv(tables_directory / "outlier_component_dyads.csv", index=False)
@@ -3448,7 +2938,7 @@ def write_artifacts(
     plot_paired_effects(primary, secondary, figures_directory)
     plot_anomaly_enrichment(enrichment, figures_directory)
     plot_tier_mixing(mixing, figures_directory)
-    plot_clique_nulls(cliques, figures_directory)
+    plot_clique_membership(cliques, figures_directory)
     component_figure = plot_largest_component(components, figures_directory, seed=seed)
 
     write_result_macros(
@@ -3497,12 +2987,8 @@ def write_artifacts(
         "component_and_figure_flag_source": "author_features_final.csv:final_flag",
         "synthetic_or_alternate_flags_used": False,
         "tier_label_swaps": len(mixing.null_same_tier_share),
-        "clique_null_replicates": int(
-            cliques.summary["valid_null_replicates"].iloc[0]
-        )
-        if not cliques.summary.empty
-        else 0,
-        "clique_workers": int(clique_workers),
+        "clique_inference": "exact matched binary membership",
+        "clique_membership_key": "subject,orcid",
     }
     (output_directory / "run_metadata.json").write_text(
         json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -3517,21 +3003,22 @@ def run_analysis(
     bootstrap_resamples: int = 2_000,
     sign_flips: int = 10_000,
     tier_swaps: int = 10_000,
-    clique_null_replicates: int = CLIQUE_NULL_REPLICATES,
-    clique_label_swaps: int = CLIQUE_LABEL_SWAPS,
-    clique_workers: int = DEFAULT_CLIQUE_WORKERS,
     validate_only: bool = False,
 ) -> None:
     """Execute the canonical offline workflow."""
 
+    started_at = time.monotonic()
+    _progress("Loading and validating analysis data", started_at=started_at)
     data = load_analysis_data(database)
+    _progress(
+        f"Loaded {len(data.pairs):,} pairs, {len(data.features):,} author rows, "
+        f"and {len(data.edges):,} annual dyads",
+        started_at=started_at,
+    )
     if validate_only:
-        print(
-            f"Validated {len(data.pairs):,} pairs, {len(data.features):,} author-subject-tier "
-            f"rows, and {len(data.edges):,} annual dyads."
-        )
         return
     output_directory.mkdir(parents=True, exist_ok=True)
+    _progress("Computing matching balance and paired inference", started_at=started_at)
     balance = matching_balance(data.pairs)
     primary = run_paired_inference(
         data.pairs,
@@ -3571,6 +3058,7 @@ def run_analysis(
         sign_flips=sign_flips,
     )
     sensitivity_inference = pd.concat([exact, same_year], ignore_index=True)
+    _progress("Running anomaly screens and sensitivities", started_at=started_at)
     screened = screen_anomalies(data.features, quantile=0.99, seed=seed)
     canonical_keys = _flag_key_set(screened)
     enrichment = anomaly_enrichment(screened)
@@ -3585,19 +3073,19 @@ def run_analysis(
         seed=seed,
         reference_keys=canonical_keys,
     )
+    _progress("Building flagged-author components", started_at=started_at)
     components = build_outlier_components(data.edges, canonical_keys, min_nodes=5)
+    _progress("Computing matched tier-mixing null", started_at=started_at)
     mixing = weighted_tier_mixing(
         data.edges, data.membership, data.pairs, n_swaps=tier_swaps, seed=seed
     )
+    _progress("Enumerating and scoring citation cliques", started_at=started_at)
     cliques = run_clique_analysis(
         data.edges,
         data.membership,
-        canonical_keys,
-        seed=seed,
-        null_replicates=clique_null_replicates,
-        label_swaps=clique_label_swaps,
-        workers=clique_workers,
+        progress=True,
     )
+    _progress("Writing tables, figures, and macros", started_at=started_at)
     write_artifacts(
         output_directory=output_directory,
         database=database,
@@ -3615,9 +3103,8 @@ def run_analysis(
         components=components,
         mixing=mixing,
         cliques=cliques,
-        clique_workers=clique_workers,
     )
-    print(f"Analysis complete: {output_directory.resolve()}")
+    _progress(f"Analysis complete: {output_directory.resolve()}", started_at=started_at)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -3643,22 +3130,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--sign-flips", type=int, default=10_000)
     parser.add_argument("--tier-swaps", type=int, default=10_000)
     parser.add_argument(
-        "--clique-null-replicates",
-        type=int,
-        default=CLIQUE_NULL_REPLICATES,
-    )
-    parser.add_argument(
-        "--clique-label-swaps",
-        type=int,
-        default=CLIQUE_LABEL_SWAPS,
-    )
-    parser.add_argument(
-        "--clique-workers",
-        type=int,
-        default=DEFAULT_CLIQUE_WORKERS,
-        help="Worker processes for graph-null replicates.",
-    )
-    parser.add_argument(
         "--validate-only",
         action="store_true",
         help="Validate schemas and invariants without writing artifacts.",
@@ -3675,9 +3146,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         bootstrap_resamples=args.bootstrap_resamples,
         sign_flips=args.sign_flips,
         tier_swaps=args.tier_swaps,
-        clique_null_replicates=args.clique_null_replicates,
-        clique_label_swaps=args.clique_label_swaps,
-        clique_workers=args.clique_workers,
         validate_only=args.validate_only,
     )
 

@@ -27,8 +27,7 @@ Edit `main.tex` for the research question, figure, anomaly explanation,
 literature comparison, and release wording. Update the existing result-macro
 generator for the awkward generated sentence, then regenerate only the
 affected text artifact from the completed analysis output or database. Update
-the bibliography's package version while retaining the stable Zenodo DOI
-unless Zenodo supplies a new record DOI during deposition.
+the bibliography's package version and use the stable all-versions Zenodo DOI.
 
 Keep `response_to_reviewer.tex` aligned with the manuscript. Its substantive
 claims should describe only material present in the clean revision.

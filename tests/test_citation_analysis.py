@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import io
 import math
 import sqlite3
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import numpy as np
@@ -14,9 +16,20 @@ import rebuild_analysis_database as database_rebuild
 
 
 class MetricDefinitionTests(unittest.TestCase):
+    def test_normalise_keys_canonicalises_nullable_integer_subjects(self) -> None:
+        frame = pd.DataFrame({"subject": pd.Series([1, None], dtype="float64")})
+
+        result = analysis._normalise_keys(frame, orcid_columns=())
+
+        self.assertEqual(result.loc[0, "subject"], "1")
+
     def test_paired_effect_axis_label_is_compact(self) -> None:
         self.assertLessEqual(len(analysis.PAIRED_EFFECT_XLABEL), 50)
         self.assertNotIn("paired-bootstrap", analysis.PAIRED_EFFECT_XLABEL)
+
+    def test_p_value_relation_does_not_render_underflow_as_zero(self) -> None:
+        self.assertEqual(analysis._format_p_relation(0.0), "<0.001")
+        self.assertEqual(analysis._format_p_relation(0.1234), "=0.123")
 
     def test_weighted_hhi(self) -> None:
         self.assertAlmostEqual(analysis.weighted_hhi([1, 1]), 0.5)
@@ -88,6 +101,73 @@ class MetricDefinitionTests(unittest.TestCase):
         self.assertAlmostEqual(result["weighted_reciprocity"], 7 / 10)
         self.assertEqual(result["case_memberships"], 2)
 
+    def test_clique_scoring_does_not_scan_subject_edges(self) -> None:
+        class NonIterableWeights(dict[tuple[str, str], float]):
+            def __iter__(self):
+                raise RuntimeError("subject-wide edge scan")
+
+        weights = NonIterableWeights(
+            {
+                ("A", "B"): 2.0,
+                ("B", "A"): 2.0,
+                ("A", "C"): 3.0,
+                ("B", "C"): 1.0,
+                ("C", "B"): 1.0,
+                ("X", "Y"): 999.0,
+            }
+        )
+
+        result = analysis._clique_group_metrics_from_weights(
+            ("A", "B", "C"),
+            weights,
+            {"A": "Case", "B": "Control", "C": "Case"},
+        )
+
+        self.assertEqual(result["directed_dyads"], 5)
+        self.assertAlmostEqual(result["directed_density"], 5 / 6)
+        self.assertAlmostEqual(result["weighted_reciprocity"], 0.5)
+
+    def test_progress_flushes(self) -> None:
+        class FlushTrackingStream(io.StringIO):
+            flushed = False
+
+            def flush(self) -> None:
+                self.flushed = True
+                super().flush()
+
+        stream = FlushTrackingStream()
+        with redirect_stdout(stream):
+            analysis._progress("loading", started_at=0.0)
+
+        self.assertTrue(stream.flushed)
+        self.assertIn("loading", stream.getvalue())
+
+    def test_clique_progress_reports_completion(self) -> None:
+        dyads = pd.DataFrame(
+            {
+                "subject": ["s"] * 6,
+                "citing_orcid": ["A", "B", "A", "C", "B", "C"],
+                "cited_orcid": ["B", "A", "C", "A", "C", "B"],
+                "citation_weight": [1.0] * 6,
+            }
+        )
+        membership = pd.DataFrame(
+            {
+                "subject": ["s", "s", "s"],
+                "orcid": ["A", "B", "C"],
+                "pair_id": [0, 1, 2],
+                "tier_type": ["Case", "Control", "Case"],
+            }
+        )
+        stream = io.StringIO()
+
+        with redirect_stdout(stream):
+            rows = analysis._clique_rows(dyads, membership, progress=True)
+
+        self.assertEqual(len(rows), 1)
+        self.assertIn("Clique subject s: scored 1/1 (100.0%)", stream.getvalue())
+        self.assertIn("ETA", stream.getvalue())
+
     def test_clique_enumeration_returns_maximal_groups_at_threshold(self) -> None:
         dyads = pd.DataFrame(
             {
@@ -101,27 +181,6 @@ class MetricDefinitionTests(unittest.TestCase):
             dyads, ["A", "B", "C", "D"], min_size=3
         )
         self.assertEqual(groups, [("A", "B", "C", "D")])
-
-    def test_rewire_preserves_directed_degrees_and_weights(self) -> None:
-        dyads = pd.DataFrame(
-            {
-                "subject": ["s"] * 6,
-                "citing_orcid": ["A", "A", "B", "B", "C", "D"],
-                "cited_orcid": ["B", "C", "C", "D", "D", "A"],
-                "citation_weight": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-            }
-        )
-        rewired = analysis.rewire_subject_dyads(dyads, seed=7, swaps=1)
-        before = dyads.groupby("citing_orcid").size().sort_index()
-        after = rewired.groupby("citing_orcid").size().sort_index()
-        self.assertEqual(before.to_dict(), after.to_dict())
-        self.assertEqual(
-            dyads.groupby("cited_orcid").size().sort_index().to_dict(),
-            rewired.groupby("cited_orcid").size().sort_index().to_dict(),
-        )
-        self.assertEqual(
-            sorted(dyads["citation_weight"]), sorted(rewired["citation_weight"])
-        )
 
     def test_annual_dyadic_surge_with_zero_filled_years(self) -> None:
         edges = pd.DataFrame(
@@ -166,156 +225,41 @@ class CliqueAnalysisTests(unittest.TestCase):
         )
         return edges, membership
 
-    def test_clique_analysis_reports_primary_and_sensitivity_nulls(self) -> None:
+    def test_clique_analysis_reports_primary_and_all_sensitivities(self) -> None:
         edges, membership = self.clique_fixture()
         result = analysis.run_clique_analysis(
             edges,
             membership,
-            flagged_keys=set(),
-            seed=7,
-            null_replicates=3,
-            label_swaps=3,
         )
         primary = result.summary.iloc[0]
         self.assertEqual(primary["minimum_clique_size"], 4)
         self.assertAlmostEqual(primary["reciprocity_threshold"], 0.50)
         self.assertIn("observed_reciprocal_clique_count", result.summary.columns)
-        self.assertIn("null_mean_reciprocal_clique_count", result.summary.columns)
-        self.assertEqual(len(result.null_reciprocal_clique_counts), 3)
-        self.assertEqual(len(result.label_case_membership_shares), 3)
+        self.assertIn("case_membership_rate", result.summary.columns)
+        self.assertIn("control_membership_rate", result.summary.columns)
+        self.assertIn("exact_p", result.summary.columns)
         self.assertEqual(
             len(result.sensitivity[result.sensitivity["minimum_clique_size"] == 4]),
             3,
         )
-        self.assertGreater(int(primary["valid_null_replicates"]), 0)
-        self.assertTrue(
-            result.sensitivity["null_p_reciprocal_clique_count"].between(0, 1).all()
-        )
+        self.assertEqual(len(result.sensitivity), 9)
+        self.assertTrue(result.sensitivity["exact_p"].between(0, 1).all())
 
-    def test_clique_null_serial_and_parallel_results_match(self) -> None:
-        edges, membership = self.clique_fixture()
-        serial = analysis.run_clique_analysis(
-            edges,
-            membership,
-            flagged_keys=set(),
-            seed=17,
-            null_replicates=5,
-            label_swaps=5,
-            workers=1,
-        )
-        parallel = analysis.run_clique_analysis(
-            edges,
-            membership,
-            flagged_keys=set(),
-            seed=17,
-            null_replicates=5,
-            label_swaps=5,
-            workers=2,
-        )
-        pd.testing.assert_frame_equal(serial.summary, parallel.summary)
-        pd.testing.assert_frame_equal(serial.sensitivity, parallel.sensitivity)
-        np.testing.assert_array_equal(
-            serial.null_reciprocal_clique_counts,
-            parallel.null_reciprocal_clique_counts,
-        )
-        np.testing.assert_array_equal(
-            serial.label_case_membership_shares,
-            parallel.label_case_membership_shares,
-        )
-
-    def test_clique_null_plot_writes_vector_figure(self) -> None:
+    def test_clique_membership_plot_writes_vector_figure(self) -> None:
         edges, membership = self.clique_fixture()
         result = analysis.run_clique_analysis(
             edges,
             membership,
-            flagged_keys=set(),
-            seed=7,
-            null_replicates=3,
-            label_swaps=3,
         )
         with tempfile.TemporaryDirectory() as temporary:
-            analysis.plot_clique_nulls(result, Path(temporary))
-            figure = Path(temporary) / "clique_nulls.pdf"
+            analysis.plot_clique_membership(result, Path(temporary))
+            figure = Path(temporary) / "clique_membership.pdf"
             self.assertTrue(figure.is_file())
             self.assertGreater(figure.stat().st_size, 0)
 
-    def test_compact_clique_null_rewiring_preserves_subject_weights(self) -> None:
-        edges, membership = self.clique_fixture()
-        observed = analysis._clique_rows(edges, membership, set())
-        context = analysis._prepare_clique_null_context(edges, membership, observed)
-        subject = context.subjects[0]
-        sources, targets, weights = analysis._rewire_clique_subject(
-            subject, seed=17, swaps=1
-        )
-        reference = analysis.rewire_subject_dyads(edges, seed=17, swaps=1)
-        node_names = sorted(
-            set(membership["orcid"])
-            | set(edges["citing_orcid"])
-            | set(edges["cited_orcid"])
-        )
-        compact_pairs = {
-            (node_names[source], node_names[target])
-            for source, target in zip(sources.tolist(), targets.tolist())
-        }
-        self.assertEqual(
-            compact_pairs,
-            set(zip(reference["citing_orcid"], reference["cited_orcid"])),
-        )
-        self.assertEqual(sorted(subject.weights.tolist()), sorted(weights.tolist()))
-
-    def test_compact_clique_scores_match_dataframe_scoring(self) -> None:
-        edges, membership = self.clique_fixture()
-        observed = analysis._clique_rows(edges, membership, set())
-        rewired = analysis.rewire_subject_dyads(edges, seed=4, swaps=1)
-        reference = analysis._clique_rows_for_candidates(
-            rewired, membership, observed, set()
-        )[0]
-        context = analysis._prepare_clique_null_context(edges, membership, observed)
-        subject = context.subjects[0]
-        sources, targets, weights = analysis._rewire_clique_subject(
-            subject, seed=4, swaps=1
-        )
-        density, reciprocity = analysis._score_compact_clique_subject(
-            subject, sources, targets, weights
-        )
-        self.assertAlmostEqual(density[0], reference["directed_density"])
-        self.assertAlmostEqual(reciprocity[0], reference["weighted_reciprocity"])
-
-    def test_null_rows_reuse_observed_candidate_groups(self) -> None:
-        edges, membership = self.clique_fixture()
-        flagged = set()
-        observed = analysis._clique_rows(edges, membership, flagged)
-        rewired = analysis.rewire_subject_dyads(edges, seed=4, swaps=1)
-        null_rows = analysis._clique_rows_for_candidates(
-            rewired, membership, observed, flagged
-        )
-        self.assertEqual(len(null_rows), len(observed))
-        self.assertEqual(
-            [row["members"] for row in null_rows],
-            [row["members"] for row in observed],
-        )
-        cumulative_rows = analysis._clique_rows_for_candidates(
-            analysis.aggregate_cumulative_dyads(edges),
-            membership,
-            observed,
-            flagged,
-            cumulative=True,
-        )
-        self.assertEqual(
-            [row["directed_density"] for row in cumulative_rows],
-            [row["directed_density"] for row in null_rows],
-        )
-        rewired_cumulative = analysis.rewire_subject_dyads(
-            analysis.aggregate_cumulative_dyads(edges), seed=4, swaps=1, cumulative=True
-        )
-        self.assertEqual(
-            set(map(tuple, rewired[["citing_orcid", "cited_orcid"]].to_numpy())),
-            set(map(tuple, rewired_cumulative[["citing_orcid", "cited_orcid"]].to_numpy())),
-        )
-
     def test_clique_threshold_vectorisation_matches_scalar_summary(self) -> None:
         edges, membership = self.clique_fixture()
-        rows = analysis._clique_rows(edges, membership, set())
+        rows = analysis._clique_rows(edges, membership)
         configurations = [(3, 0.25), (4, 0.50)]
         vectorised = analysis._clique_threshold_summaries(rows, configurations)
         for config in configurations:
@@ -328,20 +272,60 @@ class CliqueAnalysisTests(unittest.TestCase):
                 else:
                     self.assertEqual(vectorised[config][key], value)
 
-    def test_clique_label_swaps_return_pairwise_randomisation_draws(self) -> None:
-        edges, membership = self.clique_fixture()
-        rows = analysis._clique_rows(edges, membership, set())
-        shares = analysis._clique_label_swap_shares(
-            rows,
-            membership,
-            min_size=4,
-            reciprocity_threshold=0.50,
-            n_swaps=25,
-            seed=11,
+    def test_overlapping_cliques_count_each_author_subject_once(self) -> None:
+        membership = pd.DataFrame(
+            {
+                "pair_id": [0, 0, 1, 1, 2, 2],
+                "subject": ["s"] * 6,
+                "orcid": ["A", "B", "C", "D", "E", "F"],
+                "tier_type": ["Case", "Control"] * 3,
+            }
         )
-        self.assertEqual(len(shares), 25)
-        self.assertTrue(np.isfinite(shares).all())
-        self.assertTrue(np.all((shares >= 0) & (shares <= 1)))
+        rows = [
+            {"subject": "s", "members": ("A", "B", "C", "D"), "clique_size": 4,
+             "directed_density": 1.0, "weighted_reciprocity": 1.0},
+            {"subject": "s", "members": ("A", "C", "E", "F"), "clique_size": 4,
+             "directed_density": 1.0, "weighted_reciprocity": 1.0},
+        ]
+        summary, subjects, selected = analysis.matched_clique_inference(
+            rows, membership, min_size=4, reciprocity_threshold=0.5
+        )
+        self.assertEqual(len(selected), 6)
+        self.assertEqual(selected["orcid"].nunique(), 6)
+        self.assertEqual(int(summary["unique_member_count"]), 6)
+        self.assertEqual(len(subjects), 1)
+
+    def test_exact_matched_membership_uses_discordant_pairs(self) -> None:
+        membership = pd.DataFrame(
+            {
+                "pair_id": np.repeat(np.arange(5), 2),
+                "subject": ["s"] * 10,
+                "orcid": [
+                    value
+                    for index in range(5)
+                    for value in (f"A{index}", f"B{index}")
+                ],
+                "tier_type": ["Case", "Control"] * 5,
+            }
+        )
+        rows = [
+            {
+                "subject": "s",
+                "members": tuple(f"A{index}" for index in range(5)),
+                "clique_size": 5,
+                "directed_density": 1.0,
+                "weighted_reciprocity": 1.0,
+            }
+        ]
+        summary, _subjects, _selected = analysis.matched_clique_inference(
+            rows, membership, min_size=4, reciprocity_threshold=0.5
+        )
+        self.assertEqual(int(summary["case_only_pairs"]), 5)
+        self.assertEqual(int(summary["control_only_pairs"]), 0)
+        self.assertEqual(float(summary["case_membership_rate"]), 1.0)
+        self.assertEqual(float(summary["control_membership_rate"]), 0.0)
+        self.assertEqual(float(summary["paired_difference"]), 1.0)
+        self.assertAlmostEqual(float(summary["exact_p"]), 0.0625)
 
     def test_cliques_are_restricted_to_matched_subject_nodes(self) -> None:
         edges, _ = self.clique_fixture()
@@ -375,7 +359,7 @@ class CliqueAnalysisTests(unittest.TestCase):
             }
         )
         edges = pd.concat([edges, extra], ignore_index=True)
-        rows = analysis._clique_rows(edges, membership, set())
+        rows = analysis._clique_rows(edges, membership)
         self.assertTrue(
             all(0.0 <= row["directed_density"] <= 1.0 for row in rows)
         )
@@ -441,6 +425,55 @@ class PairedInferenceTests(unittest.TestCase):
         pairs.loc[0, ["case_h5", "control_h5"]] = 0
         with self.assertRaisesRegex(AssertionError, "nonpositive h5"):
             analysis.matching_balance(pairs)
+
+    def test_validation_accepts_observed_cohort_larger_than_old_sample(self) -> None:
+        pair_count = 9_432
+        pairs = pd.DataFrame({"pair_id": np.arange(pair_count)})
+        membership = pd.DataFrame(
+            {
+                "subject": ["s"] * pair_count,
+                "orcid": [f"A{index}" for index in range(pair_count)],
+                "tier_type": ["Case"] * pair_count,
+            }
+        )
+        features = membership.assign(annual_dyadic_surge_share=0.0)
+        edges = pd.DataFrame(
+            columns=["subject", "citing_orcid", "cited_orcid"]
+        )
+        analysis.validate_analysis_inputs(pairs, membership, features, edges)
+
+
+class FullCohortSQLTests(unittest.TestCase):
+    def test_author_works_include_orcids_regardless_of_final_character(self) -> None:
+        with sqlite3.connect(":memory:") as connection:
+            connection.execute("ATTACH DATABASE ':memory:' AS rolap")
+            connection.executescript(
+                """
+                CREATE TABLE work_authors (work_id INTEGER, orcid TEXT);
+                INSERT INTO work_authors VALUES (1, 'A0'), (2, 'BX'), (3, '');
+                CREATE TABLE rolap.works_enhanced (
+                  work_id INTEGER, subject TEXT, eigenfactor_score REAL, doi TEXT
+                );
+                INSERT INTO rolap.works_enhanced VALUES
+                  (1, 'S', 0.1, 'd1'), (2, 'S', 0.9, 'd2'), (3, 'S', 0.5, 'd3');
+                CREATE TABLE rolap.filtered_authors (orcid TEXT);
+                INSERT INTO rolap.filtered_authors VALUES ('A0');
+                CREATE TABLE rolap.work_citations (doi TEXT, citations_number INTEGER);
+                INSERT INTO rolap.work_citations VALUES ('d1', 1), ('d2', 1), ('d3', 1);
+                """
+            )
+            connection.executescript(
+                (Path(analysis.__file__).parent / "author_works_master.sql").read_text(
+                    encoding="utf-8"
+                )
+            )
+            authors = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT DISTINCT orcid FROM rolap.author_works_master"
+                )
+            }
+        self.assertEqual(authors, {"A0", "BX"})
 
 
 class ScreenAndReuseTests(unittest.TestCase):
@@ -800,10 +833,8 @@ class ArtifactWriterTests(unittest.TestCase):
         cliques = analysis.run_clique_analysis(
             empty_edges,
             membership,
-            flagged_keys=set(),
-            null_replicates=1,
-            label_swaps=1,
         )
+        cliques.summary.loc[:, "exact_p"] = 0.0
         data = analysis.AnalysisData(
             pairs=pairs,
             membership=membership,
@@ -812,6 +843,11 @@ class ArtifactWriterTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "revision-v1"
+            (output / "tables").mkdir(parents=True)
+            (output / "figures").mkdir()
+            (output / "tables/clique_null_samples.csv").write_text("stale\n")
+            (output / "figures/clique_nulls.pdf").write_text("stale\n")
+            (output / "figures/clique_nulls.png").write_text("stale\n")
             analysis.write_artifacts(
                 output_directory=output,
                 database=Path(temporary) / "fixture.db",
@@ -829,7 +865,6 @@ class ArtifactWriterTests(unittest.TestCase):
                 components=components,
                 mixing=mixing,
                 cliques=cliques,
-                clique_workers=1,
             )
             expected = [
                 "results_macros.tex",
@@ -845,22 +880,41 @@ class ArtifactWriterTests(unittest.TestCase):
                 "tables/clique_sensitivity.tex",
                 "tables/clique_summary.csv",
                 "tables/clique_sensitivity.csv",
+                "tables/clique_membership.csv",
+                "tables/clique_subject_consistency.csv",
                 "figures/paired_effects.pdf",
                 "figures/anomaly_enrichment.pdf",
                 "figures/tier_mixing.pdf",
+                "figures/clique_membership.pdf",
                 "run_metadata.json",
             ]
             for relative in expected:
                 self.assertTrue((output / relative).is_file(), relative)
+            for stale in (
+                "tables/clique_null_samples.csv",
+                "figures/clique_nulls.pdf",
+                "figures/clique_nulls.png",
+            ):
+                self.assertFalse((output / stale).exists(), stale)
             self.assertFalse((output / "figures/outlier_components.pdf").exists())
             macros = (output / "results_macros.tex").read_text(encoding="utf-8")
             self.assertIn(r"\newcommand{\PrimaryFindingText}", macros)
             self.assertIn(r"\newcommand{\CaseShareAmongFlagsPercent}", macros)
             self.assertIn(r"\newcommand{\AnomalyOverlapFindingText}", macros)
             self.assertIn(r"\newcommand{\CliqueFindingText}", macros)
+            self.assertIn(r"\newcommand{\CliqueExactP}{<0.001}", macros)
+            self.assertIn(r"exact $p<0.001$", macros)
             self.assertIn(
                 r"\newcommand{\AnomalyFeatureAblationFindingText}", macros
             )
+            self.assertIn("All four primary mean differences favored Cases", macros)
+            self.assertIn(
+                "all four comparisons were significant after adjustment", macros
+            )
+            self.assertNotIn("4 of four comparisons", macros)
+            self.assertIn("all four primary comparisons", macros)
+            self.assertNotIn("4 of four primary comparisons", macros)
+            self.assertIn(r"label-swap $p=0.500$", macros)
             paired_primary = (output / "tables/paired_primary.tex").read_text(
                 encoding="utf-8"
             )
@@ -870,11 +924,10 @@ class ArtifactWriterTests(unittest.TestCase):
 
 
 class ScratchDatabaseTests(unittest.TestCase):
-    def test_rebuild_uses_retained_cohort_and_fresh_output(self) -> None:
+    def test_rebuild_constructs_full_cohort_from_raw_and_fresh_output(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             raw = root / "raw.db"
-            cohort = root / "cohort.db"
             output = root / "scratch.db"
             with sqlite3.connect(raw) as connection:
                 connection.executescript(
@@ -883,50 +936,43 @@ class ScratchDatabaseTests(unittest.TestCase):
                       id INTEGER, doi TEXT, published_year INTEGER,
                       issn_print TEXT, issn_electronic TEXT
                     );
-                    INSERT INTO works VALUES
-                      (1, 'd1', 2020, 'i1', NULL),
-                      (2, 'd2', 2021, 'i2', NULL);
                     CREATE TABLE issn_subjects (issn TEXT, subject TEXT);
-                    INSERT INTO issn_subjects VALUES ('i1', 'S'), ('i2', 'S');
+                    INSERT INTO issn_subjects VALUES ('low', 'S'), ('high', 'S');
                     CREATE TABLE eigenfactor_scores (
                       issn TEXT, subject TEXT, eigenfactor_score REAL
                     );
                     INSERT INTO eigenfactor_scores VALUES
-                      ('i1', 'S', 0.1), ('i2', 'S', 0.9);
+                      ('low', 'S', 0.1), ('high', 'S', 0.9);
                     CREATE TABLE work_authors (work_id INTEGER, orcid TEXT);
-                    INSERT INTO work_authors VALUES (1, 'A'), (2, 'B');
                     CREATE TABLE work_references (work_id INTEGER, doi TEXT, year INTEGER);
-                    INSERT INTO work_references VALUES (1, 'd2', 2020);
                     """
                 )
-            # The production cohort size is an invariant; repeat a valid tiny
-            # pair to exercise the scratch builder without weakening that check.
-            with sqlite3.connect(cohort) as connection:
-                connection.execute(
-                    "CREATE TABLE author_matched_pairs "
-                    "(case_orcid TEXT, control_orcid TEXT, subject TEXT)"
-                )
-                rows = [
-                    (f"A{index}", f"B{index}", "S")
-                    for index in range(database_rebuild.EXPECTED_PAIRS)
+                works = [
+                    (
+                        index,
+                        f"d{index}",
+                        2020 + index % 5,
+                        "low" if index <= 25 else "high",
+                        None,
+                    )
+                    for index in range(1, 51)
                 ]
-                # Ensure one retained pair has works in the raw fixture.
-                rows[0] = ("A", "B", "S")
                 connection.executemany(
-                    "INSERT INTO author_matched_pairs VALUES (?, ?, ?)", rows
+                    "INSERT INTO works VALUES (?, ?, ?, ?, ?)", works
                 )
-                connection.execute(
-                    "CREATE TABLE author_subject_h5_index "
-                    "(orcid TEXT, subject TEXT, h5_index INTEGER)"
-                )
-                h5_rows = [(case, subject, 1) for case, _, subject in rows]
-                h5_rows += [(control, subject, 1) for _, control, subject in rows]
                 connection.executemany(
-                    "INSERT INTO author_subject_h5_index VALUES (?, ?, ?)", h5_rows
+                    "INSERT INTO work_authors VALUES (?, ?)",
+                    [(index, "case-X") for index in (1, 2, 3)]
+                    + [(index, "control-Y") for index in (26, 27, 28)],
                 )
+                connection.executemany(
+                    "INSERT INTO work_references VALUES (?, ?, ?)",
+                    [(50, f"d{index}", 2024) for index in (1, 2, 3, 26, 27, 28)]
+                    + [(1, "d26", 2020)],
+                )
+            before = (raw.stat().st_size, raw.stat().st_mtime_ns)
             database_rebuild.rebuild(
                 raw_database=raw,
-                cohort_database=cohort,
                 output_database=output,
                 sql_directory=Path(analysis.__file__).parent,
                 force=False,
@@ -938,13 +984,19 @@ class ScratchDatabaseTests(unittest.TestCase):
                     connection.execute(
                         "SELECT COUNT(*) FROM author_matched_pairs"
                     ).fetchone()[0],
-                    database_rebuild.EXPECTED_PAIRS,
+                    1,
                 )
+                pair = connection.execute(
+                    "SELECT case_orcid, control_orcid, subject "
+                    "FROM author_matched_pairs"
+                ).fetchone()
+                self.assertEqual(pair, ("case-X", "control-Y", "S"))
                 edge = connection.execute(
                     "SELECT subject, citing_orcid, cited_orcid "
                     "FROM citation_network_final"
                 ).fetchone()
-                self.assertEqual(edge, ("S", "A", "B"))
+                self.assertEqual(edge, ("S", "case-X", "control-Y"))
+            self.assertEqual(before, (raw.stat().st_size, raw.stat().st_mtime_ns))
 
 
 if __name__ == "__main__":

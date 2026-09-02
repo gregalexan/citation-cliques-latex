@@ -8,12 +8,11 @@ import sys
 import pandas as pd
 
 
-EXPECTED_PRIMARY_PAIRS = 9_431
 H5_CALIPER = 3
 PRESERVED_DATABASE = Path(__file__).with_name("rolap.db").resolve()
 
 
-def retained_cohort_is_valid(con):
+def matched_cohort_is_valid(con):
     """Validate cohort size, no replacement, and the inclusive h5 caliper."""
     existing_tables = con.execute(
         """
@@ -31,14 +30,14 @@ def retained_cohort_is_valid(con):
           COUNT(*) AS n,
           COUNT(DISTINCT p.case_orcid || char(31) || p.subject) AS n_cases,
           COUNT(DISTINCT p.control_orcid || char(31) || p.subject) AS n_controls,
-          SUM(CASE WHEN p.case_orcid IS NULL OR TRIM(p.case_orcid) = ''
+          COALESCE(SUM(CASE WHEN p.case_orcid IS NULL OR TRIM(p.case_orcid) = ''
                         OR p.control_orcid IS NULL OR TRIM(p.control_orcid) = ''
-                        OR p.subject IS NULL THEN 1 ELSE 0 END) AS invalid_keys,
-          SUM(CASE WHEN case_h5.h5_index IS NULL OR control_h5.h5_index IS NULL
+                        OR p.subject IS NULL THEN 1 ELSE 0 END), 0) AS invalid_keys,
+          COALESCE(SUM(CASE WHEN case_h5.h5_index IS NULL OR control_h5.h5_index IS NULL
                              OR case_h5.h5_index <= 0 OR control_h5.h5_index <= 0
-                   THEN 1 ELSE 0 END) AS invalid_h5,
-          SUM(CASE WHEN ABS(case_h5.h5_index - control_h5.h5_index) > ?
-                   THEN 1 ELSE 0 END) AS caliper_violations,
+                   THEN 1 ELSE 0 END), 0) AS invalid_h5,
+          COALESCE(SUM(CASE WHEN ABS(case_h5.h5_index - control_h5.h5_index) > ?
+                   THEN 1 ELSE 0 END), 0) AS caliper_violations,
           (
             SELECT COUNT(*)
             FROM (
@@ -63,24 +62,19 @@ def retained_cohort_is_valid(con):
         """,
         (H5_CALIPER,),
     ).fetchone()
-    return row == (
-        EXPECTED_PRIMARY_PAIRS,
-        EXPECTED_PRIMARY_PAIRS,
-        EXPECTED_PRIMARY_PAIRS,
-        0,
-        0,
-        0,
-        0,
-    )
+    pair_count = row[0]
+    return pair_count > 0 and row == (pair_count, pair_count, pair_count, 0, 0, 0, 0)
 
 
-def _hard_caliper_recomputation(con):
+def _hard_caliper_recomputation(con, *, schema="main"):
     """Recompute the exact greedy order without materializing every candidate."""
+    if schema not in {"main", "rolap"}:
+        raise ValueError("schema must be 'main' or 'rolap'")
     rows = con.execute(
-        """
+        f"""
         SELECT ap.orcid, ap.subject, ap.author_tier, h.h5_index
-        FROM author_profiles AS ap
-        JOIN author_subject_h5_index AS h
+        FROM {schema}.author_profiles AS ap
+        JOIN {schema}.author_subject_h5_index AS h
           ON h.orcid = ap.orcid
          AND h.subject = ap.subject
         WHERE ap.author_tier IN ('Bottom Tier', 'Top Tier')
@@ -142,6 +136,30 @@ def _hard_caliper_recomputation(con):
     return candidate_count, pairs
 
 
+def materialize_profile_matches(con, *, schema="main"):
+    """Build deterministic full-cohort matches from eligible profiles."""
+    if schema not in {"main", "rolap"}:
+        raise ValueError("schema must be 'main' or 'rolap'")
+    candidate_count, pairs = _hard_caliper_recomputation(con, schema=schema)
+    con.execute(f"DROP TABLE IF EXISTS {schema}.author_matched_pairs")
+    con.execute(
+        f"CREATE TABLE {schema}.author_matched_pairs "
+        "(case_orcid TEXT, control_orcid TEXT, subject TEXT)"
+    )
+    con.executemany(
+        f"INSERT INTO {schema}.author_matched_pairs VALUES (?, ?, ?)", pairs
+    )
+    con.execute(
+        f"CREATE UNIQUE INDEX {schema}.idx_amp_case_subject "
+        "ON author_matched_pairs(case_orcid, subject)"
+    )
+    con.execute(
+        f"CREATE UNIQUE INDEX {schema}.idx_amp_control_subject "
+        "ON author_matched_pairs(control_orcid, subject)"
+    )
+    return candidate_count, pairs
+
+
 def _pair_hash(pairs):
     ordered = sorted(pairs, key=lambda row: (row[2], row[0], row[1]))
     payload = "\n".join(
@@ -151,14 +169,14 @@ def _pair_hash(pairs):
 
 
 def audit_matching(rolap_db, *, output_path=None):
-    """Read-only equality audit of hard-caliper rematching against retention."""
+    """Read-only equality audit of recomputed and materialized matches."""
     database = Path(rolap_db).resolve()
     before = (database.stat().st_size, database.stat().st_mtime_ns)
     con = sqlite3.connect(f"file:{database}?mode=ro&immutable=1", uri=True)
     try:
         con.execute("PRAGMA query_only=ON")
         candidate_count, recomputed = _hard_caliper_recomputation(con)
-        retained = [
+        materialized = [
             (case, control, str(subject))
             for case, control, subject in con.execute(
                 "SELECT case_orcid, control_orcid, subject "
@@ -175,7 +193,7 @@ def audit_matching(rolap_db, *, output_path=None):
         con.close()
 
     recomputed_set = set(recomputed)
-    retained_set = set(retained)
+    materialized_set = set(materialized)
     distances = [
         abs(h5[(case, subject)] - h5[(control, subject)])
         for case, control, subject in recomputed
@@ -186,8 +204,8 @@ def audit_matching(rolap_db, *, output_path=None):
         for orcid in (case, control)
     ]
     unchanged = before == (database.stat().st_size, database.stat().st_mtime_ns)
-    ordered_equal = recomputed == retained
-    membership_equal = recomputed_set == retained_set
+    ordered_equal = recomputed == materialized
+    membership_equal = recomputed_set == materialized_set
     violations = sum(distance > H5_CALIPER for distance in distances)
     reused = len(memberships) - len(set(memberships))
 
@@ -196,13 +214,13 @@ def audit_matching(rolap_db, *, output_path=None):
         f"explicit_caliper={H5_CALIPER}",
         f"derived_candidates={candidate_count}",
         f"recomputed_pairs={len(recomputed)}",
-        f"retained_pairs={len(retained)}",
+        f"materialized_pairs={len(materialized)}",
         f"ordered_equal={ordered_equal}",
         f"membership_equal={membership_equal}",
-        f"only_recomputed={len(recomputed_set - retained_set)}",
-        f"only_retained={len(retained_set - recomputed_set)}",
+        f"only_recomputed={len(recomputed_set - materialized_set)}",
+        f"only_materialized={len(materialized_set - recomputed_set)}",
         f"recomputed_sha256={_pair_hash(recomputed)}",
-        f"retained_sha256={_pair_hash(retained)}",
+        f"materialized_sha256={_pair_hash(materialized)}",
         f"max_abs_h5_distance={max(distances) if distances else None}",
         f"exact_h5_pairs={sum(distance == 0 for distance in distances)}",
         f"caliper_violations={violations}",
@@ -225,9 +243,10 @@ def greedy_match(rolap_db, *, force=False):
     con = sqlite3.connect(rolap_db)
 
     print(f"Connected to {rolap_db}...")
-    if not force and retained_cohort_is_valid(con):
+    if not force and matched_cohort_is_valid(con):
+        pair_count = con.execute("SELECT COUNT(*) FROM author_matched_pairs").fetchone()[0]
         print(
-            f"Retaining the prespecified {EXPECTED_PRIMARY_PAIRS:,}-pair cohort; "
+            f"Retaining the valid {pair_count:,}-pair cohort; "
             "no rematching performed."
         )
         con.close()

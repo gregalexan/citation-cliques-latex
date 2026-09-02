@@ -136,6 +136,22 @@ T	t1	b1	0.333333
 T	t1	b2	0.333333
 END
 
+# Coauthor history is needed only for unordered author pairs that occur on an
+# analytic micro-edge.  The a1/a2 collaboration never occurs on such an edge.
+BEGIN CREATE
+CREATE TABLE coauthor_scope_result AS
+SELECT orcid1, orcid2, first_collaboration_year
+FROM rolap.coauthor_links
+ORDER BY orcid1, orcid2;
+END
+
+BEGIN RESULT
+coauthor_scope_result:
+orcid1	orcid2	first_collaboration_year
+a1	b1	2021
+a1	b2	2022
+END
+
 BEGIN CREATE
 CREATE TABLE null_endpoint_result AS
 SELECT COUNT(*) AS null_endpoint_rows

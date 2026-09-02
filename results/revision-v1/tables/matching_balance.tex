@@ -1,6 +1,6 @@
 \begin{table*}[t]
 \centering
-\caption{Matched authors and balance by subject.}
+\caption{Matched authors by subject.}
 \label{tab:matching-balance}
 \scriptsize
 \setlength{\tabcolsep}{1pt}
@@ -8,14 +8,14 @@
 \toprule
 Subject & Pairs & $h_5$ observed & Exact $h_5$ & Median $\Delta h_5$ & Median $|\Delta h_5|$ & Maximum $|\Delta h_5|$ \\
 \midrule
-Overall & 9,431 & 9,431 & 5,736 & 0.00 & 0.00 & 2 \\
-1 & 3,776 & 3,776 & 1,651 & -1.00 & 1.00 & 2 \\
-2 & 2,543 & 2,543 & 1,319 & 0.00 & 0.00 & 2 \\
-3 & 332 & 332 & 290 & 0.00 & 0.00 & 1 \\
-4 & 2,262 & 2,262 & 1,958 & 0.00 & 0.00 & 1 \\
-5 & 518 & 518 & 518 & 0.00 & 0.00 & 0 \\
+Overall & 102,626 & 102,626 & 64,176 & 0.00 & 0.00 & 2 \\
+1 & 40,439 & 40,439 & 17,869 & -1.00 & 1.00 & 2 \\
+2 & 28,045 & 28,045 & 15,205 & 0.00 & 0.00 & 2 \\
+3 & 3,383 & 3,383 & 3,345 & 0.00 & 0.00 & 1 \\
+4 & 24,879 & 24,879 & 21,877 & 0.00 & 0.00 & 1 \\
+5 & 5,880 & 5,880 & 5,880 & 0.00 & 0.00 & 0 \\
 \bottomrule
 \end{tabularx}
-\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize $\Delta h_5$ is Case minus Control. We matched only pairs with an absolute difference of at most three. Exact-$h_5$ pairs are a sensitivity check, not a replacement for the main cohort.
+\par\vspace{2pt}\begin{minipage}{0.96\linewidth}\scriptsize $\Delta h_5$ is Case minus Control. Every pair must satisfy $|\Delta h_5|\leq3$. Exact-$h_5$ pairs form a sensitivity cohort; they do not replace the primary matched cohort.
 \end{minipage}
 \end{table*}

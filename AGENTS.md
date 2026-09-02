@@ -25,9 +25,8 @@ not establish intent, manipulation, or misconduct.
   full data product.
 - The workflow must remain offline. Do not add ORCID/network/API identity
   lookups or any other remote dependency.
-- The retained cohort and matching covariate come from `rolap.db`; citation
-  tables are rebuilt from the fixed `impact.db` snapshot into a fresh scratch
-  database.
+- The cohort, matching covariate, and citation tables are rebuilt from the
+  fixed `impact.db` snapshot into a fresh scratch database.
 - Keep `(ORCID, subject)` as the analysis key. Every estimate-affecting join
   must include `subject`.
 
@@ -97,7 +96,7 @@ For changes affecting the pipeline, generated results, or manuscript, run the
 relevant canonical targets (normally `make reproduce`) and confirm:
 
 - no duplicate author--subject--tier rows or null/duplicate analytic edge keys;
-- every per-metric pair count is at most 9,431;
+- every per-metric pair count is at most the observed matched-cohort count;
 - every non-missing annual dyadic surge share lies in `[0, 1]`;
 - figures and components use only `final_flag`, with no synthetic fallback;
 - the manuscript consumes current generated macros; and

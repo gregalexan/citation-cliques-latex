@@ -125,7 +125,7 @@ class GreedyMatchingTests(unittest.TestCase):
                     )
 
 
-class RetainedCohortTests(unittest.TestCase):
+class MatchedCohortTests(unittest.TestCase):
     @staticmethod
     def _connection(pairs, h5_rows):
         connection = sqlite3.connect(":memory:")
@@ -151,13 +151,12 @@ class RetainedCohortTests(unittest.TestCase):
             [("case", "S", 10), ("control", "S", 13)],
         )
         self.addCleanup(connection.close)
-        with patch.object(match_authors, "EXPECTED_PRIMARY_PAIRS", 1):
-            self.assertTrue(match_authors.retained_cohort_is_valid(connection))
-            connection.execute(
-                "UPDATE author_subject_h5_index SET h5_index = 14 "
-                "WHERE orcid = 'control' AND subject = 'S'"
-            )
-            self.assertFalse(match_authors.retained_cohort_is_valid(connection))
+        self.assertTrue(match_authors.matched_cohort_is_valid(connection))
+        connection.execute(
+            "UPDATE author_subject_h5_index SET h5_index = 14 "
+            "WHERE orcid = 'control' AND subject = 'S'"
+        )
+        self.assertFalse(match_authors.matched_cohort_is_valid(connection))
 
     def test_retained_cohort_rejects_cross_role_reuse(self) -> None:
         connection = self._connection(
@@ -169,8 +168,7 @@ class RetainedCohortTests(unittest.TestCase):
             ],
         )
         self.addCleanup(connection.close)
-        with patch.object(match_authors, "EXPECTED_PRIMARY_PAIRS", 2):
-            self.assertFalse(match_authors.retained_cohort_is_valid(connection))
+        self.assertFalse(match_authors.matched_cohort_is_valid(connection))
 
     def test_retained_cohort_rejects_nonpositive_h5(self) -> None:
         connection = self._connection(
@@ -178,8 +176,12 @@ class RetainedCohortTests(unittest.TestCase):
             [("case", "S", 0), ("control", "S", 0)],
         )
         self.addCleanup(connection.close)
-        with patch.object(match_authors, "EXPECTED_PRIMARY_PAIRS", 1):
-            self.assertFalse(match_authors.retained_cohort_is_valid(connection))
+        self.assertFalse(match_authors.matched_cohort_is_valid(connection))
+
+    def test_empty_cohort_is_invalid(self) -> None:
+        connection = self._connection([], [])
+        self.addCleanup(connection.close)
+        self.assertFalse(match_authors.matched_cohort_is_valid(connection))
 
 
 class MatchingAuditTests(unittest.TestCase):

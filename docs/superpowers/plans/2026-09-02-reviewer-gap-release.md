@@ -91,12 +91,12 @@ Expected: no matches.
 - Modify: `README.md:382-385`
 
 **Interfaces:**
-- Consumes: stable Zenodo concept DOI `10.5281/zenodo.21720914` and archive name `citation-cliques-v4.0.0.zip`.
+- Consumes: stable Zenodo concept DOI `10.5281/zenodo.19786936` and archive name `citation-cliques-v4.0.0.zip`.
 - Produces: v4.0.0 citation metadata and an availability statement that remains accurate after deposition.
 
 - [ ] **Step 1: Update the dataset citation**
 
-Change the dataset title to the current manuscript title and the version to `v4.0.0`; retain the stable DOI until Zenodo returns the new version record.
+Change the dataset title to the current manuscript title and the version to `v4.0.0`; cite the stable all-versions DOI `10.5281/zenodo.19786936`.
 
 - [ ] **Step 2: Update availability wording**
 

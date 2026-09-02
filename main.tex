@@ -64,7 +64,7 @@
 % These defaults make a draft compile before the full database rebuild.  They
 % contain no numerical result and are replaced by generated macros when the
 % canonical analysis has completed.
-\providecommand{\MatchedPairCount}{\num{9431}}
+\providecommand{\MatchedPairCount}{pending}
 \providecommand{\MaximumAbsoluteHFiveDifference}{pending}
 \providecommand{\HFiveCaliperViolationCount}{pending}
 \providecommand{\PrimaryFindingText}{Primary estimates are pending the canonical full-data rebuild.}
@@ -77,7 +77,12 @@
 \providecommand{\AnomalyFeatureAblationFindingText}{Feature-ablation estimates are pending the canonical full-data rebuild.}
 \providecommand{\MixingFindingText}{Tier-mixing estimates are pending the canonical full-data rebuild.}
 \providecommand{\CliqueFindingText}{Formal clique results are reported in the generated tables.}
-\providecommand{\CliqueNullMeanCaseSharePercent}{pending}
+\providecommand{\CliqueCaseMembershipPercent}{pending}
+\providecommand{\CliqueControlMembershipPercent}{pending}
+\providecommand{\CliquePairedDifferencePoints}{pending}
+\providecommand{\CliqueCaseOnlyPairs}{pending}
+\providecommand{\CliqueControlOnlyPairs}{pending}
+\providecommand{\CliqueExactP}{=pending}
 
 \newcommand{\artifactpending}[1]{%
   \fbox{\begin{minipage}{0.88\linewidth}\centering
@@ -111,7 +116,7 @@ Athens University of Economics and Business (AUEB), Athens, Greece}
 \linenumbers
 
 \begin{abstract}
-We ask whether authors in lower-impact journal groups have different citation patterns from matched authors in higher-impact groups.  We call the lower-impact observations Cases and the higher-impact observations Controls.  We compare \MatchedPairCount\ author--subject pairs within subject and at similar recent citation productivity.  Cases had higher average values on all four primary measures, although three median differences were zero because many pairs tied at zero.  A defined clique analysis, in which every member pair is linked and many links are returned, found \CliqueReciprocalCount\ reciprocal cliques among \CliqueStructuralCount\ candidate groups; randomized graphs averaged \CliqueNullMeanCount\ reciprocal cliques (empirical $p=\CliqueNullP$), and \CliqueCaseSharePercent\% of clique memberships were Cases (label-swap $p=\CliqueLabelSwapP$).  The results support a directional structural association between journal-impact group and citation-network organization.
+We ask whether authors in lower-impact journal groups have different citation patterns from matched authors in higher-impact groups.  We call the lower-impact observations Cases and the higher-impact observations Controls.  We compare \MatchedPairCount\ author--subject pairs within subject and at similar recent citation productivity.  \PrimaryFindingText\ \CliqueFindingText\ Lower-impact-group authors were more likely than matched higher-impact-group authors to belong to formally defined reciprocal citation cliques.
 \end{abstract}
 
 \noindent\textbf{Keywords:} scientometrics; citation networks; matched design; network cohesion; journal impact; anomaly screening
@@ -127,7 +132,7 @@ This study addresses that gap with a matched author--subject design.  Low-impact
 
 The study asks three questions:
 \begin{enumerate}
-  \item Do matched Case and Control authors differ in citation-network cohesion and outgoing citation concentration?
+  \item Do matched Case and Control authors differ in citation-network cohesion, outgoing citation concentration, and reciprocal-clique membership?
   \item Are author--subject profiles that are unusual relative to Controls enriched among Cases?
   \item How do fractional citation weights mix across the two groups?
 \end{enumerate}
@@ -160,16 +165,16 @@ The current workflow consumes the fixed database scores as an upstream exposure 
 
 The unit used throughout is an \emph{author--subject}, meaning one researcher considered within one subject area, identified by $(\mathrm{ORCID},s)$.  An author is a Case in subject $s$ when at least 70\% of eligible works in that subject appear in low-impact journals, and a Control when at least 70\% appear in high-impact journals.  Authors not meeting either rule are excluded from matching.  A uniqueness check prevents more than one group assignment for the same $(\mathrm{ORCID},s)$ key.
 
-The retained primary cohort contains \MatchedPairCount\ matched Case--Control pairs across the five subjects.  The deterministic 10\% ORCID sample and the original matching cohort are retained to separate analytical corrections from cohort redefinition.
+The primary cohort contains \MatchedPairCount\ matched Case--Control pairs across the five subjects.  It is built from every non-empty ORCID in the fixed snapshot that meets the portfolio, work-count, and positive-$h_5$ eligibility rules; no final-character sampling rule is applied.
 
 \section{Matching}
 \label{sec:matching}
 
-Recent subject-specific citation productivity is summarized by $h_5$, the Hirsch index calculated from an author's works in subject $s$ published during 2020--2024 \parencite{Hirsch2005}.  In ordinary language, $h_5$ is the largest number of works that each have at least that many citations in the fixed snapshot.  The retained upstream table contains only positive values, so this fixed-cohort revision restricts the matching pool to $h_5\geq1$ and excludes otherwise group-eligible zero-$h_5$ profiles before candidate generation.
+Recent subject-specific citation productivity is summarized by $h_5$, the Hirsch index calculated from an author's works in subject $s$ published during 2020--2024 \parencite{Hirsch2005}.  In ordinary language, $h_5$ is the largest number of works that each have at least that many citations in the fixed snapshot.  The matching pool requires $h_5\geq1$ and excludes otherwise group-eligible zero-$h_5$ profiles before candidate generation.
 
 We pair lower-impact and higher-impact author--subjects within the same subject when their $h_5$ values differ by at most three points.  Candidates are considered in the fixed order subject, smallest absolute $h_5$ difference, Case ORCID, and Control ORCID; each author--subject can be used only once.
 
-An independent audit rebuilds this process from the source profiles and compares it with the retained cohort.  It reproduced the retained pair membership exactly within the positive-$h_5$ pool; no pair exceeded the three-point limit and no author--subject key was reused.  The complete audit accompanies the replication materials.
+An independent audit repeats the deterministic match from the generated full-cohort profiles and compares it with the materialized pairs.  It requires identical order and membership, no pair beyond the three-point limit, and no reused author--subject key.  The complete audit accompanies the replication materials.
 
 The matching table supplies the Case ORCID, Control ORCID, subject, and both $h_5$ values.  Feature rows are linked back to this table twice, on $(\mathrm{case\_orcid},s)$ and $(\mathrm{control\_orcid},s)$; ORCID-only joins are not used.
 
@@ -235,9 +240,9 @@ where $m_C$ is the number of positive directed dyads among the $k$ members.  Wei
   r_C=\frac{\sum_{\{i,j\}\subset C}\min(w_{ij},w_{ji})}
            {\sum_{\{i,j\}\subset C}\max(w_{ij},w_{ji})}.
 \end{equation}
-The primary rule requires at least 75\% of all possible directed links and a weighted reciprocity of at least 0.50.  We repeat it for minimum clique sizes $k=3,4,5$ and reciprocity thresholds $0.25,0.50,0.75$; the density threshold remains fixed at 0.75.  The anomaly flag is reported for these groups but does not define them.
+The primary rule requires at least 75\% of all possible directed links and a weighted reciprocity of at least 0.50.  We repeat it for minimum clique sizes $k=3,4,5$ and reciprocity thresholds $0.25,0.50,0.75$; the density threshold remains fixed at 0.75.
 
-To ask whether the observed count is unusual, we create randomized versions of each subject network.  Each random version keeps every author's number of incoming and outgoing links, but changes which authors are linked.  We then score the same candidate cliques with the same rules.  We use 500 independent random versions and report the proportion that reach or exceed the observed value, with the standard add-one correction.  A separate set of 500 runs swaps Case and Control labels within each matched pair; this tests whether clique membership is concentrated in Cases.  These comparisons test whether the defined pattern is unusual and where it is concentrated.  They do not explain why it occurred.
+For inference, overlapping qualifying cliques are converted to one binary membership value per author--subject.  Case and Control membership rates are compared within the original matched pairs.  The exact two-sided null distribution conditions on the number of discordant pairs and assigns either member of each discordant pair equal probability of carrying the clique-membership label.  We report both discordant-pair counts, the paired rate difference, the exact $p$-value, and the direction of the rate difference within each subject.
 
 The study-specific temporal measure is
 \begin{equation}
@@ -314,23 +319,25 @@ Unavailable values remain missing through feature assembly.  A zero is used only
   \begin{tikzpicture}[
     node distance=8mm and 9mm,
     box/.style={draw,rounded corners,align=center,text width=0.24\textwidth,minimum height=12mm,fill=black!3},
-    branch/.style={draw,rounded corners,align=center,text width=0.28\textwidth,minimum height=13mm,fill=blue!5},
+    branch/.style={draw,rounded corners,align=center,text width=0.22\textwidth,minimum height=13mm,fill=blue!5},
     arrow/.style={-{Latex[length=2.2mm]},thick}
   ]
     \node[box] (data) {Crossref snapshot\\works, references, authors, journals};
     \node[box,right=of data] (venues) {Venue classification\\five subjects and publication-weighted Eigenfactor cutoffs};
     \node[box,right=of venues] (cohort) {Author--subject cohort\\70\% portfolio rule and $h_5$ matching};
     \node[box,below=of venues] (edges) {Subject-keyed citation construction\\deduplication, full team denominators, identified endpoints};
-    \node[branch,below left=of edges] (paired) {Paired inference\\four primary and four secondary outcomes};
-    \node[branch,below right=of edges] (screen) {Control-referenced screen\\enrichment and group mixing};
+    \node[branch,below=of edges,xshift=-0.31\textwidth] (paired) {Paired inference\\four primary and four secondary outcomes};
+    \node[branch,below=of edges] (cliques) {Reciprocal-clique analysis\\unique matched membership};
+    \node[branch,below=of edges,xshift=0.31\textwidth] (screen) {Control-referenced screen\\enrichment and group mixing};
     \draw[arrow] (data) -- (venues);
     \draw[arrow] (venues) -- (cohort);
     \draw[arrow] (cohort) |- (edges);
     \draw[arrow] (data) |- (edges);
     \draw[arrow] (edges) -- (paired);
+    \draw[arrow] (edges) -- (cliques);
     \draw[arrow] (edges) -- (screen);
   \end{tikzpicture}
-  \caption{Reader-facing study design.  Venue classification and author matching define the cohort; subject-keyed citation construction then supports two declared analytical branches.}
+  \caption{Reader-facing study design.  Venue classification and author matching define the cohort; subject-keyed citation construction then supports the paired, clique, and screening analyses.}
   \label{fig:study-design}
 \end{figure}
 
@@ -352,7 +359,11 @@ As a randomization check, we randomly reverse the sign of each pair difference i
 
 The anomaly analysis asks a different question from the matched comparison: are unusual profiles more common among Cases than among Controls?  It is a screening rule, not a prediction model and not evidence of intent.
 
-An author--subject enters the screen only when it has at least one identified non-self outgoing citation.  The screen uses five measures of an author's citation links: self-reference, citations to previous collaborators, mutual exchange, connections among neighbors, and concentration among recipients.  Same-journal referencing, the balance of incoming and outgoing links, and year-to-year increases are reported separately and are not screen inputs.  All five inputs must be observed; an unavailable value is not changed to zero.  Controls define the subject-specific reference values, and Cases are compared with those values.
+An author--subject enters the screen only when it has at least one identified non-self outgoing citation.  The screen uses five measures of an author's citation links: self-reference, citations to previous collaborators, mutual exchange, connections among neighbors, and concentration among recipients.  These inputs capture author-edge cohesion or concentration.  Same-journal referencing is excluded because it is defined on work references, citation balance because it requires internal incident weight, and year-to-year increase because it is temporal; all three are reported separately.  All five screen inputs must be observed, and an unavailable value is not changed to zero.
+
+Within each subject, every screen input is centered at the Control median and divided by the Control interquartile range (IQR).  A nonfinite or zero Control IQR is replaced by 1 only to avoid division by zero.  Controls therefore define the preprocessing, detector fit, and thresholds; Cases do not affect those reference quantities.
+
+No additional feature weights are applied, and the empirical percentile threshold makes no Gaussian assumption.
 
 An Isolation Forest is a tree-based method that gives a higher score to a profile that is easy to separate from typical Controls \parencite{Liu2008}.  A row passes this part of the screen when its score is above the 99th percentile of Controls in the same subject.  A row also passes the second part when at least two of four cohesion measures exceed their Control percentiles.  The final flag requires both parts.  Because the four cohesion measures also enter the first part, the two parts are related and are not independent evidence.
 
@@ -373,8 +384,6 @@ All numerical values in this section come from the same analysis and are shown i
 \label{sec:paired-results}
 
 The primary and secondary matched comparisons are shown in Tables~\ref{tab:paired-primary} and~\ref{tab:paired-secondary}.
-
-Across the matched pairs, Cases had higher average values on all four primary measures.  Three median differences were zero because many pairs tied at zero; among non-tied pairs, Case values were more often higher.  The result is a shift across the paired sample rather than a larger value for every author.
 
 \inputgeneratedtable{paired_primary}{tab:paired-primary}{Matched comparisons of the four primary measures.}
 
@@ -401,8 +410,6 @@ Pair counts are reported separately because the missingness pattern differs by m
 \inputgeneratedtable{exact_h5_sensitivity}{tab:exact-h5}{Checks using exact-$h_5$ matches and same-year collaborations.}
 
 \SensitivityFindingText
-
-The check keeps the direction of the primary results.  The table shows the estimates and intervals for the alternative matching and collaboration definitions.
 
 \subsection{Control-referenced anomaly enrichment}
 \label{sec:anomaly-results}
@@ -449,33 +456,33 @@ The check keeps the direction of the primary results.  The table shows the estim
 
 \CliqueFindingText
 
-\inputgeneratedtable{clique_summary}{tab:clique-summary}{Defined reciprocal-clique pattern and randomized comparison.}
+\inputgeneratedtable{clique_summary}{tab:clique-summary}{Matched reciprocal-clique membership comparison.}
 
-\IfFileExists{\GeneratedRoot/figures/clique_nulls.pdf}{%
+\IfFileExists{\GeneratedRoot/figures/clique_membership.pdf}{%
   \begin{figure}[H]
     \centering
-    \includegraphics[width=0.72\linewidth]{\GeneratedRoot/figures/clique_nulls.pdf}
-    \caption{Observed clique results compared with random averages.  The top row shows the number of reciprocal cliques; the bottom row shows the percentage of clique members who are Cases.  Red bars are observed values, gray bars are random averages, and each row reports its empirical $p$-value.}
-    \label{fig:clique-null}
+    \includegraphics[width=0.72\linewidth]{\GeneratedRoot/figures/clique_membership.pdf}
+    \caption{Unique author--subject membership rates in primary-rule reciprocal citation cliques.  Authors in overlapping cliques are counted once.}
+    \label{fig:clique-membership}
   \end{figure}
 }{ }
 
 \inputgeneratedtable{clique_sensitivity}{tab:clique-sensitivity}{Sensitivity of the clique rule.}
 
-Here, a clique is a group of at least four matched authors in which every pair is connected by a citation in at least one direction.  We compare these groups with randomized networks that keep each author's number of incoming and outgoing links and keep the same set of edge weights, but rewire the links and reassign those weights.  We also swap Case and Control labels within each matched pair.  A small $p$-value means that few randomized comparisons reached the observed value.  These comparisons test whether the pattern is unusual and whether it is concentrated in Cases; they do not say why it occurred.
-
-The clearest differences are the number of reciprocal cliques and the share of their members who are Cases.  Mean directed density was 0.825 ($p=\CliqueDensityNullP$), and mean weighted reciprocity was 0.641 ($p=\CliqueReciprocityNullP$); neither measure was unusual in the randomized networks.  The signal is therefore in how often the defined pattern occurs and who belongs to it, not in every observed clique being denser or more reciprocal.
+Here, a clique is a group of at least four matched authors in which every pair is connected by a citation in at least one direction.  The primary inference compares the binary author--subject membership indicator within pairs rather than counting repeated appearances in overlapping cliques.  There were \CliqueCaseOnlyPairs\ pairs in which only the Case belonged and \CliqueControlOnlyPairs\ in which only the Control belonged; the exact matched result was $p\CliqueExactP$.  The subject-level breakdown is reported with every threshold sensitivity.
 
 \section{Discussion}
 \label{sec:discussion}
 
 This study compares two journal-impact groups after matching authors within subject and on recent citation productivity.  The result is an association within matched pairs.  It is not an estimate of what would happen if an author changed venues, because venue choice, collaboration, topic, and citation practice can affect one another.
 
-The main result is consistent across the four primary measures: Cases had higher average values for citations to previous collaborators, reciprocal citation, local neighbor connections, and concentration of outgoing citations.  Three median differences were zero because many pairs had the same zero value.  Among non-tied pairs, Case values were more often higher, so the result is a shift across the sample, not a larger value for every Case author.  This pattern complements the author-level concentration measures of Evdaimon et al., while measuring the distribution of references sent by an author rather than the number of authors needed to account for received citations \parencite{Evdaimon2024}.
+\PrimaryDetailedFindingText\ This comparison complements the author-level concentration measures of Evdaimon et al., while measuring the distribution of references sent by an author rather than the number of authors needed to account for received citations \parencite{Evdaimon2024}.
 
-The secondary results add detail.  Cases had less same-journal referencing and larger year-to-year increases to one recipient.  These measures describe different parts of citation behavior from the journal-level citation stacking studied by Heneberg \parencite{heneberg2016}.  The author-level screen also showed a 16.14-fold difference in the share of flagged rows, and 93.91\% of matched citation weight stayed within the same journal-impact group.  These are descriptive results that show how the groups differ; they do not identify a cause.
+The secondary results add detail.  \SecondaryDetailedFindingText\ These measures describe different parts of citation behavior from the journal-level citation stacking studied by Heneberg \parencite{heneberg2016}.  \AnomalyFindingText\ \MixingFindingText\ These are descriptive results that show how the groups differ; they do not identify a cause.
 
-The clique analysis makes the main pattern more specific.  We defined a clique as a group of at least four matched authors in which every pair is connected by a citation in at least one direction.  We found 17 reciprocal cliques among 50 candidate cliques, compared with 0.73 on average in randomized graphs ($p=0.002$).  Cases made up 91.6\% of clique memberships, compared with about one half after swapping labels within matched pairs ($p=0.002$).  The average density and reciprocity inside the cliques were not themselves unusual in the randomized graphs.  Thus the evidence concerns how often the defined pattern occurs and which group its members belong to.  It supports the initial directional hypothesis as a qualified structural association, while leaving the reasons for the pattern open.
+The clique analysis makes the main pattern more specific.  \CliqueFindingText\ Membership is defined once per author--subject even when cliques overlap, and the exact test preserves the matched design.  The evidence therefore concerns which matched authors belong to the defined structure, while leaving the reasons for the pattern open.
+
+Kojaku et al.\ detect anomalous groups of journals by comparing journal-level citation structure with network expectations \parencite{Kojaku2021}.  Our result instead compares author-level clique membership within matched pairs under a declared structural rule.  The approaches share a relational perspective, but their populations, estimands, and null comparisons differ, so their estimates are not numerically interchangeable and neither structural result alone establishes misconduct.
 
 The screen and clique rule are measurement tools for follow-up.  They summarize citation links and cannot determine whether a citation was appropriate, coordinated, or intentional.  Narrow specialties, stable research teams, and institutional or career-stage differences can also create cohesive citation groups.
 
@@ -484,7 +491,7 @@ The screen and clique rule are measurement tools for follow-up.  They summarize 
 
 The estimates apply to the fixed 2020--2024 snapshot and the author--subject observations that meet the stated inclusion criteria.  The graph metrics therefore describe the defined analytic population and graph construction.
 
-The five broad subject categories cannot capture fine topical proximity.  The journal classifier was not independently validated against blinded human coding, and the publication-weighted Eigenfactor cutoffs remain sensitive to the observed journal network.  The 70\% portfolio rule, deterministic ORCID sample, and positive-$h_5$ matching pool define the study population.  Matching on subject-specific $h_5$ improves comparability within that pool but does not balance geography, language, institution, team structure, career age, or unmeasured research topic.
+The five broad subject categories cannot capture fine topical proximity.  The journal classifier was not independently validated against blinded human coding, and the publication-weighted Eigenfactor cutoffs remain sensitive to the observed journal network.  ORCID availability, the 70\% portfolio rule, and the positive-$h_5$ matching pool define the study population.  Matching on subject-specific $h_5$ improves comparability within that pool but does not balance geography, language, institution, team structure, career age, or unmeasured research topic.
 
 Graph metrics depend on population boundaries.  Ego-layer measures include identified recipients outside the matched cohort, whereas reciprocity, clustering, balance, and mixing are restricted to matched nodes.  Results from the latter should not be interpreted as full-network properties.  The 2020--2024 citation window limits observed citation behavior, while historical work and author metadata in the snapshot can left-censor or misdate prior collaborations.  The year dimension of the edge data supports coauthor timing and the scalar surge-share outcome, but is not analyzed as a group-specific trajectory or group-by-year interaction; we therefore make no claim that a Case--Control gap widens over time.
 
@@ -493,9 +500,9 @@ The anomaly thresholds and Isolation Forest define an operational screen, not a 
 \section{Conclusion}
 \label{sec:conclusion}
 
-In the matched comparison, Cases showed more cohesive and concentrated citation patterns than Controls.  Their average differences were positive on all four primary measures: \PrimaryCoauthorCitationRateMeanDifference\ for citations to previous collaborators, \PrimaryReciprocityMeanDifference\ for reciprocal citation, \PrimaryLocalClusteringMeanDifference\ for local neighbor connections, and \PrimaryOutgoingHhiMeanDifference\ for outgoing citation concentration.  All four comparisons remained significant after adjustment for the four primary tests.
+\PrimaryFindingText
 
-The defined clique analysis found \CliqueReciprocalCount\ reciprocal cliques among \CliqueStructuralCount\ candidate groups, compared with \CliqueNullMeanCount\ reciprocal cliques on average in randomized graphs ($p=\CliqueNullP$).  Cases supplied \CliqueCaseSharePercent\% of clique memberships, compared with about one half after within-pair label swaps ($p=\CliqueLabelSwapP$).  Density and reciprocity inside the cliques were not individually different from the randomized graphs.  Taken together, the results support the initial directional hypothesis as a qualified structural association between journal-impact group and citation-network organization.  They provide a clear pattern for follow-up without assigning a cause or intent.
+Lower-impact-group authors were more likely than matched higher-impact-group authors to belong to formally defined reciprocal citation cliques.  The paired membership difference was \CliquePairedDifferencePoints\ percentage points (exact $p\CliqueExactP$).  This is an associational result for the defined cohort and supplies a pattern for follow-up without assigning a cause or intent.
 
 \section{Author Contributions}
 
@@ -512,7 +519,7 @@ This research did not receive a specific grant from any funding agency in the pu
 \section{Data and Code Availability}
 \label{sec:data-availability}
 
-The revised software, aggregate replication materials, and retained-cohort database are archived as Zenodo version~3.0.0 \parencite{dataset_zenodo}.  The archive contains the subject-keyed workflow, tests, manuscript sources, aggregate results, figures, the ORCID-linked retained cohort, and the matching covariate used by the canonical analysis.
+The v4.0.0 software and aggregate replication materials for this revision are archived on Zenodo \parencite{dataset_zenodo}.  The fixed raw snapshot is not redistributed.
 
 \printbibliography
 
@@ -535,7 +542,7 @@ The received-influence vector $H_s\pi_s$ is normalized to sum to 100 within subj
 \section{Matching and Sensitivity Specifications}
 \label{app:matching}
 
-Cases and Controls require at least three eligible works and a 70\% portfolio share in the relevant journal group.  The retained matching pool additionally requires a materialized positive $h_5$ value; zero-$h_5$ profiles are not candidates.  Within that pool, candidate eligibility uses the inclusive hard caliper $|h_{5,\mathrm{Case}}-h_{5,\mathrm{Control}}|\leq3$.  Greedy selection proceeds without replacement within subject in the total order subject, ascending absolute $h_5$ distance, Case ORCID, and Control ORCID.  The retained cohort must pass the same subject-keyed positive-$h_5$ join and caliper checks before reuse.  Exact-$h_5$ pairs form a sensitivity subset rather than a replacement cohort.
+Cases and Controls require a non-empty ORCID, at least three eligible works, and a 70\% portfolio share in the relevant journal group.  The matching pool additionally requires a positive $h_5$ value; zero-$h_5$ profiles are not candidates.  Within that pool, candidate eligibility uses the inclusive hard caliper $|h_{5,\mathrm{Case}}-h_{5,\mathrm{Control}}|\leq3$.  Greedy selection proceeds without replacement within subject in the total order subject, ascending absolute $h_5$ distance, Case ORCID, and Control ORCID.  The generated cohort must pass the same subject-keyed positive-$h_5$ join and caliper checks.  Exact-$h_5$ pairs form a sensitivity subset rather than a replacement cohort.
 
 The paired bootstrap resamples pair identifiers with replacement.  The sign-flip test acts on complete-pair differences for one metric at a time.  Multiple-testing adjustment is not pooled across primary and secondary families.  The same-year coauthor sensitivity changes only $c_{ij}<t$ to $c_{ij}\leq t$; all other definitions and pair membership remain fixed.
 
@@ -546,6 +553,8 @@ Controls define subject-specific robust centers, scales, detector fits, score cu
 
 The primary screen uses seed~42 and the 99th Control percentiles.  The threshold analysis repeats the complete fit at the 97.5th, 99th, and 99.5th percentiles for ten fixed seeds.  A row with an unavailable required detector input is not zero-imputed; it receives no detector score, cannot be flagged, and is identified by a separate detector-completeness field.  The overlap table is restricted to rows on which both criteria are defined.
 
+The anomaly score is the negative of the library's \texttt{score\_samples} output.  The library's \texttt{contamination=auto} decision cutoff is not used; the reported cutoff is computed from the subject-specific Control scores.
+
 \inputgeneratedtable{anomaly_feature_ablation}{tab:anomaly-feature-ablation}{Leave-one-feature-out anomaly-screen sensitivity at the canonical threshold and seed.}
 
 \section{Reproducibility Checks}
@@ -554,7 +563,7 @@ The primary screen uses seed~42 and the 99th Control percentiles.  The threshold
 The rebuild checks the following manuscript-facing invariants:
 \begin{itemize}
   \item $(\mathrm{ORCID},s,\mathrm{tier})$ is unique in the feature output;
-  \item retained pairs have complete subject-keyed $h_5$ records, satisfy the inclusive three-point caliper, and do not reuse an author--subject key;
+  \item generated pairs have complete subject-keyed $h_5$ records, satisfy the inclusive three-point caliper, and do not reuse an author--subject key;
   \item every analytic edge has non-null endpoints and is unique on $(s,i,j,t)$;
   \item each per-metric complete-pair count is no greater than \MatchedPairCount;
   \item every observed surge share lies in $[0,1]$;
@@ -562,7 +571,7 @@ The rebuild checks the following manuscript-facing invariants:
   \item reported numerical values enter through generated LaTeX artifacts rather than hand-copied prose.
 \end{itemize}
 
-SQL fixtures separately test fractional weight, null endpoints, work-reference deduplication, subject retention, and prior-coauthor timing.  Python unit tests cover matching eligibility and deterministic order, retained-cohort validation, metric formulas, paired inference, subject-keyed joins, detector overlap, feature ablation, weighted mixing, and flag reuse.
+SQL fixtures separately test fractional weight, null endpoints, work-reference deduplication, subject retention, and prior-coauthor timing.  Python unit tests cover full-ORCID cohort construction, matching eligibility and deterministic order, dynamic cohort validation, metric formulas, paired inference, unique clique membership, exact matched clique inference, detector overlap, feature ablation, weighted mixing, and flag reuse.
 
 \section{Journal Subject Classification}
 \label{app:classification}

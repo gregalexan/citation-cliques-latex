@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Build the corrected analysis database from a clean SQLite file.
+"""Build the full matched analysis cohort from the fixed raw SQLite snapshot.
 
-The journal classification and 9,431-pair cohort are fixed inputs to this
-revision.  This script copies only the retained pair table and its h5 covariate
-from the prior derived database, then reconstructs every citation-facing table
-from the raw 2020--2024 snapshot.  The output is assembled at a temporary path
-and moved into place only after all schema and row-count checks pass.
+The output is assembled at a temporary path and moved into place only after
+all schema and row-count checks pass. Preserved source databases are read only.
 """
 
 from __future__ import annotations
@@ -17,11 +14,18 @@ import time
 from pathlib import Path
 from typing import Sequence
 
+from match_authors import materialize_profile_matches
 
-EXPECTED_PAIRS = 9_431
 H5_CALIPER = 3
-SQL_ORDER = (
+COHORT_SQL_ORDER = (
     "works_enhanced.sql",
+    "work_citations.sql",
+    "author_works_master.sql",
+    "eigenfactor_percentiles.sql",
+    "author_profiles.sql",
+    "author_subject_h5_index.sql",
+)
+CITATION_SQL_ORDER = (
     "works_doi_map.sql",
     "matched_authors.sql",
     "relevant_works.sql",
@@ -44,7 +48,7 @@ def sqlite_uri(path: Path, *, immutable: bool = False) -> str:
     return f"file:{path.resolve()}{suffix}"
 
 
-def validate_retained_cohort(connection: sqlite3.Connection) -> None:
+def validate_matched_cohort(connection: sqlite3.Connection) -> int:
     row = connection.execute(
         """
         WITH joined AS (
@@ -91,12 +95,14 @@ def validate_retained_cohort(connection: sqlite3.Connection) -> None:
         """,
         (H5_CALIPER,),
     ).fetchone()
-    expected = (EXPECTED_PAIRS, EXPECTED_PAIRS, EXPECTED_PAIRS, 0, 0, 0, 0)
-    if row != expected:
+    pair_count = row[0]
+    expected = (pair_count, pair_count, pair_count, 0, 0, 0, 0)
+    if pair_count <= 0 or row != expected:
         raise RuntimeError(
-            "retained cohort failed validation: "
+            "matched cohort failed validation: "
             f"observed {row!r}, expected {expected!r}"
         )
+    return pair_count
 
 
 def validate_output(connection: sqlite3.Connection) -> None:
@@ -118,7 +124,7 @@ def validate_output(connection: sqlite3.Connection) -> None:
     missing = sorted(required - present)
     if missing:
         raise RuntimeError(f"scratch rebuild is missing tables: {', '.join(missing)}")
-    validate_retained_cohort(connection)
+    validate_matched_cohort(connection)
     duplicate_membership = connection.execute(
         """
         SELECT COUNT(*) FROM (
@@ -166,21 +172,19 @@ def validate_output(connection: sqlite3.Connection) -> None:
 def rebuild(
     *,
     raw_database: Path,
-    cohort_database: Path,
     output_database: Path,
     sql_directory: Path,
     force: bool,
 ) -> None:
     raw_database = raw_database.resolve()
-    cohort_database = cohort_database.resolve()
     output_database = output_database.resolve()
     sql_directory = sql_directory.resolve()
-    for source in (raw_database, cohort_database):
-        if not source.is_file():
-            raise FileNotFoundError(source)
-    if output_database in (raw_database, cohort_database):
-        raise ValueError("scratch output must differ from both input databases")
-    missing_sql = [name for name in SQL_ORDER if not (sql_directory / name).is_file()]
+    if not raw_database.is_file():
+        raise FileNotFoundError(raw_database)
+    if output_database == raw_database:
+        raise ValueError("scratch output must differ from the input database")
+    sql_order = COHORT_SQL_ORDER + CITATION_SQL_ORDER
+    missing_sql = [name for name in sql_order if not (sql_directory / name).is_file()]
     if missing_sql:
         raise FileNotFoundError(f"missing SQL files: {', '.join(missing_sql)}")
 
@@ -204,32 +208,28 @@ def rebuild(
         connection.execute("PRAGMA mmap_size=2147483648")
         connection.execute("PRAGMA automatic_index=ON")
         connection.execute("ATTACH DATABASE ? AS rolap", (str(building),))
-        connection.execute(
-            "ATTACH DATABASE ? AS cohort",
-            (sqlite_uri(cohort_database, immutable=True),),
-        )
         connection.execute("PRAGMA rolap.journal_mode=OFF")
         connection.execute("PRAGMA rolap.synchronous=OFF")
         connection.execute("PRAGMA temp_store=FILE")
-        connection.executescript(
-            """
-            CREATE TABLE rolap.author_matched_pairs AS
-              SELECT case_orcid, control_orcid, CAST(subject AS TEXT) AS subject
-              FROM cohort.author_matched_pairs;
-            CREATE UNIQUE INDEX rolap.idx_amp_case_subject
-              ON author_matched_pairs(case_orcid, subject);
-            CREATE UNIQUE INDEX rolap.idx_amp_control_subject
-              ON author_matched_pairs(control_orcid, subject);
-
-            CREATE TABLE rolap.author_subject_h5_index AS
-              SELECT orcid, CAST(subject AS TEXT) AS subject, h5_index
-              FROM cohort.author_subject_h5_index;
-            CREATE UNIQUE INDEX rolap.idx_ashi_key
-              ON author_subject_h5_index(orcid, subject);
-            """
+        for name in COHORT_SQL_ORDER:
+            step_started = time.monotonic()
+            print(f"[scratch rebuild] {name}", flush=True)
+            connection.executescript((sql_directory / name).read_text(encoding="utf-8"))
+            print(
+                f"[scratch rebuild] {name} complete in "
+                f"{time.monotonic() - step_started:.1f}s",
+                flush=True,
+            )
+        candidate_count, pairs = materialize_profile_matches(
+            connection, schema="rolap"
         )
-        validate_retained_cohort(connection)
-        for name in SQL_ORDER:
+        print(
+            f"[scratch rebuild] matched {len(pairs):,} pairs from "
+            f"{candidate_count:,} eligible candidates",
+            flush=True,
+        )
+        validate_matched_cohort(connection)
+        for name in CITATION_SQL_ORDER:
             step_started = time.monotonic()
             print(f"[scratch rebuild] {name}", flush=True)
             connection.executescript((sql_directory / name).read_text(encoding="utf-8"))
@@ -239,7 +239,6 @@ def rebuild(
                 flush=True,
             )
         validate_output(connection)
-        connection.execute("DETACH DATABASE cohort")
         connection.execute("DETACH DATABASE rolap")
     finally:
         connection.close()
@@ -257,7 +256,6 @@ def rebuild(
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw-database", type=Path, default=Path("impact.db"))
-    parser.add_argument("--cohort-database", type=Path, default=Path("rolap.db"))
     parser.add_argument(
         "--output-database",
         type=Path,
@@ -272,7 +270,6 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
     rebuild(
         raw_database=args.raw_database,
-        cohort_database=args.cohort_database,
         output_database=args.output_database,
         sql_directory=args.sql_directory,
         force=args.force,

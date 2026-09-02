@@ -8,9 +8,10 @@ Underlying source records remain subject to their source terms, including
 and the [ORCID public-data use policy](https://info.orcid.org/public-data-file-use-policy/).
 
 `rolap.db` contains public ORCID and work identifiers plus derived bibliometric
-and network measures. The canonical revision workflow reads only
-`author_matched_pairs` and `author_subject_h5_index`; all other tables are
-preserved legacy material and are non-authoritative for the revised paper.
-These descriptive records and measures are not findings of intent,
-manipulation, or misconduct. Users should handle person-linked identifiers
-lawfully, fairly, and in accordance with the ORCID policy above.
+and network measures from the earlier sampled analysis. It is preserved legacy
+material and is not a canonical input for the revised paper. The canonical
+workflow constructs the full eligible cohort and every derived analysis table
+from the fixed `impact.db` snapshot in a new output database. These descriptive
+records and measures are not findings of intent, manipulation, or misconduct.
+Users should handle person-linked identifiers lawfully, fairly, and in
+accordance with the ORCID policy above.

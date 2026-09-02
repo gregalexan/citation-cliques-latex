@@ -14,10 +14,9 @@ the manuscript from generated LaTeX macros.
 
 Prerequisites are SQLite, `rdbunit`, Python 3.11 or later, the packages declared
 in `pyproject.toml`, and a LaTeX installation with `biber`.  The raw Crossref
-snapshot is `impact.db`.  The released `rolap.db` preserves the retained
-cohort, its matching covariate, and legacy derived tables; the canonical builder
-reads only `author_matched_pairs` and `author_subject_h5_index` from it.
-Corrected tables are rebuilt from scratch in `build/revision-v1/rolap.db`.
+snapshot is `impact.db`.  The released `rolap.db` preserves the earlier sampled
+cohort and legacy derived tables but is not a canonical input.  The full cohort
+and corrected tables are rebuilt from scratch in `build/revision-v1/rolap.db`.
 The released database contains ORCID-linked author records and descriptive
 legacy metrics, none of which constitutes a finding of misconduct.
 Software is licensed under the [MIT License](LICENSE); the database and its
@@ -32,14 +31,13 @@ Paths and the fixed detector seed can be overridden without editing source:
 ```sh
 make reproduce \
   MAINDB=/absolute/path/to/impact \
-  COHORT_DB=/absolute/path/to/retained-rolap.db \
   ANALYSIS_DB=/absolute/path/to/scratch-rolap.db \
   RESULTS_DIR=results/revision-v1 \
   SEED=42
 ```
 
-`MAINDB` is specified without the `.db` suffix.  `COHORT_DB` and `ANALYSIS_DB`
-include their suffixes and must be different paths.  The analysis CLI accepts
+`MAINDB` is specified without the `.db` suffix.  `ANALYSIS_DB` includes its
+suffix and must differ from the raw input.  The analysis CLI accepts
 any corrected derived-database path and can also be run directly:
 
 ```sh
@@ -54,14 +52,13 @@ The scratch database alone can be rebuilt with:
 ```sh
 .venv/bin/python rebuild_analysis_database.py \
   --raw-database impact.db \
-  --cohort-database rolap.db \
   --output-database build/revision-v1/rolap.db \
   --force
 ```
 
-The builder validates the retained cohort before copying it, writes to a
-temporary `.building` database, validates edge keys and surge bounds, and moves
-the database into place only after a successful run.
+The builder constructs profiles for every non-empty ORCID, matches the complete
+eligible pool, writes to a temporary `.building` database, validates cohort and
+edge invariants, and moves the database into place only after a successful run.
 
 The stable output root is `results/revision-v1/`.  A completed run writes:
 
@@ -71,7 +68,7 @@ The stable output root is `results/revision-v1/`.  A completed run writes:
 - `tables/`, including paired estimates, matching balance, detector/confirmation
   overlap (`anomaly_overlap`), threshold/seed and leave-one-feature-out
   sensitivity (`anomaly_feature_ablation`), weighted mixing, and outlier
-  components;
+  components, plus unique clique membership and subject-level consistency;
 - `figures/`, containing only figures built from the same generated feature and
   flag tables; and
 - `run_metadata.json`, recording the seed, source database, schema checks, and
@@ -84,8 +81,8 @@ canonical workflow or manuscript.
 
 ## Study design
 
-The primary cohort contains 9,431 pairs matched within five subjects.  The
-analysis key is always `(ORCID, subject)`.  An ORCID occurring in more than one
+The primary cohort count is generated dynamically from every eligible non-empty
+ORCID across five subjects.  The analysis key is always `(ORCID, subject)`.  An ORCID occurring in more than one
 subject is therefore more than one observation, and every join that affects an
 estimate includes the subject.
 
@@ -111,39 +108,37 @@ The fixed design proceeds as follows:
 2. Classify an author--subject portfolio as Case when at least 70% of eligible
    works are in the lower stratum and as Control when at least 70% are in the
    upper stratum (minimum three works).
-3. Restrict the retained matching pool to positive `h5`, then match Case and
+3. Restrict the full matching pool to positive `h5`, then match Case and
    Control observations without replacement within subject under the inclusive
    hard caliper `|h5_case - h5_control| <= 3`.
 4. Reconstruct fractional author citation edges for citing works that belong to
    the matched subject.
 5. Compute the eight declared metrics on the appropriate graph population.
 6. Perform paired inference and a Control-referenced anomaly screen.
-7. Describe components induced by the single final flag and compare fractional
-   tier mixing under within-pair label swaps.
+7. Describe components induced by the single final flag, compare fractional
+   tier mixing, and compare unique reciprocal-clique membership within pairs.
 
-Steps 1--3 define the retained input cohort; the revision rebuilds Steps 4--7
-from the raw snapshot.  Exact-`h5` pairs form a sensitivity cohort, not a
-replacement sample.
+All seven steps are rebuilt from the raw snapshot.  Exact-`h5` pairs form a
+sensitivity cohort, not a replacement sample.
 
 Here `h5` is the largest integer `h` for which at least `h` of an author's
 2020--2024 works in the subject are each referenced at least `h` times in the
-fixed snapshot; it can be zero.  The retained upstream table materializes only
-positive values, excluding otherwise tier-eligible author--subjects with
-`h5 = 0` before candidate generation.
+fixed snapshot; it can be zero.  Matching requires a positive value, excluding
+otherwise tier-eligible author--subjects with `h5 = 0` before candidate generation.
 
 Within that positive-`h5` pool, candidate pairs are ordered by subject,
 ascending absolute `h5` distance, Case ORCID, and Control ORCID.  Greedy
 traversal accepts a candidate only when neither author--subject has already
-been used.  Before an existing cohort is retained, its keys and positive `h5`
-values are joined back to the source profiles and validated against the same
-no-replacement and hard-caliper rules.  The matching balance and caliper audit
+been used.  The generated cohort's keys and positive `h5` values are joined
+back to the source profiles and validated against the same no-replacement and
+hard-caliper rules.  The matching balance and caliper audit
 are generated by the workflow rather than asserted as fixed prose values.
 
-The retained cohort can be checked without modifying the source database:
+The generated cohort can be checked without modifying either database:
 
 ```sh
 .venv/bin/python match_authors.py --audit \
-  --audit-output results/revision-v1/matching_audit.txt rolap.db
+  --audit-output results/revision-v1/matching_audit.txt build/revision-v1/rolap.db
 ```
 
 This immutable, read-only audit reconstructs the greedy match from profiles and
@@ -257,7 +252,7 @@ one.
 
 Case and Control rows are joined on both ORCID and subject.  Complete-pair
 deletion is performed independently for every outcome, so pair counts can
-differ and none can exceed 9,431.
+differ and none can exceed the observed matched-cohort count.
 
 The primary family is prior-coauthor citation rate, reciprocity, local clustering,
 and outgoing HHI.  The secondary family is self-citation rate, journal
@@ -349,18 +344,20 @@ null endpoints, reference deduplication in multi-matched-author works, subject
 retention, and strict prior-coauthor timing.  Python tests cover weighted HHI,
 reciprocity, clustering, cumulative dyads, surge examples, missingness,
 subject-keyed pairing, sign flips, weighted mixing, and reuse of the final flag.
-Matching tests cover hard-caliper eligibility, deterministic tie ordering,
-input-order invariance, no replacement, and rejection of an invalid retained
-cohort.  Detector tests cover the overlap-table identities, rank association,
+Matching tests cover full-ORCID inclusion, hard-caliper eligibility,
+deterministic tie ordering, input-order invariance, no replacement, and
+rejection of an invalid generated cohort.  Clique tests cover overlapping
+membership, exact discordant-pair inference, and all threshold sensitivities.
+Detector tests cover the overlap-table identities, rank association,
 and leave-one-feature-out population and final-flag invariants.
 
 Every canonical run additionally asserts:
 
 - no duplicate author--subject--tier observations;
-- retained pairs have unique, non-null author--subject keys, positive `h5`
+- generated pairs have unique, non-null author--subject keys, positive `h5`
   values, and satisfy the inclusive `h5` caliper;
 - no duplicate or null-key citation edges;
-- every per-metric pair count is at most 9,431;
+- every per-metric pair count is at most the observed matched-cohort count;
 - every non-missing surge share lies in `[0, 1]`;
 - all component and figure inputs use `final_flag`; and
 - manuscript quantities come from generated LaTeX macros.
@@ -372,8 +369,9 @@ from zero, and the manuscript must reflect that output.
 ## Scope and interpretation
 
 The snapshot, five subject categories, publication-weighted Eigenfactor
-cutoffs, 70% portfolio rule, positive-`h5` matching pool, and matched cohort are
-fixed.  Coverage is limited by Crossref reference completeness and ORCID
+cutoffs, 70% portfolio rule, and positive-`h5` matching pool are fixed.  The
+matched cohort is regenerated from all eligible identified authors.  Coverage
+is limited by Crossref reference completeness and ORCID
 availability, and the unavailable upstream journal-edge and article-count
 exports prevent end-to-end reproduction of the fixed Eigenfactor scores.
 Topical proximity, geography, language, and collaboration structure remain
@@ -381,7 +379,6 @@ plausible alternative explanations for observed cohesion.  The screen is
 useful for prioritizing records for contextual review; it is not a finding of
 intent or misconduct.
 
-Version 3.0.0 of the revised software, aggregate replication materials, and
-retained-cohort database is archived at
-<https://doi.org/10.5281/zenodo.21720914>.  The approximately 128 GB
-`impact.db` raw snapshot is not included in that archive.
+The v4.0.0 replication archive is available at
+<https://doi.org/10.5281/zenodo.19786936>.  The approximately 128 GB `impact.db`
+raw snapshot is not included in the archive.

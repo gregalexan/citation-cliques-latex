@@ -3,7 +3,6 @@
 export MAINDB ?= $(CURDIR)/impact
 
 RESULTS_DIR ?= results/revision-v1
-COHORT_DB ?= rolap.db
 ANALYSIS_DB ?= build/revision-v1/rolap.db
 SEED ?= 42
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
@@ -19,21 +18,17 @@ SQL_TESTS := $(wildcard tests/*.rdbu)
 
 check-inputs:
 	@test -r "$(MAINDB).db" || { echo "Missing raw snapshot: $(MAINDB).db" >&2; exit 2; }
-	@test -r "$(COHORT_DB)" || { echo "Missing retained cohort database: $(COHORT_DB)" >&2; exit 2; }
 
-match-audit: check-inputs match_authors.py author_matched_candidates.sql
+match-audit: pipeline match_authors.py
 	@echo "[Audit deterministic hard-caliper matching without modifying the cohort]"
 	$(PYTHON) match_authors.py --audit \
-		--audit-output "$(RESULTS_DIR)/matching_audit.txt" "$(COHORT_DB)"
+		--audit-output "$(RESULTS_DIR)/matching_audit.txt" "$(ANALYSIS_DB)"
 
-# Rebuild the citation-facing analysis tables in a genuinely fresh database.
-# The journal classification and 9,431-pair cohort are copied as fixed inputs;
-# the citation construction and every downstream table are reconstructed.
+# Build the complete eligible cohort and all citation-facing tables in a fresh database.
 pipeline: check-inputs rebuild_analysis_database.py
 	@echo "[Build fresh subject-keyed analysis database]"
 	$(PYTHON) rebuild_analysis_database.py \
 		--raw-database "$(MAINDB).db" \
-		--cohort-database "$(COHORT_DB)" \
 		--output-database "$(ANALYSIS_DB)" \
 		--force
 
