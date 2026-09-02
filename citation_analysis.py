@@ -24,6 +24,7 @@ from typing import Iterable, Mapping, Sequence
 import matplotlib
 
 matplotlib.use("Agg")
+matplotlib.rcParams["pdf.fonttype"] = 42  # embed as Type 42, not Type 3 (rejected by ScholarOne)
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np

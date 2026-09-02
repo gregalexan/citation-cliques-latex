@@ -19,13 +19,13 @@ The principal revisions are as follows:
 
 5. We now specify two-sided paired Wilcoxon signed-rank tests, outcome-specific complete-pair deletion, within-family Benjamini–Hochberg correction, matched rank-biserial effects, paired-bootstrap intervals, and sign-flip checks. The rebuilt analysis reports eight outcomes in two declared families. We removed both the earlier “citation trajectories” claim and the inconsistent 13-versus-14 / 12-out-of-14 feature claims.
 
-6. We removed the unsupported hub-and-spoke characterization, Louvain analysis, modularity result, qualitative topology labels, and the fixed-candidate graph-rewiring comparison. The revised clique analysis converts overlapping qualifying cliques to unique author-subject membership and compares Case and Control membership within pairs using the exact pair-label null distribution.
+6. We removed the unsupported hub-and-spoke characterization, Louvain analysis, modularity result, qualitative topology labels, and the fixed-candidate graph-rewiring comparison. A clique is now a maximal clique of at least four nodes in the positive undirected projection, with density and weighted reciprocity formally defined and thresholded (primary rule: density >= 0.75, reciprocity >= 0.50). We convert overlapping qualifying cliques to one membership value per author-subject and compare Case and Control membership within the original matched pairs, conditioning on discordant pairs. Primary-rule membership was 10.96% for Cases and 3.82% for Controls (paired difference 7.14 percentage points; exact p < 0.001), with sensitivity reported across minimum size and reciprocity thresholds. The revision also separates the fixed journal-level Eigenfactor exposure from the author-level directed weighted graph and its undirected projection, stating exactly where direction and weights are retained or discarded.
 
 7. We rewrote the Discussion to compare the regenerated findings with the relevant author- and journal-level literature, explain why the measures are not numerically interchangeable with prior studies, and discuss non-adversarial explanations. The conclusion now states explicitly that the study is associational and that the screen cannot establish coordination, intent, or misconduct.
 
 8. All reported values, tables, and figures now come from one canonical full-cohort analysis output. The verified v4.0.0 replication archive is deposited on Zenodo.
 
-We provide a clean revised manuscript, a marked manuscript with additions shown in blue, and a detailed point-by-point response. Page and line references in the detailed response refer to the clean revised manuscript.
+We provide a clean revised manuscript, a marked manuscript with deletions shown in small red text and additions in bold, and a detailed point-by-point response. Page and line references in the detailed response refer to the clean revised manuscript.
 
 Sincerely,
 
