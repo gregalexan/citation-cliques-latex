@@ -106,9 +106,17 @@ METRIC_LABELS = {
     "annual_dyadic_surge_share": "Surge share",
     "coauthor_citation_rate_same_year": "Prior-coauthor citation (same-year included)",
 }
-# Reader-facing names for the subject codes stored in the snapshot.  Codes not
-# listed here are printed as stored, so an unconfirmed name is never invented.
-SUBJECT_LABELS: dict[str, str] = {}
+# Reader-facing names for the subject codes stored in the snapshot
+# (issn_subjects, from the journal classifier).  The five classes are the four
+# Scopus ASJC subject areas plus Multidisciplinary, numbered alphabetically.
+# Codes not listed here are printed as stored.
+SUBJECT_LABELS: dict[str, str] = {
+    "1": "Health Sciences",
+    "2": "Life Sciences",
+    "3": "Multidisciplinary",
+    "4": "Physical Sciences",
+    "5": "Social Sciences and Humanities",
+}
 
 
 def subject_label(subject: object) -> str:

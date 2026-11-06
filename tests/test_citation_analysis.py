@@ -653,6 +653,12 @@ class MixingTests(unittest.TestCase):
             analysis.expected_same_group_share(result.matrix), 34 / 64
         )
 
+    def test_subject_codes_use_asjc_subject_area_names(self) -> None:
+        self.assertEqual(analysis.subject_label(1), "Health Sciences")
+        self.assertEqual(analysis.subject_label("3"), "Multidisciplinary")
+        self.assertEqual(analysis.subject_label(5), "Social Sciences and Humanities")
+        self.assertEqual(len(set(analysis.SUBJECT_LABELS.values())), 5)
+
     def test_subject_labels_fall_back_to_stored_codes(self) -> None:
         original = dict(analysis.SUBJECT_LABELS)
         try:
