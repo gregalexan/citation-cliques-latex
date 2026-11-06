@@ -11,10 +11,12 @@ SQLITE3 ?= sqlite3
 LATEX ?= pdflatex
 BIBER ?= biber
 LATEX_FLAGS ?= -interaction=nonstopmode -halt-on-error
+LATEXDIFF ?= latexdiff
+BASELINE ?= qss-r1
 SQL_TESTS := $(wildcard tests/*.rdbu)
 
 .PHONY: check-inputs match-audit pipeline analysis sql-test python-test verify \
-	manuscript reviewer-response reproduce
+	manuscript reviewer-response reproduce clique-check rerender marked
 
 check-inputs:
 	@test -r "$(MAINDB).db" || { echo "Missing raw snapshot: $(MAINDB).db" >&2; exit 2; }
@@ -38,6 +40,15 @@ analysis: pipeline
 		--database "$(ANALYSIS_DB)" \
 		--output-dir "$(RESULTS_DIR)" \
 		--seed "$(SEED)"
+
+# Shortcuts for a completed run (no rebuild).  clique-check reads the run's
+# database and adds the prior-coauthor-excluded clique check; rerender rewrites
+# tables, figures, and macros from the saved tables without recomputing estimates.
+clique-check:
+	$(PYTHON) clique_check.py --database "$(ANALYSIS_DB)" --output-dir "$(RESULTS_DIR)"
+
+rerender:
+	$(PYTHON) rerender_results.py --output-dir "$(RESULTS_DIR)"
 
 sql-test:
 	@echo "[Run SQL fixtures]"
@@ -67,6 +78,19 @@ manuscript: analysis
 	$(LATEX) $(LATEX_FLAGS) main.tex
 	$(LATEX) $(LATEX_FLAGS) main.tex
 	@! grep -Eq "undefined references|Citation .* undefined|Reference .* undefined" main.log
+
+# Marked copy against the previous submission ($(BASELINE) tag).  TikZ
+# pictures are compared as whole blocks rather than marked inside.
+marked:
+	git show $(BASELINE):main.tex > main-$(BASELINE).tex
+	$(LATEXDIFF) --flatten --math-markup=whole \
+		--config="PICTUREENV=(?:picture|DIFnomarkup|tikzpicture)[\w\d*@]*" \
+		main-$(BASELINE).tex main.tex > main-marked.tex
+	rm main-$(BASELINE).tex
+	$(LATEX) -interaction=nonstopmode main-marked.tex
+	$(BIBER) main-marked
+	$(LATEX) -interaction=nonstopmode main-marked.tex
+	$(LATEX) -interaction=nonstopmode main-marked.tex
 
 reviewer-response: manuscript
 	$(LATEX) $(LATEX_FLAGS) response_to_reviewer.tex

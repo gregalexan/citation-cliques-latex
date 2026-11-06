@@ -47,3 +47,5 @@ results/*/tables/tier_mixing_permutations.csv
 # Editor/tool artifacts
 tags
 uv.lock
+main-marked.tex
+main-qss-r1.tex

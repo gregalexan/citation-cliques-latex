@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import math
 import sqlite3
 import tempfile
@@ -244,6 +245,27 @@ class CliqueAnalysisTests(unittest.TestCase):
         )
         self.assertEqual(len(result.sensitivity), 9)
         self.assertTrue(result.sensitivity["exact_p"].between(0, 1).all())
+
+    def test_coauthor_exclusion_removes_cliques_formed_by_coauthor_links(self) -> None:
+        edges, membership = self.clique_fixture()
+        edges = edges.assign(
+            is_coauthor_citation=[
+                int({citing, cited} == {"A", "B"})
+                for citing, cited in zip(edges["citing_orcid"], edges["cited_orcid"])
+            ]
+        )
+        baseline = analysis.run_clique_analysis(edges, membership).summary.iloc[0]
+        filtered_edges = analysis.without_prior_coauthor_links(edges)
+        excluded = analysis.run_clique_analysis(filtered_edges, membership).summary.iloc[0]
+        self.assertEqual(len(filtered_edges), len(edges) - 2)
+        self.assertGreater(baseline["case_member_count"], 0)
+        self.assertEqual(excluded["case_member_count"], 0)
+        self.assertEqual(excluded["control_member_count"], 0)
+
+    def test_coauthor_exclusion_requires_the_coauthor_flag(self) -> None:
+        edges, _ = self.clique_fixture()
+        with self.assertRaises(analysis.SchemaError):
+            analysis.without_prior_coauthor_links(edges)
 
     def test_clique_membership_plot_writes_vector_figure(self) -> None:
         edges, membership = self.clique_fixture()
@@ -621,6 +643,26 @@ class MixingTests(unittest.TestCase):
         self.assertAlmostEqual(result.same_tier_share, 0.5)
         self.assertEqual(len(result.null_same_tier_share), 1_000)
         self.assertTrue(np.all((result.null_same_tier_share >= 0) & (result.null_same_tier_share <= 1)))
+        shares = analysis.mixing_row_shares(result.matrix)
+        self.assertAlmostEqual(shares.loc["Case", "Case"], 0.6)
+        self.assertAlmostEqual(shares.loc["Control", "Control"], 1 / 3)
+        np.testing.assert_allclose(shares.sum(axis=1), 1.0)
+        # Row and column shares are both (5/8, 3/8), so the expected same-group
+        # share is 25/64 + 9/64.
+        self.assertAlmostEqual(
+            analysis.expected_same_group_share(result.matrix), 34 / 64
+        )
+
+    def test_subject_labels_fall_back_to_stored_codes(self) -> None:
+        original = dict(analysis.SUBJECT_LABELS)
+        try:
+            analysis.SUBJECT_LABELS.clear()
+            analysis.SUBJECT_LABELS["1"] = "Example Sciences"
+            self.assertEqual(analysis.subject_label(1), "Example Sciences")
+            self.assertEqual(analysis.subject_label("2"), "2")
+        finally:
+            analysis.SUBJECT_LABELS.clear()
+            analysis.SUBJECT_LABELS.update(original)
 
 
 class ArtifactWriterTests(unittest.TestCase):
@@ -703,6 +745,34 @@ class ArtifactWriterTests(unittest.TestCase):
             self.assertAlmostEqual(
                 by_author.loc["A", "coauthor_citation_rate_same_year"], 0.3
             )
+            # The collaboration check filters the loaded edges, so the loader
+            # must keep the prior-coauthor flag.
+            self.assertIn("is_coauthor_citation", loaded.edges.columns)
+            self.assertEqual(
+                len(analysis.without_prior_coauthor_links(loaded.edges)),
+                len(loaded.edges) - 1,
+            )
+            excluded = analysis.run_clique_analysis(
+                analysis.without_prior_coauthor_links(loaded.edges),
+                loaded.membership,
+            )
+            self.assertEqual(len(excluded.summary), 1)
+            self.assertEqual(int(excluded.summary.iloc[0]["matched_pair_count"]), 1)
+
+            output = Path(temporary) / "revision-v1"
+            (output / "tables").mkdir(parents=True)
+            for name in ("tier_mixing_permutations.csv", "clique_summary.csv"):
+                (output / "tables" / name).write_text("placeholder\n")
+            (output / "run_metadata.json").write_text('{"matched_pairs": 2}\n')
+            with self.assertRaises(analysis.SchemaError):
+                analysis.run_coauthor_clique_check(database, output)
+            (output / "run_metadata.json").write_text('{"matched_pairs": 1}\n')
+            analysis.run_coauthor_clique_check(database, output)
+            pair_h5 = pd.read_csv(output / "tables" / analysis.MATCHED_PAIR_H5_FILE)
+            self.assertEqual(list(pair_h5.columns), ["pair_id", "subject", "case_h5", "control_h5"])
+            self.assertEqual(len(pair_h5), 1)
+            check = pd.read_csv(output / "tables" / analysis.COAUTHOR_EXCLUDED_CLIQUE_FILE)
+            self.assertEqual(int(check.iloc[0]["matched_pair_count"]), 1)
 
     def test_writer_emits_stable_offline_interface(self) -> None:
         pair_count = 6
@@ -828,7 +898,8 @@ class ArtifactWriterTests(unittest.TestCase):
             same_tier_share=2 / 3,
             assortativity=1 / 3,
             permutation_p=0.5,
-            null_same_tier_share=np.array([0.5, 2 / 3]),
+            # One swap at the null centre gives p = 1/2, matching label_swap_p.
+            null_same_tier_share=np.array([0.5]),
         )
         cliques = analysis.run_clique_analysis(
             empty_edges,
@@ -865,6 +936,7 @@ class ArtifactWriterTests(unittest.TestCase):
                 components=components,
                 mixing=mixing,
                 cliques=cliques,
+                coauthor_excluded_cliques=cliques,
             )
             expected = [
                 "results_macros.tex",
@@ -882,6 +954,9 @@ class ArtifactWriterTests(unittest.TestCase):
                 "tables/clique_sensitivity.csv",
                 "tables/clique_membership.csv",
                 "tables/clique_subject_consistency.csv",
+                "tables/clique_subjects.tex",
+                "tables/clique_summary_coauthor_excluded.csv",
+                "tables/matched_pair_h5.csv",
                 "figures/paired_effects.pdf",
                 "figures/anomaly_enrichment.pdf",
                 "figures/tier_mixing.pdf",
@@ -907,6 +982,13 @@ class ArtifactWriterTests(unittest.TestCase):
             self.assertIn(
                 r"\newcommand{\AnomalyFeatureAblationFindingText}", macros
             )
+            for name in ("AnomalyOverlapFindingText", "AnomalyFeatureAblationFindingText"):
+                line = next(
+                    item for item in macros.splitlines() if f"\\{name}}}" in item
+                )
+                self.assertNotIn("enrichment", line)
+                self.assertNotIn(" rows", line)
+            self.assertIn("overlap with the main flags (Jaccard index)", macros)
             self.assertIn("All four primary mean differences favored Cases", macros)
             self.assertIn(
                 "all four comparisons were significant after adjustment", macros
@@ -918,9 +1000,56 @@ class ArtifactWriterTests(unittest.TestCase):
             paired_primary = (output / "tables/paired_primary.tex").read_text(
                 encoding="utf-8"
             )
-            self.assertIn("Mean diff.", paired_primary)
-            self.assertIn("Mean boot. CI", paired_primary)
+            self.assertIn("Mean difference", paired_primary)
+            self.assertIn("95\\% CI", paired_primary)
+            self.assertNotIn("Sign-flip", paired_primary)
             self.assertIn("rank-biserial", paired_primary)
+            self.assertIn(f"of the {pair_count:,} matched pairs", paired_primary)
+            for name in (
+                "ExactHFivePairPercent",
+                "MixingExpectedSamePercent",
+                "MixingCaseToCasePercent",
+                "CliqueSubjectDifferenceMinimumPoints",
+                "CliqueNoCoauthorPairedDifferencePoints",
+                "CliqueNoCoauthorExactP",
+            ):
+                self.assertIn(f"\\newcommand{{\\{name}}}", macros)
+            self.assertIn(r"\newcommand{\ExactHFivePairPercent}{100.0}", macros)
+            ablation_table = (
+                output / "tables/anomaly_feature_ablation.tex"
+            ).read_text(encoding="utf-8")
+            self.assertIn("6 eligible Case and 6 eligible Control", ablation_table)
+            self.assertIn("Jaccard index", ablation_table)
+            self.assertNotIn("Enrichment", ablation_table)
+            mixing_table = (output / "tables/tier_mixing.tex").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("To Cases", mixing_table)
+            self.assertIn("66.7\\%", mixing_table)
+            clique_table = (output / "tables/clique_summary.tex").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("Prior-coauthor links removed", clique_table)
+            self.assertIn(f"{pair_count:,} matched Cases", clique_table)
+            for table in (output / "tables").glob("*.tex"):
+                content = table.read_text(encoding="utf-8")
+                self.assertNotRegex(content, r"\b[Tt]ier\b", table.name)
+
+            # A presentation-only refresh from the saved tables must reproduce
+            # every LaTeX table and macro of the full run exactly.
+            rendered = [output / "results_macros.tex", *sorted((output / "tables").glob("*.tex"))]
+            before = {path: path.read_text(encoding="utf-8") for path in rendered}
+            for path in rendered:
+                path.unlink()
+            analysis.rerender_results(output)
+            for path, content in before.items():
+                self.assertEqual(path.read_text(encoding="utf-8"), content, path.name)
+            metadata = json.loads((output / "run_metadata.json").read_text(encoding="utf-8"))
+            self.assertTrue(metadata["clique_coauthor_excluded_check"])
+            self.assertIn("no estimate recomputed", metadata["presentation_source"])
+            (output / "tables" / analysis.MATCHED_PAIR_H5_FILE).unlink()
+            with self.assertRaises(analysis.SchemaError):
+                analysis.rerender_results(output)
 
 
 class ScratchDatabaseTests(unittest.TestCase):

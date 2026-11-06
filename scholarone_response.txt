@@ -1,31 +1,26 @@
-Manuscript QSS-2026-0077 - Major Revision
+Manuscript QSS-2026-0077.R1 - Major Revision
 
-Original title: Citation Cliques in Low Impact Journals
-Revised title: Citation-Network Cohesion and Reciprocal Citation Cliques Across Journal-Impact Groups: A Matched Author Analysis
+Title: Citation-Network Cohesion and Reciprocal Citation Cliques Across Journal-Impact Groups: A Matched Author Analysis
 
 Dear Dr. Larivière,
 
-Thank you for inviting a major revision of manuscript QSS-2026-0077. We also thank Reviewer 1 for the detailed and constructive assessment. We have rebuilt the affected analysis and substantially revised the manuscript. The new title reflects the associational matched-author design and names the formally defined reciprocal-clique analysis without implying intent.
+Thank you for the opportunity to revise the manuscript again, and thank you to Reviewer 1 for a second careful reading. The reviewer is right that our previous revision answered the first-round concerns about rigour by adding technical material to the main text, and that the scientific message was lost as a result. This revision is a restructuring rather than a rewording.
 
-The principal revisions are as follows:
+The principal changes are:
 
-1. We reorganized the manuscript so that the data, matching procedure, graph definitions, paired inference, and anomaly screen are introduced before the results. Technical terms, notation, analytic populations, denominators, and missing-value rules are now defined in plain language as well as formally.
+1. Structure and technical detail. All implementation material (venue-score equations, construction and missing-value rules, graph notation and formulas, the matching audit, the screen specification, reproducibility checks, and the journal-classification details) has moved to appendices after the references. The main text has one compact Data and Methods section without equations, and the eight measures are described in plain language. The first-round corrections (matching rule and order, named paired test, Control-percentile screen, sensitivity analyses, formal clique definition) remain in force and are summarized in the main text.
 
-2. We replaced the deterministic 10% ORCID sample with every eligible non-empty ORCID in the fixed snapshot. We retained the inclusive hard caliper |h5,Case - h5,Control| <= 3 and the deterministic greedy order: subject, absolute h5 difference, Case ORCID, and Control ORCID. A read-only audit reproduces the generated full-cohort match and checks positive h5, no caliper violations, and no reused author-subject keys.
+2. Narrative and interpretation. The Introduction now starts from the conceptual problem that citation cohesion can reflect specialization, collaboration, regional communities, or strategic exchange. A new Background section reviews theories of citing, collaboration and self-citation, citation cartels, invisible colleges and topical proximity, journal stratification, and field normalization. The Discussion interprets the findings against this literature, with a new figure that sets out the competing explanations and what the data can examine, and adds implications for scientometric practice.
 
-3. We replaced the former metric table with self-contained operational definitions. The former “normalised burst intensity” variable and its Kleinberg attribution were removed. The revised maximum annual dyadic surge share is explicitly defined as a bounded five-year scalar summary, not a trajectory model or an implementation of Kleinberg’s burst-detection method.
+3. Motivation for methodological choices. Each choice (Eigenfactor groups and cutoffs, the 70% rule, h5 matching, the caliper, clique thresholds, screen inputs and percentiles) is now motivated where it is introduced, together with its sensitivity analysis. A redrawn study-design figure and a new figure illustrating the clique thresholds support the methods summary.
 
-4. We removed K-means clustering and the former three-cluster result. We also removed feature weights, the four-sigma cutoff, and the Cohesion Composite Score. The revised anomaly screen uses five declared structural features, Control-referenced median/IQR scaling, Control percentile cutoffs, and sensitivity analyses across thresholds, seeds, and leave-one-feature-out fits. The overlap between the Isolation Forest score and the cohesion restriction is quantified and described as an overlapping guardrail, not independent confirmation.
+4. Field differences and collaboration. Clique membership is now reported by subject, and a new analysis repeats the clique comparison after removing citation links between prior coauthors. Team structure and topical proximity are discussed as explanations and stated as limitations.
 
-5. We now specify two-sided paired Wilcoxon signed-rank tests, outcome-specific complete-pair deletion, within-family Benjamini–Hochberg correction, matched rank-biserial effects, paired-bootstrap intervals, and sign-flip checks. The rebuilt analysis reports eight outcomes in two declared families. We removed both the earlier “citation trajectories” claim and the inconsistent 13-versus-14 / 12-out-of-14 feature claims.
+5. Tables. Every table states its denominators and explains its calculations in words. Former Table 12 has been rewritten accordingly, the mixing table now reports shares, and subjects are named. Main-text tables were reduced from eleven to six.
 
-6. We removed the unsupported hub-and-spoke characterization, Louvain analysis, modularity result, qualitative topology labels, and the fixed-candidate graph-rewiring comparison. A clique is now a maximal clique of at least four nodes in the positive undirected projection, with density and weighted reciprocity formally defined and thresholded (primary rule: density >= 0.75, reciprocity >= 0.50). We convert overlapping qualifying cliques to one membership value per author-subject and compare Case and Control membership within the original matched pairs, conditioning on discordant pairs. Primary-rule membership was 10.96% for Cases and 3.82% for Controls (paired difference 7.14 percentage points; exact p < 0.001), with sensitivity reported across minimum size and reciprocity thresholds. The revision also separates the fixed journal-level Eigenfactor exposure from the author-level directed weighted graph and its undirected projection, stating exactly where direction and weights are retained or discarded.
+6. Limitations. The section now begins with conceptual limitations: the meaning of a reciprocal clique, specialization and topical proximity, journal-impact group as a bundle of characteristics, the boundary of the matched-author graph, and the associational design.
 
-7. We rewrote the Discussion to compare the regenerated findings with the relevant author- and journal-level literature, explain why the measures are not numerically interchangeable with prior studies, and discuss non-adversarial explanations. The conclusion now states explicitly that the study is associational and that the screen cannot establish coordination, intent, or misconduct.
-
-8. All reported values, tables, and figures now come from one canonical full-cohort analysis output. The verified v4.0.0 replication archive is deposited on Zenodo.
-
-We provide a clean revised manuscript, a marked manuscript with deletions shown in small red text and additions in bold, and a detailed point-by-point response. Page and line references in the detailed response refer to the clean revised manuscript.
+A detailed point-by-point response, a table mapping each part of the previous version to its new location, the clean manuscript with its appendices, and a marked manuscript are provided.
 
 Sincerely,
 
